@@ -238,7 +238,7 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 .kit img { width: 100%; height: 100%; object-fit: contain; object-position: 50% 50%; display: block; }
 .kit img.flip { transform: scaleX(-1); }
 .tile { pointer-events: none; } /* touches hit the cell underneath, even mid-hop */
-.box { display: block; width: 78%; height: 78%; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M8 24 18 12h28l10 12z' fill='%23e2b47c' stroke='%237a4f24' stroke-width='2.5' stroke-linejoin='round'/%3E%3Crect x='8' y='24' width='48' height='30' rx='3' fill='%23cf9a5e' stroke='%237a4f24' stroke-width='2.5'/%3E%3Cpath d='M29 24h6v30h-6z' fill='%23ead2a8' opacity='.85'/%3E%3Cpath d='M14 30h9M14 35h6' stroke='%237a4f24' stroke-width='2' stroke-linecap='round' opacity='.5'/%3E%3Cpath d='M38 40v-4a6 6 0 0 1 12 0v4' fill='none' stroke='%235b6170' stroke-width='3.5'/%3E%3Crect x='35' y='39' width='18' height='14' rx='3' fill='%23f2c94c' stroke='%238a6a12' stroke-width='2'/%3E%3Ccircle cx='44' cy='45' r='2.2' fill='%238a6a12'/%3E%3Cpath d='M44 46.5v3' stroke='%238a6a12' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+.box { display: block; width: 92%; height: 92%; background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect x=%223%22 y=%223%22 width=%2258%22 height=%2258%22 rx=%229%22 fill=%22%233a3f4b%22 stroke=%22%2312141a%22 stroke-width=%223%22/%3E%3Crect x=%228%22 y=%228%22 width=%2248%22 height=%2248%22 rx=%225%22 fill=%22%232a2e37%22/%3E%3Cpath d=%22M12 12 52 52M52 12 12 52%22 stroke=%22%2312141a%22 stroke-width=%2211%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M12 12 52 52M52 12 12 52%22 stroke=%22%238b93a4%22 stroke-width=%226%22 stroke-linecap=%22round%22/%3E%3Cg fill=%22%23c5cbd6%22 stroke=%22%2312141a%22 stroke-width=%221.5%22%3E%3Ccircle cx=%229%22 cy=%229%22 r=%223%22/%3E%3Ccircle cx=%2255%22 cy=%229%22 r=%223%22/%3E%3Ccircle cx=%229%22 cy=%2255%22 r=%223%22/%3E%3Ccircle cx=%2255%22 cy=%2255%22 r=%223%22/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat; }
 .cell.locked { display: grid; place-items: center; }
 .bed {
   position: absolute; left: 20%; right: 20%; bottom: 24%; height: 26%;
@@ -563,7 +563,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
       <li><div class="pics"><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span></div>
         <p><b>Win</b> when every kitten sleeps alone in its own cell. Stuck? Swipe a kitten back onto its twin to rejoin them, or restart.</p></li>
       <li><div class="pics"><span class="cot" data-kit="fight2"></span><i>✕</i><span class="cot"><span class="box"></span></span></div>
-        <p><b>Boxes</b> are locked. No kitten can split into one or sleep there, so you never need to fill it.</p></li>
+        <p><b>Blocked cells</b> are off limits. No kitten can split into one or sleep there, so you never need to fill it.</p></li>
       <li id="howtoFuse"><div class="pics"><span class="cot fused" data-kit="fight2"><b></b></span><i>›</i><span class="cot" data-kit="boom"></span></div>
         <p><b class="warn">Normal:</b> every fight has a fuse. Split it before the fuse burns down, or it blows up.</p></li>
     </ol>
@@ -1083,7 +1083,7 @@ if (typeof document !== 'undefined') {
     const locks = cells.some(t => t && t.lock);
     let lockTip = false;
     try { lockTip = locks && !localStorage.getItem('split.lockTip'); if (lockTip && S.won) localStorage.setItem('split.lockTip', '1'); } catch (err) {}
-    $('quip').textContent = lockTip ? 'Boxes are locked. No kitten can go in one.' : S.skin === 'kittens' ? QUIPS[(S.stage || 0) % QUIPS.length] : '';
+    $('quip').textContent = lockTip ? 'Blocked cells are off limits. No kitten can go in one.' : S.skin === 'kittens' ? QUIPS[(S.stage || 0) % QUIPS.length] : '';
     $('time').textContent = fmtTime(S.elapsed);
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
