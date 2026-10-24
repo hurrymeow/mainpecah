@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d0f14">
+<title>Split</title>
+<style>
+/* Layout: one locked portrait column. Header, controls, square board filling the rest, actions. */
+:root {
+  --bg: #0d0f14;
+  --panel: #161a22;
+  --well: #1e232d;
+  --line: #2a303c;
+  --text: #e9ecf3;
+  --muted: #8a92a6;
+  --accent: #8fb3ff;
+  --bad: #ff4757;
+  --good: #4fd69c;
+  --gap: 6px;
+  --cell: 64px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none;
+  background: var(--bg); color: var(--text);
+  font: 15px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-user-select: none; user-select: none; touch-action: manipulation;
+}
+body { position: fixed; inset: 0; }
+#app {
+  height: 100%; max-width: 560px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: 10px;
+  padding-block: max(10px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
+.stats { display: flex; gap: 14px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.stats b { color: var(--text); font-weight: 650; }
+
+.controls { display: flex; gap: 10px; align-items: center; }
+.seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: none; }
+.seg button { border: 0; background: none; color: var(--muted); padding: 8px 11px; font: inherit; font-size: 14px; }
+.seg button.on { background: var(--line); color: var(--text); }
+.slider { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.slider input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.slider output { color: var(--text); font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+
+#stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#board {
+  display: grid; gap: var(--gap); padding: var(--gap);
+  background: var(--panel); border-radius: 14px; touch-action: none;
+}
+.cell { position: relative; border-radius: 10px; background: var(--well); }
+.cell.hint-dst { box-shadow: inset 0 0 0 3px var(--accent); }
+.tile {
+  position: absolute; inset: 0; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: calc(var(--cell) * .42); color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.45); font-variant-numeric: tabular-nums;
+  transition: transform .08s ease-out;
+}
+.tile.active { transform: scale(.94); }
+.tile.ghost { opacity: .5; outline: 2px dashed rgba(255,255,255,.75); outline-offset: -5px; }
+.tile.blocked { box-shadow: inset 0 0 0 4px var(--bad), 0 0 14px rgba(255,71,87,.55); }
+.tile .arrow {
+  position: absolute; top: 3px; right: 6px; font-size: calc(var(--cell) * .26);
+  color: var(--accent); text-shadow: 0 0 4px #000;
+}
+
+#status { height: 20px; text-align: center; font-size: 14px; color: var(--muted); }
+#status.bad { color: var(--bad); font-weight: 700; }
+#status.hint { color: var(--accent); }
+
+.actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+button.btn {
+  font: inherit; font-weight: 650; color: var(--text); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 12px; padding: 13px 0;
+}
+button.btn:active { background: var(--line); }
+button.btn:disabled { opacity: .4; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.debug { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
+.debug label { display: flex; align-items: center; gap: 6px; }
+
+#overlay {
+  position: fixed; inset: 0; background: rgba(5,6,10,.72);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+  padding: 24px; width: min(320px, 100%); text-align: center;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.card h2 { margin: 0; font-size: 30px; color: var(--good); letter-spacing: .04em; }
+.card dl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 0; font-variant-numeric: tabular-nums; }
+.card dt { color: var(--muted); text-align: right; }
+.card dd { margin: 0; text-align: left; font-weight: 700; }
+.card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { .tile { transition: none; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>SPLIT</h1>
+    <div class="stats">
+      <span>Time <b id="time">0:00</b></span>
+      <span>Undos <b id="undos">0</b></span>
+      <span>Left <b id="left">0</b></span>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div class="seg" id="sizes">
+      <button data-n="4">4×4</button><button data-n="5">5×5</button><button data-n="6">6×6</button>
+    </div>
+    <label class="slider">Tiles
+      <input id="tiles" type="range" min="2" max="10" value="5">
+      <output id="tilesOut">5</output>
+    </label>
+  </div>
+
+  <div id="stage"><div id="board"></div></div>
+  <div id="status"></div>
+
+  <div class="actions">
+    <button class="btn" id="undo">Undo</button>
+    <button class="btn" id="restart">Restart</button>
+    <button class="btn" id="new">New board</button>
+  </div>
+  <div class="debug">
+    <label><input type="checkbox" id="showSol"> Show solution</label>
+    <span id="info"></span>
+  </div>
+</div>
+
+<div id="overlay" hidden>
+  <div class="card">
+    <h2>Solved</h2>
+    <dl><dt>Time</dt><dd id="winTime"></dd><dt>Undos</dt><dd id="winUndos"></dd></dl>
+    <div class="row">
+      <button class="btn" id="winRestart">Replay</button>
+      <button class="btn" id="winNew">New board</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ===================== STATE =====================
+// A board is a flat array of n*n cells. Each cell is null (empty) or {v, c}:
+// v = value (power of two), c = colour id of the starting tile it descends from.
+
+const MAX_TILE = 16;
+const THRESHOLD = 20; // px before a drag counts as a swipe
+const SIZES = { 4: { min: 2, max: 10, def: 5 }, 5: { min: 3, max: 15, def: 8 }, 6: { min: 4, max: 20, def: 11 } };
+const DIRS = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
+const ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
+
+const S = {
+  n: 4, target: 5,
+  board: null,      // generator output: {n, cells, solution, path}
+  cells: null,      // current cells
+  history: [],      // previous cells, for unlimited undo
+  undos: 0,
+  t0: 0, elapsed: 0, timer: 0,
+  won: false,
+  showSol: false,
+  drag: null,       // {id, i, x, y, dir, dest}
+};
+
+const cloneCells = cells => cells.map(t => t && { v: t.v, c: t.c });
+const keyOf = cells => cells.map(t => (t ? t.v : 0)).join(',');
+
+// ===================== GENERATOR =====================
+// Reverse merge: start all 1s, merge equal orthogonal neighbours until the
+// tile count hits the target. Each merge is recorded; replaying them backwards
+// as splits is a guaranteed solution.
+
+function generate(n, target, rand = Math.random) {
+  let best = null;
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const v = new Array(n * n).fill(1);
+    const merges = [];
+    let tiles = n * n;
+    while (tiles > target) {
+      const pairs = [];
+      for (let i = 0; i < n * n; i++) {
+        if (!v[i] || v[i] * 2 > MAX_TILE) continue;
+        if (i % n + 1 < n && v[i + 1] === v[i]) pairs.push([i, i + 1]);
+        if (i + n < n * n && v[i + n] === v[i]) pairs.push([i, i + n]);
+      }
+      if (!pairs.length) break;
+      let [a, b] = pairs[Math.floor(rand() * pairs.length)];
+      if (rand() < 0.5) [a, b] = [b, a];
+      v[a] *= 2; v[b] = 0;
+      merges.push({ keep: a, gone: b });
+      tiles--;
+    }
+    if (Math.max(...v) > MAX_TILE) continue; // reject
+    if (!best || tiles < best.tiles) best = { v, merges, tiles };
+    if (tiles <= target) break;
+  }
+
+  let colour = 0;
+  const cells = best.v.map(x => (x ? { v: x, c: colour++ } : null));
+  const solution = best.merges.slice().reverse()
+    .map(m => ({ from: m.keep, dir: dirBetween(n, m.keep, m.gone) }));
+
+  // States along the solution, so hints still work after a correct move made in any order.
+  const path = [keyOf(cells)];
+  let cur = cells;
+  for (const s of solution) { cur = applySplit(cur, n, s.from, s.dir); path.push(keyOf(cur)); }
+
+  return { n, cells, solution, path, tiles: best.tiles };
+}
+
+// ===================== MOVES =====================
+
+function neighbour(n, i, dir) {
+  const r = Math.floor(i / n) + DIRS[dir][0], c = (i % n) + DIRS[dir][1];
+  return r < 0 || c < 0 || r >= n || c >= n ? -1 : r * n + c;
+}
+
+function dirBetween(n, a, b) {
+  for (const d in DIRS) if (neighbour(n, a, d) === b) return d;
+  return null;
+}
+
+// Destination index if tile i can split toward dir, else -1.
+function splitTarget(cells, n, i, dir) {
+  const t = cells[i];
+  if (!t || t.v < 2) return -1;
+  const j = neighbour(n, i, dir);
+  return j >= 0 && !cells[j] ? j : -1;
+}
+
+function applySplit(cells, n, i, dir) {
+  const j = splitTarget(cells, n, i, dir);
+  if (j < 0) return null;
+  const out = cloneCells(cells);
+  out[i].v /= 2;
+  out[j] = { v: out[i].v, c: out[i].c };
+  return out;
+}
+
+const isWin = cells => cells.every(t => t && t.v === 1);
+
+function blockedTiles(cells, n) {
+  const out = [];
+  cells.forEach((t, i) => {
+    if (t && t.v > 1 && Object.keys(DIRS).every(d => splitTarget(cells, n, i, d) < 0)) out.push(i);
+  });
+  return out;
+}
+
+function isStuck(cells, n) {
+  if (cells.every(Boolean)) return false;
+  return cells.every((t, i) => !t || t.v < 2 || Object.keys(DIRS).every(d => splitTarget(cells, n, i, d) < 0));
+}
+
+function nextHint() {
+  const k = S.board.path.indexOf(keyOf(S.cells));
+  return k >= 0 && k < S.board.solution.length ? S.board.solution[k] : null;
+}
+
+// Headless check: sums, max tile, and the recorded solution reaches all 1s.
+function selfTest(perSize = 1000, rand = Math.random) {
+  const results = {};
+  for (const n of [4, 5, 6]) {
+    const { min, max } = SIZES[n];
+    let sum = 0, cap = 0, solved = 0, hitTarget = 0;
+    for (let k = 0; k < perSize; k++) {
+      const target = min + Math.floor(rand() * (max - min + 1));
+      const b = generate(n, target, rand);
+      const vals = b.cells.map(t => (t ? t.v : 0));
+      if (vals.reduce((a, x) => a + x, 0) === n * n) sum++;
+      if (Math.max(...vals) <= MAX_TILE) cap++;
+      if (b.tiles === target) hitTarget++;
+      let cur = b.cells, ok = true;
+      for (const s of b.solution) { cur = applySplit(cur, n, s.from, s.dir); if (!cur) { ok = false; break; } }
+      if (ok && isWin(cur)) solved++;
+    }
+    results[n] = { boards: perSize, sum, cap, solved, hitTarget };
+  }
+  return results;
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = { generate, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE };
+}
+
+// ===================== RENDER =====================
+
+if (typeof document !== 'undefined') {
+  const $ = id => document.getElementById(id);
+  const boardEl = $('board'), stageEl = $('stage');
+
+  function tileColour(c, v) {
+    const hue = 25 + ((c * 137.508) % 310); // golden-angle spread, skips pure red (reserved for "blocked")
+    const light = 30 + Math.log2(v) * 5;    // bigger values a touch brighter
+    return `hsl(${hue.toFixed(0)} 58% ${light}%)`;
+  }
+
+  function fmtTime(ms) {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  function layout() {
+    const r = stageEl.getBoundingClientRect();
+    const side = Math.floor(Math.min(r.width, r.height));
+    boardEl.style.width = boardEl.style.height = side + 'px';
+    const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'));
+    boardEl.style.setProperty('--cell', (side - gap * (S.n + 1)) / S.n + 'px');
+  }
+
+  function render() {
+    const { n, cells, drag } = S;
+    const stuck = !S.won && isStuck(cells, n);
+    const blocked = new Set(stuck ? blockedTiles(cells, n) : []);
+    const hint = S.showSol && !S.won ? nextHint() : null;
+    const hintDst = hint ? neighbour(n, hint.from, hint.dir) : -1;
+
+    boardEl.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+    let html = '';
+    for (let i = 0; i < n * n; i++) {
+      let t = cells[i], cls = '', extra = '';
+      if (drag && drag.dest >= 0) {
+        const src = cells[drag.i];
+        if (i === drag.i) { t = { v: src.v / 2, c: src.c }; cls = ' active'; }
+        if (i === drag.dest) { t = { v: src.v / 2, c: src.c }; cls = ' ghost'; }
+      }
+      if (blocked.has(i)) cls += ' blocked';
+      if (hint && i === hint.from) extra = `<span class="arrow">${ARROWS[hint.dir]}</span>`;
+      const tile = t ? `<div class="tile${cls}" style="background:${tileColour(t.c, t.v)}">${t.v}${extra}</div>` : '';
+      html += `<div class="cell${i === hintDst ? ' hint-dst' : ''}" data-i="${i}">${tile}</div>`;
+    }
+    boardEl.innerHTML = html;
+
+    const status = $('status');
+    status.className = '';
+    if (stuck) { status.textContent = 'Stuck. Undo or restart.'; status.className = 'bad'; }
+    else if (hint) { status.textContent = `Hint: split the ${cells[hint.from].v} ${hint.dir}`; status.className = 'hint'; }
+    else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Undo to get hints back.'; status.className = 'hint'; }
+    else status.textContent = S.t0 ? '' : 'Swipe a tile into an empty cell to split it';
+
+    $('undos').textContent = S.undos;
+    $('left').textContent = cells.filter(t => !t).length;
+    $('time').textContent = fmtTime(S.elapsed);
+    $('undo').disabled = !S.history.length || S.won;
+    $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.length} splits`;
+    document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
+  }
+
+  // ---------- game flow ----------
+  function stopTimer() { clearInterval(S.timer); S.timer = 0; }
+  function startTimer() {
+    S.t0 = Date.now();
+    S.timer = setInterval(() => { S.elapsed = Date.now() - S.t0; $('time').textContent = fmtTime(S.elapsed); }, 250);
+  }
+
+  function restart() {
+    stopTimer();
+    Object.assign(S, { cells: cloneCells(S.board.cells), history: [], undos: 0, t0: 0, elapsed: 0, won: false, drag: null });
+    $('overlay').hidden = true;
+    render();
+  }
+
+  function newBoard() {
+    S.board = generate(S.n, S.target);
+    layout();
+    restart();
+  }
+
+  function setSize(n) {
+    S.n = n;
+    const { min, max, def } = SIZES[n];
+    const slider = $('tiles');
+    slider.min = min; slider.max = max; slider.value = def;
+    S.target = def; $('tilesOut').textContent = def;
+    newBoard();
+  }
+
+  function move(i, dir) {
+    const next = applySplit(S.cells, S.n, i, dir);
+    if (!next) return;
+    if (!S.t0) startTimer();
+    S.history.push(S.cells);
+    S.cells = next;
+    if (isWin(next)) {
+      S.won = true; S.elapsed = Date.now() - S.t0; stopTimer();
+      $('winTime').textContent = fmtTime(S.elapsed);
+      $('winUndos').textContent = S.undos;
+      $('overlay').hidden = false;
+    }
+    render();
+  }
+
+  function undo() {
+    if (!S.history.length || S.won) return;
+    S.cells = S.history.pop();
+    S.undos++;
+    render();
+  }
+
+  // ===================== INPUT =====================
+  boardEl.addEventListener('pointerdown', e => {
+    if (S.won || S.drag) return;
+    const cell = e.target.closest('.cell');
+    if (!cell) return;
+    const i = +cell.dataset.i;
+    if (!S.cells[i]) return;
+    e.preventDefault();
+    boardEl.setPointerCapture(e.pointerId);
+    S.drag = { id: e.pointerId, i, x: e.clientX, y: e.clientY, dir: null, dest: -1 };
+  });
+
+  boardEl.addEventListener('pointermove', e => {
+    const d = S.drag;
+    if (!d || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    let dir = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) >= THRESHOLD) {
+      dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    }
+    const dest = dir ? splitTarget(S.cells, S.n, d.i, dir) : -1;
+    if (dir !== d.dir || dest !== d.dest) { d.dir = dir; d.dest = dest; render(); }
+  });
+
+  function endDrag(e, commit) {
+    const d = S.drag;
+    if (!d || d.id !== e.pointerId) return;
+    S.drag = null;
+    if (commit && d.dest >= 0) move(d.i, d.dir); else render();
+  }
+  boardEl.addEventListener('pointerup', e => endDrag(e, true));
+  boardEl.addEventListener('pointercancel', e => endDrag(e, false));
+
+  $('sizes').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setSize(+b.dataset.n); });
+  $('tiles').addEventListener('input', e => { $('tilesOut').textContent = e.target.value; });
+  $('tiles').addEventListener('change', e => { S.target = +e.target.value; newBoard(); });
+  $('undo').addEventListener('click', undo);
+  $('restart').addEventListener('click', restart);
+  $('new').addEventListener('click', newBoard);
+  $('winRestart').addEventListener('click', restart);
+  $('winNew').addEventListener('click', newBoard);
+  $('showSol').addEventListener('change', e => { S.showSol = e.target.checked; render(); });
+  document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'z') undo(); });
+  window.addEventListener('resize', layout);
+
+  setSize(4);
+
+  // Open with ?test to run the generator check in the page.
+  if (/[?&]test\b/.test(location.search)) {
+    const r = selfTest(1000);
+    const line = Object.entries(r).map(([n, x]) => `${n}x${n}: ${x.solved}/${x.boards}`).join(' · ');
+    $('status').textContent = 'Self-test ' + line;
+    console.table(r);
+  }
+}
+</script>
+</body>
+</html>
