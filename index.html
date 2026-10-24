@@ -51,22 +51,21 @@ body { position: fixed; inset: 0; }
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-header { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--s4); }
-h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; letter-spacing: .06em; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
-.stat {
-  display: flex; flex-direction: column; align-items: center; padding: var(--s1) 0;
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-sm);
-}
+/* Header: stage and mode on the left, the settings gear pinned top right; stats in one quiet row. */
+header { display: grid; gap: var(--s3); padding-right: 48px; }
+.title { display: grid; gap: 2px; }
+h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
+.stats { display: flex; gap: var(--s5); }
+.stat { display: flex; align-items: baseline; gap: var(--s1); }
 .stat span { font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-.stat b { font-size: var(--fs-lg); font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.stat b { font-size: var(--fs-md); font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; flex: none; }
 .seg button { border: 0; background: none; color: var(--muted); padding: 0 var(--s3); font: inherit; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .seg button.on { background: var(--line); color: var(--text); font-weight: 650; }
 /* Plain info above the board: where you are, then what to do. Not controls. */
 #brief { display: grid; gap: 2px; text-align: center; flex: none; }
-#stageInfo { font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#stageInfo { font-size: var(--fs-sm); color: var(--muted); text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
 #stageInfo b { color: var(--text); font-weight: 650; }
 #stageInfo b.hot { color: var(--warn); }
 .debug .seg, .debug .slider { grid-column: 1 / -1; height: var(--ctl-h); }
@@ -307,7 +306,7 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; letter-spacing: .06em
 #status.bad { color: var(--bad); font-weight: 700; }
 #status.hint { color: var(--accent); }
 
-.actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
+.actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s2); }
 button.btn {
   font: inherit; font-size: var(--fs-md); font-weight: 650; color: var(--text); background: var(--panel);
   border: 1px solid var(--line); border-radius: var(--r-md); min-height: 48px; padding: 0 var(--s2);
@@ -316,17 +315,37 @@ button.btn:active { background: var(--line); }
 button.btn:disabled { opacity: .4; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Dev settings: collapsed under the actions. */
-#settings { font-size: var(--fs-sm); color: var(--muted); }
+/* Change difficulty: a quiet text link under the main buttons. */
+#menu {
+  align-self: center; border: 0; background: none; padding: var(--s1) var(--s3); min-height: 32px;
+  font: inherit; font-size: var(--fs-sm); color: var(--muted); text-decoration: underline; text-underline-offset: 3px;
+}
+#menu:active { color: var(--text); }
+/* Settings: a gear top right of the app opens a bottom sheet. */
+#app { position: relative; }
+#settings { font-size: var(--fs-sm); color: var(--muted); margin-top: calc(var(--s3) * -1); }
 #settings summary {
-  display: flex; align-items: center; justify-content: center; gap: var(--s2); min-height: 32px;
-  cursor: pointer; list-style: none; font-weight: 650;
+  position: absolute; top: var(--gear-top, 12px); right: max(16px, env(safe-area-inset-right, 0px)); /* layout() aligns it with the header */
+  width: 40px; height: 40px; display: grid; place-items: center; z-index: 21;
+  border: 1px solid var(--line); border-radius: 50%; background: var(--panel); color: var(--text);
+  cursor: pointer; list-style: none;
 }
 #settings summary::-webkit-details-marker { display: none; }
-#settings summary::before { content: "⚙"; font-size: var(--fs-md); }
-#settings[open] summary { color: var(--text); }
-#settings[open] summary::after { content: "✕"; margin-left: var(--s1); font-size: var(--fs-xs); }
-#info { font-weight: 400; font-variant-numeric: tabular-nums; }
-#info:not(:empty)::before { content: "· "; }
+body:has(#start:not([hidden])) #settings summary { display: none; } /* gear belongs to the game screen */
+#settings summary::before { content: "⚙"; font-size: 20px; line-height: 1; }
+#settings[open] summary::before { content: "✕"; font-size: 16px; }
+#info { position: absolute; right: 48px; top: 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+body:not(.dev) #settings .debug {
+  position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 560px;
+  grid-template-columns: 1fr; gap: var(--s1);
+  padding: var(--s4) var(--s4) max(var(--s5), env(safe-area-inset-bottom, 0px));
+  border-radius: var(--r-lg) var(--r-lg) 0 0; border-bottom: 0;
+  box-shadow: 0 0 0 100vmax rgba(0,0,0,.55); animation: sheet-up .2s ease-out;
+}
+@keyframes sheet-up { from { transform: translateY(100%); } }
+.sheet-title { margin: 0 0 var(--s2); font-size: var(--fs-lg); color: var(--text); }
+.dev .sheet-title { display: none; }
+body:not(.dev) .debug label, body:not(.dev) .debug .app { min-height: 44px; font-size: var(--fs-md); color: var(--text); }
 /* Grid size, tile count, skin and fuse are dev tools; they show only with ?dev in the URL. */
 body:not(.dev) .devonly { display: none !important; }
 .debug {
@@ -367,7 +386,8 @@ button.mode {
 button.mode:active { background: var(--line); }
 button.mode b { font-size: var(--fs-lg); }
 button.mode span { grid-column: 1; color: var(--muted); font-size: var(--fs-sm); }
-button.mode em { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); }
+button.mode em { grid-column: 1; margin-top: var(--s1); font-style: normal; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; color: var(--muted); opacity: .8; }
+button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-size: 28px; color: var(--muted); }
 #playChallenge b { color: var(--warn); }
 
 #overlay {
@@ -391,7 +411,7 @@ button.mode em { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-
 <body>
 <div id="app">
   <header>
-    <h1 id="stageTitle">STAGE 1</h1>
+    <div class="title"><h1 id="stageTitle">Stage 1</h1><div id="stageInfo"></div></div>
     <div class="stats">
       <div class="stat"><span>Time</span><b id="time">0:00</b></div>
       <div class="stat"><span>Undos</span><b id="undos">0</b></div>
@@ -405,20 +425,20 @@ button.mode em { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-
 
   <div id="stage">
     <div id="brief">
-      <div id="stageInfo"></div>
       <div id="status"></div>
     </div>
     <div id="board"></div>
   </div>
 
   <div class="actions">
-    <button class="btn" id="menu">Menu</button>
     <button class="btn" id="undo">Undo</button>
     <button class="btn" id="restart">Restart</button>
   </div>
+  <button id="menu">Change difficulty</button>
   <details id="settings">
-    <summary>Settings <span id="info" class="devonly"></span></summary>
+    <summary aria-label="Settings"><span id="info" class="devonly"></span></summary>
     <div class="debug">
+      <h2 class="sheet-title">Settings</h2>
       <label class="devonly">Skin <select id="skin"><option value="kittens">Kittens</option><option value="slimes">Slimes</option><option value="numbers">Numbers</option></select></label>
       <label class="check"><input type="checkbox" id="effects" checked> Sound and effects</label>
       <label class="devonly">Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="12" selected>12s</option><option value="20">20s</option></select></label>
@@ -729,6 +749,7 @@ if (typeof document !== 'undefined') {
     boardEl.style.width = boardEl.style.height = side + 'px';
     const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'));
     boardEl.style.setProperty('--cell', (side - gap * (S.n + 1)) / S.n + 'px');
+    app.style.setProperty('--gear-top', app.querySelector('header').offsetTop + 'px'); // gear sits level with the header
   }
 
   function render() {
@@ -804,9 +825,9 @@ if (typeof document !== 'undefined') {
     $('undo').disabled = !S.history.length || S.won || S.lost;
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
-    $('stageTitle').textContent = S.stage == null ? 'CUSTOM' : 'STAGE ' + (S.stage + 1);
+    $('stageTitle').textContent = S.stage == null ? 'Custom' : `Stage ${S.stage + 1} of ${STAGES.length}`;
     const mode = S.mode === 'challenge' ? '<b class="hot">Challenge</b>' : '<b>Casual</b>';
-    $('stageInfo').innerHTML = `${mode} · ${n}×${n}` + (S.stage != null && S.stage < STAGES.length ? ` · ${S.stage + 1} of ${STAGES.length}` : '');
+    $('stageInfo').innerHTML = `${mode} · ${n}×${n}`;
   }
 
   // ---------- game flow ----------
@@ -909,8 +930,9 @@ if (typeof document !== 'undefined') {
   function showStart() {
     stopTimer();
     $('overlay').hidden = true;
-    $('casualStage').textContent = 'Stage ' + (savedStage('casual') + 1);
-    $('challengeStage').textContent = 'Stage ' + (savedStage('challenge') + 1);
+    const progress = k => (k ? 'Continue at stage ' : 'Start at stage ') + (Math.min(k, STAGES.length - 1) + 1) + ' of ' + STAGES.length;
+    $('casualStage').textContent = progress(savedStage('casual'));
+    $('challengeStage').textContent = progress(savedStage('challenge'));
     $('start').hidden = false;
   }
 
@@ -1060,6 +1082,15 @@ if (typeof document !== 'undefined') {
   $('winRestart').addEventListener('click', restart);
   $('winNew').addEventListener('click', () => (S.won && S.stage != null ? goStage(S.stage + 1) : newBoard()));
   $('menu').addEventListener('click', showStart);
+  // The settings sheet closes on a tap outside it (dev mode keeps it inline and open).
+  document.addEventListener('pointerdown', e => {
+    const set = $('settings');
+    if (!set.open || document.body.classList.contains('dev') || set.contains(e.target)) return;
+    set.open = false; e.preventDefault(); e.stopPropagation();
+    const eat = ev => { ev.stopPropagation(); ev.preventDefault(); };
+    addEventListener('click', eat, { capture: true, once: true }); // the tap only closes
+    setTimeout(() => removeEventListener('click', eat, true), 600);
+  }, true);
   $('playCasual').addEventListener('click', () => play('casual'));
   $('playChallenge').addEventListener('click', () => play('challenge'));
   $('showSol').addEventListener('change', e => { S.showSol = e.target.checked; render(); });
