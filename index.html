@@ -97,6 +97,9 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 }
 .tile.active { transform: scale(.94); }
 .tile.ghost { opacity: .5; outline: 2px dashed rgba(255,255,255,.75); outline-offset: -5px; }
+/* Touching a split kitten rings its twin; swiping onto the twin rejoins them. */
+.tile.twin { box-shadow: inset 0 0 0 3px var(--accent), 0 0 12px rgba(143,179,255,.6); }
+.tile.join { outline: 3px solid var(--accent); outline-offset: -4px; }
 .dot {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: calc(var(--cell) * .24); color: var(--dot);
@@ -307,7 +310,7 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 #status.hint { color: var(--accent); }
 #quip { min-height: 18px; font-size: var(--fs-sm); line-height: 18px; color: var(--muted); font-style: italic; text-align: center; padding: 0 var(--s3); }
 
-.actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s2); }
+.actions { display: grid; grid-template-columns: 1fr; gap: var(--s2); }
 button.btn {
   font: inherit; font-size: var(--fs-md); font-weight: 650; color: var(--text); background: var(--panel);
   border: 1px solid var(--line); border-radius: var(--r-md); min-height: 48px; padding: 0 var(--s2);
@@ -471,7 +474,6 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
     <div class="stats">
       <button id="menu" aria-label="Change mode"></button>
       <div class="stat"><span>Time</span><b id="time">0:00</b></div>
-      <div class="stat"><span>Undos</span><b id="undos">0</b></div>
     </div>
   </header>
   <div id="pwa" role="status" hidden>
@@ -487,7 +489,6 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
   </div>
 
   <div class="actions">
-    <button class="btn" id="undo">Undo</button>
     <button class="btn" id="restart">Restart</button>
   </div>
   <button id="help">How to play</button>
@@ -535,7 +536,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
       <li><div class="pics"><span class="cot" data-kit="fight4"></span><span class="cot"><span class="bed"></span></span><i>›</i><span class="cot" data-kit="fight2"></span><span class="cot" data-kit="fight2"></span></div>
         <p><b>Big fights</b> split again and again: 4 makes two 2s, and each 2 makes two 1s.</p></li>
       <li><div class="pics"><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span></div>
-        <p><b>Win</b> when every kitten sleeps alone in its own cell. Stuck? Undo or restart.</p></li>
+        <p><b>Win</b> when every kitten sleeps alone in its own cell. Stuck? Swipe a kitten back onto its twin to rejoin them, or restart.</p></li>
       <li id="howtoFuse"><div class="pics"><span class="cot fused" data-kit="fight2"><b></b></span><i>›</i><span class="cot" data-kit="boom"></span></div>
         <p><b class="warn">Normal:</b> every fight has a fuse. Split it before the fuse burns down, or it blows up.</p></li>
     </ol>
@@ -549,7 +550,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
     <img id="winKit" alt="" hidden>
     <h2 id="winTitle">Solved</h2>
     <p id="winMsg"></p>
-    <dl><dt>Time</dt><dd id="winTime"></dd><dt>Undos</dt><dd id="winUndos"></dd></dl>
+    <dl><dt>Time</dt><dd id="winTime"></dd></dl>
     <div class="row">
       <button class="btn" id="winRestart">Try again</button>
       <button class="btn" id="winNew">New board</button>
@@ -602,8 +603,6 @@ const S = {
   stage: 0,         // index into STAGES; null when the dev controls set a custom board
   board: null,      // generator output: {n, cells, solution, path}
   cells: null,      // current cells
-  history: [],      // previous cells, for unlimited undo
-  undos: 0,
   t0: 0, elapsed: 0, timer: 0,
   won: false,
   lost: false,
@@ -615,10 +614,12 @@ const S = {
   musicVol: 0.5,    // 0..1, 0 = music off
   skin: 'kittens',  // 'kittens' | 'slimes' | 'numbers'
   anim: null,       // one-shot animation for the next render: {from, to, dir, region}
-  drag: null,       // {id, i, x, y, dir, dest}
+  drag: null,       // {id, i, x, y, dir, dest, join}
 };
 
-const cloneCells = cells => cells.map(t => t && { v: t.v, c: t.c });
+// A split leaves twins sharing one link, tw = {from: parent tile, left: parent's fuse ms}.
+// Only twins can merge, and only back into the fight they came from.
+const cloneCells = cells => cells.map(t => t && { v: t.v, c: t.c, tw: t.tw });
 const keyOf = cells => cells.map(t => (t ? t.v : 0)).join(',');
 
 // ===================== GENERATOR =====================
@@ -738,11 +739,25 @@ function splitTarget(cells, n, i, dir) {
 function applySplit(cells, n, i, dir) {
   const j = splitTarget(cells, n, i, dir);
   if (j < 0) return null;
-  const out = cloneCells(cells);
-  out[i].v /= 2;
-  out[j] = { v: out[i].v, c: out[i].c };
+  const out = cloneCells(cells), p = out[i];
+  const tw = { from: p, left: null };
+  out[i] = { v: p.v / 2, c: p.c, tw };
+  out[j] = { v: p.v / 2, c: p.c, tw };
   return out;
 }
+
+// Destination index if tile i can rejoin its twin toward dir, else -1.
+function mergeTarget(cells, n, i, dir) {
+  const t = cells[i], j = neighbour(n, i, dir);
+  return t && t.tw && j >= 0 && cells[j] && cells[j].tw === t.tw ? j : -1;
+}
+
+function twinOf(cells, i) {
+  const t = cells[i];
+  return t && t.tw ? cells.findIndex((u, k) => k !== i && u && u.tw === t.tw) : -1;
+}
+
+const canMerge = (cells, n) => cells.some((t, i) => Object.keys(DIRS).some(d => mergeTarget(cells, n, i, d) >= 0));
 
 // A colour region is done when every tile descended from that starting tile is a 1.
 function regionDone(cells, c) {
@@ -759,10 +774,12 @@ function blockedTiles(cells, n) {
   return out;
 }
 
-function isStuck(cells, n) {
+// Jammed: no fight can split. Stuck: jammed with no twins to rejoin either.
+function isJammed(cells, n) {
   if (cells.every(Boolean)) return false;
   return cells.every((t, i) => !t || t.v < 2 || Object.keys(DIRS).every(d => splitTarget(cells, n, i, d) < 0));
 }
+const isStuck = (cells, n) => isJammed(cells, n) && !canMerge(cells, n);
 
 function nextHint() {
   const k = S.board.path.indexOf(keyOf(S.cells));
@@ -929,8 +946,9 @@ if (typeof document !== 'undefined') {
 
   function render() {
     const { n, cells, drag } = S;
-    const stuck = !S.won && !S.lost && isStuck(cells, n);
-    const blocked = new Set(stuck ? blockedTiles(cells, n) : []);
+    const jammed = !S.won && !S.lost && isJammed(cells, n), stuck = jammed && !canMerge(cells, n);
+    const blocked = new Set(jammed ? blockedTiles(cells, n) : []);
+    const twin = drag ? twinOf(cells, drag.i) : -1;
     const hint = S.showSol && !S.won ? nextHint() : null;
     const hintDst = hint ? neighbour(n, hint.from, hint.dir) : -1;
     const anim = S.effects || (S.anim && S.anim.boom != null) ? S.anim : null; // the explosion always shows
@@ -955,6 +973,8 @@ if (typeof document !== 'undefined') {
         if (i === drag.i) { t = { v: src.v / 2, c: src.c }; cls = ` active stretch-${drag.dir}`; }
         if (i === drag.dest) { t = { v: src.v / 2, c: src.c }; cls = ' ghost'; }
       }
+      if (drag && drag.join >= 0 && i === drag.i) cls = ` active stretch-${drag.dir}`;
+      if (i === twin) cls += drag.join === i ? ' twin join' : ' twin';
       if (t && done.has(t.c) && !(drag && (i === drag.i || i === drag.dest))) cls += ' done';
       if (anim && t) {
         // The split pair always plays its own motion; the wave follows once the baby lands.
@@ -989,15 +1009,14 @@ if (typeof document !== 'undefined') {
 
     const status = $('status');
     status.className = '';
-    if (stuck) { status.textContent = 'Stuck. Undo or restart.'; status.className = 'bad'; }
+    if (stuck) { status.textContent = 'Stuck. Restart to try again.'; status.className = 'bad'; }
+    else if (jammed) { status.textContent = 'No room. Swipe a kitten back onto its twin.'; status.className = 'bad'; }
     else if (hint) { status.textContent = `Hint: split the ${cells[hint.from].v} ${hint.dir}`; status.className = 'hint'; }
-    else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Undo to get hints back.'; status.className = 'hint'; }
+    else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Rejoin twins to get hints back.'; status.className = 'hint'; }
     else status.textContent = { kittens: 'Give every kitten its own cell to sleep!', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
 
     $('quip').textContent = S.skin === 'kittens' ? QUIPS[(S.stage || 0) % QUIPS.length] : '';
-    $('undos').textContent = S.undos;
     $('time').textContent = fmtTime(S.elapsed);
-    $('undo').disabled = !S.history.length || S.won || S.lost;
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
     $('stageTitle').textContent = S.stage == null ? 'Custom' : `Stage ${S.stage + 1}`;
@@ -1051,7 +1070,6 @@ if (typeof document !== 'undefined') {
     $('winTitle').className = 'lose';
     $('winMsg').textContent = S.skin === 'kittens' ? `${n} kittens fought too long and blew up.` : `A ${n} waited too long and exploded.`;
     $('winTime').textContent = fmtTime(S.elapsed);
-    $('winUndos').textContent = S.undos;
     $('winRestart').textContent = 'Try again';
     $('winRestart').hidden = false;
     winFx(false);
@@ -1061,7 +1079,7 @@ if (typeof document !== 'undefined') {
 
   function restart() {
     stopTimer();
-    Object.assign(S, { cells: cloneCells(S.board.cells), history: [], undos: 0, t0: 0, elapsed: 0, won: false, lost: false, drag: null, fuse: [] });
+    Object.assign(S, { cells: cloneCells(S.board.cells), t0: 0, elapsed: 0, won: false, lost: false, drag: null, fuse: [] });
     dangerKey = '';
     boardEl.classList.remove('shake');
     $('overlay').hidden = true;
@@ -1308,7 +1326,7 @@ if (typeof document !== 'undefined') {
     if (!next) return;
     if (!S.t0) startTimer();
     const now = Date.now(), j = neighbour(S.n, i, dir);
-    S.history.push({ cells: S.cells, fuseLeft: S.fuse.map(d => (d ? d - now : null)) });
+    next[i].tw.left = S.fuse[i] ? S.fuse[i] - now : null; // a rejoined fight resumes with this
     S.cells = next;
     // Splitting calms both halves: each remaining fight gets a fresh fuse.
     S.fuse = S.fuse.slice();
@@ -1322,7 +1340,6 @@ if (typeof document !== 'undefined') {
     if (isWin(next)) {
       S.won = true; S.elapsed = Date.now() - S.t0; stopTimer();
       $('winTime').textContent = fmtTime(S.elapsed);
-      $('winUndos').textContent = S.undos;
       $('winTitle').textContent = S.skin === 'kittens' ? 'All asleep' : 'Solved';
       $('winTitle').className = '';
       $('winMsg').textContent = S.skin === 'kittens' ? 'Every kitten has its own cell.' : 'Every cell holds a 1.';
@@ -1341,16 +1358,19 @@ if (typeof document !== 'undefined') {
     if (S.effects && S.skin === 'kittens') setTimeout(() => { if (!S.drag && !S.lost) render(); }, 420);
   }
 
-  // Undo restores the fuse time each fight had left, so it can't be used to refill fuses.
-  function undo() {
-    if (!S.history.length || S.won || S.lost) return;
-    const prev = S.history.pop(), now = Date.now();
-    // Only the two cells of the undone split change; every other fight keeps burning.
-    const changed = k => (prev.cells[k] && prev.cells[k].v) !== (S.cells[k] && S.cells[k].v);
-    S.fuse = prev.fuseLeft.map((r, k) => (!changed(k) ? S.fuse[k] : r == null ? null : now + r));
-    S.cells = prev.cells;
-    armFuses(); // fights that had no fuse yet (before the first move) get a full one
-    S.undos++;
+  // Swiping a kitten onto its twin rejoins them into the fight they split from, in the twin's cell.
+  // The fight resumes with the fuse time it had left when it split, so rejoining can't refill a fuse.
+  function merge(i, j, dir) {
+    const tw = S.cells[i].tw, now = Date.now();
+    const next = S.cells.slice();
+    next[i] = null;
+    next[j] = { ...tw.from };
+    S.cells = next;
+    S.fuse = S.fuse.slice();
+    S.fuse[i] = null;
+    S.fuse[j] = S.fuseMs ? now + (tw.left != null ? tw.left : S.fuseMs) : null;
+    S.anim = { from: -1, to: j, dir, region: null, win: false };
+    splitSound(next[j].v);
     render();
   }
 
@@ -1364,7 +1384,8 @@ if (typeof document !== 'undefined') {
     if (!S.cells[i]) return;
     e.preventDefault();
     boardEl.setPointerCapture(e.pointerId);
-    S.drag = { id: e.pointerId, i, x: e.clientX, y: e.clientY, dir: null, dest: -1 };
+    S.drag = { id: e.pointerId, i, x: e.clientX, y: e.clientY, dir: null, dest: -1, join: -1 };
+    if (twinOf(S.cells, i) >= 0) render(); // ring the twin
   });
 
   boardEl.addEventListener('pointermove', e => {
@@ -1376,14 +1397,17 @@ if (typeof document !== 'undefined') {
       dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
     }
     const dest = dir ? splitTarget(S.cells, S.n, d.i, dir) : -1;
-    if (dir !== d.dir || dest !== d.dest) { d.dir = dir; d.dest = dest; render(); }
+    const join = dir && dest < 0 ? mergeTarget(S.cells, S.n, d.i, dir) : -1;
+    if (dir !== d.dir || dest !== d.dest || join !== d.join) { d.dir = dir; d.dest = dest; d.join = join; render(); }
   });
 
   function endDrag(e, commit) {
     const d = S.drag;
     if (!d || d.id !== e.pointerId) return;
     S.drag = null;
-    if (commit && d.dest >= 0) move(d.i, d.dir); else render();
+    if (commit && d.dest >= 0) move(d.i, d.dir);
+    else if (commit && d.join >= 0) merge(d.i, d.join, d.dir);
+    else render();
   }
   boardEl.addEventListener('pointerup', e => endDrag(e, true));
   boardEl.addEventListener('pointercancel', e => endDrag(e, false));
@@ -1391,7 +1415,6 @@ if (typeof document !== 'undefined') {
   $('sizes').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setSize(+b.dataset.n); });
   $('tiles').addEventListener('input', e => { $('tilesOut').textContent = e.target.value; });
   $('tiles').addEventListener('change', e => { S.target = +e.target.value; S.stage = null; newBoard(); });
-  $('undo').addEventListener('click', undo);
   $('restart').addEventListener('click', restart);
   $('winRestart').addEventListener('click', restart);
   $('winNew').addEventListener('click', () => (S.won && S.stage != null ? goStage(S.stage + 1) : newBoard()));
@@ -1455,7 +1478,6 @@ if (typeof document !== 'undefined') {
     const skin = localStorage.getItem('split.skin');
     if (['kittens', 'slimes', 'numbers'].includes(skin)) { S.skin = skin; $('skin').value = skin; }
   } catch (err) {}
-  document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'z') undo(); });
   window.addEventListener('resize', layout);
   $('settings').addEventListener('toggle', layout); // the board gives up height to the open panel
 

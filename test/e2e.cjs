@@ -96,7 +96,14 @@ async function hintSwipe(page) {
   const after = await key(page);
   const why = after === before ? await page.evaluate(() => JSON.stringify({ drag: S.drag, won: S.won, lost: S.lost, ev: __ev.slice(-12), long: __long.slice(-5), now: Math.round(performance.now()) })) : '';
   check(after !== before, `hint swipe ${h.from} ${h.dir} did not split ${why}`);
-  return true;
+  return h;
+}
+
+const OPP = { up: 'down', down: 'up', left: 'right', right: 'left' };
+// Swipe the baby of split h back onto its twin, rejoining them in h.from.
+async function rejoin(page, h, mid) {
+  const j = await page.evaluate(h => neighbour(S.n, h.from, h.dir), h);
+  return mouseSwipe(page, j, OPP[h.dir], 40, mid);
 }
 
 // Replace the board and render it through a real press/release on an occupied cell (no move).
@@ -104,7 +111,7 @@ async function inject(page, n, entries) {
   const at = await page.evaluate(([n, entries]) => {
     const cells = new Array(n * n).fill(null);
     for (const [i, v, c] of entries) cells[i] = { v, c };
-    S.cells = cells; S.history = [];
+    S.cells = cells;
     return entries[0][0];
   }, [n, entries]);
   const { x, y } = await center(page, at);
@@ -209,48 +216,59 @@ test('Full solve', async () => {
   for (const n of [4, 5, 6]) {
     await page.click(`#sizes button[data-n="${n}"]`);
     let moves = 0;
-    // One undo along the way so the overlay's undo count is non-trivial.
-    await hintSwipe(page); moves++;
-    await page.click('#undo');
+    // One rejoin along the way: the hints pick up again after it.
+    await rejoin(page, await hintSwipe(page)); moves++;
     while (await hintSwipe(page)) moves++;
     await page.waitForSelector('#overlay:not([hidden])', { timeout: 3000 });
     const r = await page.evaluate(() => ({
       win: S.won, title: document.getElementById('winTitle').textContent,
-      time: document.getElementById('winTime').textContent, undos: document.getElementById('winUndos').textContent,
+      time: document.getElementById('winTime').textContent,
     }));
     check(r.win, `${n}x${n}: not won`);
     check(/^\d+:\d\d$/.test(r.time), `${n}x${n}: win time "${r.time}"`);
-    check(r.undos === '1', `${n}x${n}: win undos "${r.undos}", want 1`);
     out.push(`${n}x${n} ${moves} swipes ${r.time}`);
     await page.click('#winNew');
   }
   await context.close();
   check(!errors.length, errors.join(' | '));
-  return out.join('; ') + '; overlay shows time and undos';
+  return out.join('; ') + '; one rejoin each; overlay shows time';
 });
 
-test('Undo/Restart/New', async () => {
+test('Rejoin/Restart/New', async () => {
   const { context, page, errors } = await open();
   await page.selectOption('#fuse', '0');
   const k0 = await key(page);
-  const undos = () => page.textContent('#undos');
-  for (let m = 0; m < 3; m++) check(await hintSwipe(page), 'no hint');
-  await sleep(1100);
-  for (let u = 1; u <= 3; u++) { await page.click('#undo'); check(await undos() === String(u), `undo counter ${await undos()}, want ${u}`); }
-  check(await key(page) === k0, 'three undos did not restore the start');
-  for (let m = 0; m < 2; m++) await hintSwipe(page);
-  await page.click('#undo'); await page.click('#undo');
-  check(await undos() === '5', `undo counter ${await undos()}, want 5`);
+  const hs = [];
+  for (let m = 0; m < 3; m++) { const h = await hintSwipe(page); check(h, 'no hint'); hs.push(h); }
+  await sleep(500);
+  // Touching a twin rings the other one; swiping onto it rejoins them, newest split first.
+  const ring = await rejoin(page, hs[2], () => page.evaluate(h => [...document.querySelectorAll('.tile.twin')].map(t => +t.parentElement.dataset.i), hs[2]));
+  check(ring.length === 1 && ring[0] === hs[2].from, `twin ring at [${ring}], want [${hs[2].from}]`);
+  for (const h of [hs[1], hs[0]]) await rejoin(page, h);
+  check(await key(page) === k0, 'rejoining all three splits did not restore the start');
+  // Matching kittens that are not twins stay apart; nested twins rejoin back up to the 4.
+  await inject(page, 4, [[0, 1, 0], [1, 1, 1], [8, 4, 2]]);
+  await mouseSwipe(page, 0, 'right');
+  check(await page.evaluate(() => S.cells[0] && S.cells[1] && S.cells[1].v === 1), 'non-twin 1s merged');
+  await mouseSwipe(page, 8, 'right'); // 4 -> 2,2 at 8,9
+  await mouseSwipe(page, 9, 'down');  // 2 -> 1,1 at 9,13
+  await mouseSwipe(page, 8, 'right');
+  check(await page.evaluate(() => S.cells[8] && S.cells[9].v === 1), 'a 2 merged with a non-twin 1');
+  await mouseSwipe(page, 13, 'up');
+  check(await page.evaluate(() => !S.cells[13] && S.cells[9].v === 2), 'nested twins did not rejoin to 2');
+  await mouseSwipe(page, 8, 'right');
+  check(await page.evaluate(() => !S.cells[8] && S.cells[9].v === 4 && S.cells.filter(Boolean).length === 3), 'twins did not rejoin to 4');
+  await page.click('#restart');
+  check(await key(page) === k0, 'Restart did not restore the board');
   await hintSwipe(page);
   await sleep(1100);
   check(await page.textContent('#time') !== '0:00', 'timer not running');
   await page.click('#restart');
   await sleep(1200);
-  const r = await page.evaluate(() => ({ k: keyOf(S.cells), b: keyOf(S.board.cells), t0: S.t0, h: S.history.length }));
+  const r = await page.evaluate(() => ({ k: keyOf(S.cells), b: keyOf(S.board.cells), t0: S.t0, tw: S.cells.some(t => t && t.tw) }));
   check(r.k === k0 && r.b === k0, 'Restart did not restore the same board');
   check(await page.textContent('#time') === '0:00' && r.t0 === 0, 'Restart did not reset timer');
-  check(await undos() === '0' && r.h === 0, 'Restart did not reset undos');
-  check(await page.isDisabled('#undo'), 'Undo enabled after Restart');
+  check(!r.tw, 'Restart kept twin links');
   let changed = false;
   for (let t = 0; t < 3 && !changed; t++) { await page.click('#sizes .on'); changed = (await key(page)) !== k0; }
   check(changed, 'Re-picking the size did not deal a new board');
@@ -269,7 +287,7 @@ test('Undo/Restart/New', async () => {
   check((await key(page)) !== k6 && t.tiles === t.bt, 'slider did not regenerate the board');
   await context.close();
   check(!errors.length, errors.join(' | '));
-  return `undo x5 counted, restart resets, new board differs, sizes 5/6 and slider (12 -> ${t.bt} tiles) regenerate`;
+  return `twin ring, rejoin x3 restores start, non-twins stay apart, nested rejoin 1+1->2->4, restart resets, new board differs, sizes 5/6 and slider (12 -> ${t.bt} tiles) regenerate`;
 });
 
 test('Stuck', async () => {
@@ -351,7 +369,7 @@ test('Fuse', async () => {
   check(title === 'Cat fight!', `overlay title "${title}"`);
   check(!(await page.isVisible('#winNew')), 'lose dialog still offers New board');
 
-  // Undo keeps fights burning: no refill for fights the undone split didn't touch.
+  // Rejoining keeps fights burning: the fight resumes with its fuse at split time, no refill elsewhere.
   await page.click('#winRestart');
   const q = await loadFusePlan(page);
   await mouseSwipe(page, q.A, q.dA);
@@ -360,17 +378,16 @@ test('Fuse', async () => {
   await mouseSwipe(page, q.B, q.dB);
   await sleep(2500);
   const before = await fuseLeft(page);
-  await page.click('#undo');
+  await mouseSwipe(page, q.jB, OPP[q.dB]);
   const after = await fuseLeft(page);
-  const undos = await page.textContent('#undos');
-  check(undos === '1', `undo counter ${undos}`);
-  check(after[q.B] <= atMove + 200, `undone fight refilled: ${after[q.B]}ms, had ${atMove}ms at its split`);
+  check(await page.evaluate(q => !S.cells[q.jB], q), 'twins did not rejoin');
+  check(after[q.B] <= atMove + 200 && after[q.B] > atMove - 4000, `rejoined fight fuse ${after[q.B]}ms, had ${atMove}ms at its split`);
   const refilled = before.map((v, i) => (v != null && i !== q.B && i !== q.jB && Math.abs(after[i] - v) > 300 ? `${i}:${v}->${after[i]}` : null)).filter(Boolean);
-  check(!refilled.length, `undo refilled untouched fights ${refilled.join(', ')}`);
+  check(!refilled.length, `rejoin refilled untouched fights ${refilled.join(', ')}`);
   await context.close();
   check(!errors.length, errors.join(' | '));
   await offRun;
-  return `idle before first move; fresh halves, others burn; .danger <3s; boom at ${b.el}ms with "Cat fight!"; undo no refill; Off safe 25s`;
+  return `idle before first move; fresh halves, others burn; .danger <3s; boom at ${b.el}ms with "Cat fight!"; rejoin resumes old fuse; Off safe 25s`;
 });
 
 test('Skins', async () => {
@@ -579,11 +596,11 @@ test('Player text', async () => {
   await page.click('#howtoGo');
   // Win, lose and status copy is set in code, so read it from the script.
   text += ' ' + await page.evaluate(() => document.querySelector('script:not([src])').textContent.match(/textContent = [^;]*'[^']*'/g).join(' '));
-  for (const bad of [/\bbeds?\b/i, /\bChallenge\b/, /Kaboom Kittens/, /\bof \d+\b/]) check(!bad.test(text), `stale player text: ${text.match(bad)}`);
-  for (const need of ['Kaboom Kitty', 'Casual', 'Normal', 'How to play', 'Swipe to break up a fight', 'empty cell']) check(text.includes(need), `missing "${need}"`);
+  for (const bad of [/\bbeds?\b/i, /\bChallenge\b/, /Kaboom Kittens/, /\bof \d+\b/, /\bUndos?\b/i]) check(!bad.test(text), `stale player text: ${text.match(bad)}`);
+  for (const need of ['Kaboom Kitty', 'Casual', 'Normal', 'How to play', 'Swipe to break up a fight', 'empty cell', 'twin']) check(text.includes(need), `missing "${need}"`);
   check(await page.evaluate(() => document.querySelectorAll('#howto .cot:not([data-kit]) .bed').length === 2), 'tutorial empty cells lack the dotted oval');
   await context.close();
-  return 'no bed / Challenge / Kaboom Kittens / "of N" in visible or scripted copy; tutorial shows empty-cell ovals';
+  return 'no bed / Challenge / Kaboom Kittens / "of N" / Undo in visible or scripted copy; tutorial shows empty-cell ovals';
 });
 
 test('Install offer', async () => {
