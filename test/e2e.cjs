@@ -24,6 +24,10 @@ async function open(opts = {}, withSettings = true) {
     window.__downs = [];
     addEventListener('pointerdown', e => { __pt.push(e.pointerType); __downs.push(performance.now()); }, true);
     addEventListener('pointerup', e => __ups.push(performance.now()), true);
+    window.__ev = [];
+    for (const t of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'lostpointercapture']) addEventListener(t, e => __ev.push(t[7] + Math.round(performance.now())), true);
+    window.__long = [];
+    try { new PerformanceObserver(l => l.getEntries().forEach(x => __long.push(Math.round(x.startTime) + '+' + Math.round(x.duration)))).observe({ type: 'longtask' }); } catch (e) {}
   });
   await page.goto(URL);
   await ready(page);
@@ -78,7 +82,9 @@ async function hintSwipe(page) {
   if (!h) return false;
   const before = await key(page);
   await mouseSwipe(page, h.from, h.dir);
-  check((await key(page)) !== before, `hint swipe ${h.from} ${h.dir} did not split`);
+  const after = await key(page);
+  const why = after === before ? await page.evaluate(() => JSON.stringify({ drag: S.drag, won: S.won, lost: S.lost, ev: __ev.slice(-12), long: __long.slice(-5), now: Math.round(performance.now()) })) : '';
+  check(after !== before, `hint swipe ${h.from} ${h.dir} did not split ${why}`);
   return true;
 }
 
