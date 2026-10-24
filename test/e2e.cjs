@@ -25,7 +25,7 @@ async function open(opts = {}, withSettings = true) {
     addEventListener('pointerdown', e => { __pt.push(e.pointerType); __downs.push(performance.now()); }, true);
     addEventListener('pointerup', e => __ups.push(performance.now()), true);
     window.__ev = [];
-    for (const t of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'lostpointercapture']) addEventListener(t, e => __ev.push(t[7] + Math.round(performance.now())), true);
+    for (const t of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'lostpointercapture']) addEventListener(t, e => __ev.push(t[7] + Math.round(performance.now()) + (t === 'pointerdown' ? ':' + (e.target.id || e.target.className || e.target.tagName) + '@' + Math.round(e.clientX) + ',' + Math.round(e.clientY) : '')), true);
     window.__long = [];
     try { new PerformanceObserver(l => l.getEntries().forEach(x => __long.push(Math.round(x.startTime) + '+' + Math.round(x.duration)))).observe({ type: 'longtask' }); } catch (e) {}
   });
@@ -277,7 +277,7 @@ test('Stuck', async () => {
       blocked: [...document.querySelectorAll('.tile.blocked')].map(t => +t.parentElement.dataset.i),
       shadow: (tile ? getComputedStyle(tile).boxShadow : 'no tile') + ' ' + (blob ? getComputedStyle(blob).filter + ' ' + getComputedStyle(blob).boxShadow : ''),
       color: getComputedStyle(st).color,
-      why: JSON.stringify({ drag: S.drag, won: S.won, lost: S.lost, downs: __downs.length, ups: __ups.length, key: keyOf(S.cells) }),
+      why: JSON.stringify({ drag: S.drag, won: S.won, lost: S.lost, downs: __downs.length, ups: __ups.length, key: keyOf(S.cells), n: S.n, stage: S.stage, ev: __ev.filter(x => x[0] !== 'm'), long: __long, board: (r => [r.x, r.y, r.width].map(Math.round))(document.getElementById('board').getBoundingClientRect()) }),
     };
   });
   await context.close();
