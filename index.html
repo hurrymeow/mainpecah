@@ -82,6 +82,54 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
   0% { filter: brightness(1.9) saturate(1); transform: scale(1.1); }
   100% { filter: saturate(.45) brightness(.88); transform: none; }
 }
+/* Slime skin: the tile square goes transparent and holds a blob sized by value. */
+.tile { background: var(--col); }
+.tile.slime { background: none; text-shadow: none; }
+.blob {
+  --w: calc(var(--cell) * var(--s));
+  position: absolute; bottom: 7%; left: calc((var(--cell) - var(--w)) / 2);
+  width: var(--w); height: calc(var(--w) * .88);
+  border-radius: 50% 50% 44% 44% / 60% 60% 40% 40%;
+  background: radial-gradient(circle at 30% 26%, rgba(255,255,255,.5) 0 7%, transparent 8%), var(--col);
+  box-shadow: inset 0 calc(var(--w) * -.09) 0 rgba(0,0,0,.2);
+  transform-origin: 50% 100%; transition: transform .12s ease-out;
+}
+.fx .blob { animation: breathe 2.6s ease-in-out infinite; animation-delay: var(--d); }
+@keyframes breathe { 50% { transform: scale(1.05, .95); } }
+.eye {
+  position: absolute; top: 32%; width: 19%; height: 26%;
+  background: #fff; border-radius: 50%;
+}
+.eye + .eye { left: auto; right: 22%; }
+.eye:first-child { left: 22%; }
+.eye::after {
+  content: ""; position: absolute; left: 25%; top: 34%; width: 55%; height: 55%;
+  background: #141720; border-radius: 50%; transition: left .1s, top .1s;
+}
+.blob::after {
+  content: ""; position: absolute; left: 40%; top: 60%; width: 20%; height: 10%;
+  border-bottom: max(2px, calc(var(--w) * .045)) solid rgba(10,12,18,.6); border-radius: 0 0 50% 50%;
+}
+.sleep .eye { top: 46%; height: 5%; background: rgba(10,12,18,.65); border-radius: 3px; }
+.sleep .eye::after { display: none; }
+.sleep .blob::after { width: 10%; left: 45%; height: 6%; top: 64%; }
+.upset .blob { animation: none; transform: scale(1.12, .8); }
+.upset .eye { height: 13%; top: 38%; }
+.upset .blob::after { border-bottom: 0; border-top: max(2px, calc(var(--w) * .045)) solid rgba(10,12,18,.6); border-radius: 50% 50% 0 0; top: 66%; }
+.stretch-right .blob { animation: none; transform-origin: 0 100%; transform: scale(1.22, .88); }
+.stretch-left .blob { animation: none; transform-origin: 100% 100%; transform: scale(1.22, .88); }
+.stretch-up .blob { animation: none; transform: scale(.88, 1.24); }
+.stretch-down .blob { animation: none; transform: scale(1.14, .82); }
+.stretch-right .eye::after { left: 45%; }
+.stretch-left .eye::after { left: 5%; }
+.stretch-up .eye::after { top: 8%; }
+.stretch-down .eye::after { top: 45%; }
+.badge {
+  position: absolute; right: 4%; top: 4%; padding: 0 .3em; border-radius: 6px;
+  font-size: calc(var(--cell) * .18); line-height: 1.35; color: #fff; background: rgba(0,0,0,.45);
+}
+.slime.blocked { box-shadow: none; }
+.slime.blocked .blob { box-shadow: 0 0 0 3px var(--bad), 0 0 14px rgba(255,71,87,.6); }
 .tile.blocked { box-shadow: inset 0 0 0 4px var(--bad), 0 0 14px rgba(255,71,87,.55); }
 .tile .arrow {
   position: absolute; top: 3px; right: 6px; font-size: calc(var(--cell) * .26);
@@ -100,7 +148,7 @@ button.btn {
 button.btn:active { background: var(--line); }
 button.btn:disabled { opacity: .4; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.debug { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
+.debug { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
 .debug label { display: flex; align-items: center; gap: 6px; }
 
 #overlay {
@@ -118,7 +166,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .card dd { margin: 0; text-align: left; font-weight: 700; }
 .card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 [hidden] { display: none !important; }
-@media (prefers-reduced-motion: reduce) { .tile, .tile.slide, .tile.pop, .tile.flash { transition: none; animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tile, .tile.slide, .tile.pop, .tile.flash, .blob { transition: none; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -151,6 +199,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <button class="btn" id="new">New board</button>
   </div>
   <div class="debug">
+    <label><input type="checkbox" id="slimes" checked> Slimes</label>
     <label><input type="checkbox" id="effects" checked> Effects</label>
     <label><input type="checkbox" id="showSol"> Show solution</label>
     <span id="info"></span>
@@ -191,6 +240,7 @@ const S = {
   won: false,
   showSol: false,
   effects: true,    // split motion, region pulse, sound
+  slimes: true,     // blob skin instead of plain number tiles
   anim: null,       // one-shot animation for the next render: {from, to, dir, region}
   drag: null,       // {id, i, x, y, dir, dest}
 };
@@ -329,8 +379,17 @@ if (typeof document !== 'undefined') {
 
   function tileColour(c, v) {
     const hue = 25 + ((c * 137.508) % 310); // golden-angle spread, skips pure red (reserved for "blocked")
-    const light = 30 + Math.log2(v) * 5;    // bigger values a touch brighter
+    const light = S.slimes
+      ? 58 - Math.log2(v) * 4                // slimes: babies pale, big ones deeper
+      : 30 + Math.log2(v) * 5;               // numbers: bigger values a touch brighter
     return `hsl(${hue.toFixed(0)} 58% ${light}%)`;
+  }
+
+  function tileInner(t, i) {
+    if (!S.slimes) return String(t.v);
+    const size = 0.5 + Math.log2(t.v) * 0.12; // 1 → half a cell, 16 → nearly full
+    const badge = t.v > 1 ? `<span class="badge">${t.v}</span>` : '';
+    return `<div class="blob" style="--s:${size};--d:${-((i * 0.37) % 2.6).toFixed(2)}s"><i class="eye"></i><i class="eye"></i></div>${badge}`;
   }
 
   function fmtTime(ms) {
@@ -358,12 +417,13 @@ if (typeof document !== 'undefined') {
     if (S.effects) cells.forEach(t => { if (t && !done.has(t.c) && regionDone(cells, t.c)) done.add(t.c); });
 
     boardEl.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+    boardEl.classList.toggle('fx', S.effects);
     let html = '';
     for (let i = 0; i < n * n; i++) {
       let t = cells[i], cls = '', extra = '', style = '';
       if (drag && drag.dest >= 0) {
         const src = cells[drag.i];
-        if (i === drag.i) { t = { v: src.v / 2, c: src.c }; cls = ' active'; }
+        if (i === drag.i) { t = { v: src.v / 2, c: src.c }; cls = ` active stretch-${drag.dir}`; }
         if (i === drag.dest) { t = { v: src.v / 2, c: src.c }; cls = ' ghost'; }
       }
       if (t && done.has(t.c) && !(drag && (i === drag.i || i === drag.dest))) cls += ' done';
@@ -372,9 +432,11 @@ if (typeof document !== 'undefined') {
         else if (i === anim.from) cls += ' pop';
         else if (i === anim.to) { cls += ' slide'; style = `;--sx:${-DIRS[anim.dir][1]};--sy:${-DIRS[anim.dir][0]}`; }
       }
-      if (blocked.has(i)) cls += ' blocked';
+      if (blocked.has(i)) cls += ' blocked upset';
+      if (t && t.v === 1) cls += ' sleep';
+      if (S.slimes) cls += ' slime';
       if (hint && i === hint.from) extra = `<span class="arrow">${ARROWS[hint.dir]}</span>`;
-      const tile = t ? `<div class="tile${cls}" style="background:${tileColour(t.c, t.v)}${style}">${t.v}${extra}</div>` : '<span class="dot">1</span>';
+      const tile = t ? `<div class="tile${cls}" style="--col:${tileColour(t.c, t.v)}${style}">${tileInner(t, i)}${extra}</div>` : '<span class="dot">1</span>';
       html += `<div class="cell${i === hintDst ? ' hint-dst' : ''}" data-i="${i}">${tile}</div>`;
     }
     boardEl.innerHTML = html;
@@ -384,7 +446,7 @@ if (typeof document !== 'undefined') {
     if (stuck) { status.textContent = 'Stuck. Undo or restart.'; status.className = 'bad'; }
     else if (hint) { status.textContent = `Hint: split the ${cells[hint.from].v} ${hint.dir}`; status.className = 'hint'; }
     else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Undo to get hints back.'; status.className = 'hint'; }
-    else status.textContent = 'Fill every cell with a 1';
+    else status.textContent = S.slimes ? 'Put a baby slime in every cell' : 'Fill every cell with a 1';
 
     $('undos').textContent = S.undos;
     $('left').textContent = cells.filter(t => !t).length;
@@ -522,7 +584,13 @@ if (typeof document !== 'undefined') {
     try { localStorage.setItem('split.effects', S.effects ? '1' : '0'); } catch (err) {}
     render();
   });
+  $('slimes').addEventListener('change', e => {
+    S.slimes = e.target.checked;
+    try { localStorage.setItem('split.slimes', S.slimes ? '1' : '0'); } catch (err) {}
+    render();
+  });
   try { if (localStorage.getItem('split.effects') === '0') { S.effects = false; $('effects').checked = false; } } catch (err) {}
+  try { if (localStorage.getItem('split.slimes') === '0') { S.slimes = false; $('slimes').checked = false; } } catch (err) {}
   document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'z') undo(); });
   window.addEventListener('resize', layout);
 
