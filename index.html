@@ -305,6 +305,7 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 #status { min-height: 20px; font-size: var(--fs-md); line-height: 20px; color: var(--text); }
 #status.bad { color: var(--bad); font-weight: 700; }
 #status.hint { color: var(--accent); }
+#quip { min-height: 18px; font-size: var(--fs-sm); line-height: 18px; color: var(--muted); font-style: italic; }
 
 .actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s2); }
 button.btn {
@@ -459,6 +460,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
   <div id="stage">
     <div id="brief">
       <div id="status"></div>
+      <div id="quip"></div>
     </div>
     <div id="board"></div>
   </div>
@@ -723,6 +725,30 @@ if (typeof document !== 'undefined') {
     return `--col:hsl(${hue} 58% ${light}%)`;
   }
 
+  // One kitten one-liner per stage, under the goal line.
+  const QUIPS = [
+    "Cats don't share. They just allow you nearby.",
+    "Every kitten fight ends in a nap.",
+    "No kitten was harmed. Some were mildly offended.",
+    "Purr now, fight later.",
+    "Nine lives, one cell each.",
+    "Hiss first, cuddle later.",
+    "It's not a fight. It's a very loud negotiation.",
+    "Personal space is a kitten's love language.",
+    "Two kittens, one cell, zero chill.",
+    "Naps are serious business.",
+    "Every cell is a throne.",
+    "They started it. They always started it.",
+    "Fur will fly. Then fur will sleep.",
+    "Claws out, then lights out.",
+    "A tired kitten is a peaceful kitten.",
+    "Sharing is caring. Kittens don't care.",
+    "Some kittens just want to watch the world nap.",
+    "Hold my yarn.",
+    "Paws for a moment.",
+    "Meow or never.",
+  ];
+
   // ===================== SPRITES =====================
   // Kitten art is embedded (tools/embed_sprites.py). Grey fur and dust are recoloured per
   // region on a canvas; pink, white, yellow and the dark outline keep their colour.
@@ -881,6 +907,7 @@ if (typeof document !== 'undefined') {
     else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Undo to get hints back.'; status.className = 'hint'; }
     else status.textContent = { kittens: 'Give every kitten its own cell to sleep!', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
 
+    $('quip').textContent = S.skin === 'kittens' ? QUIPS[(S.stage || 0) % QUIPS.length] : '';
     $('undos').textContent = S.undos;
     $('time').textContent = fmtTime(S.elapsed);
     $('undo').disabled = !S.history.length || S.won || S.lost;
