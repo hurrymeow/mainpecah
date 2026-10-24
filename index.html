@@ -18,6 +18,8 @@
   --bad: #ff4757;
   --good: #4fd69c;
   --dot: rgba(233,236,243,.13);
+  --ol: #2b1d16;      /* cartoon outline */
+  --warn: #ffc04d;
   --gap: 6px;
   --cell: 64px;
   color-scheme: dark;
@@ -103,6 +105,7 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
   position: absolute; left: 60%; top: 36%; opacity: 0; pointer-events: none;
   font-size: calc(var(--cell) * .15); font-weight: 800; color: rgba(233,236,243,.6);
 }
+.kitten .z { left: 30%; top: 4%; color: #9ad4e0; }
 .fx .z { animation: zzz 3.2s ease-out var(--d) infinite; }
 @keyframes zzz {
   0% { opacity: 0; transform: translate(0, 0) scale(.6); }
@@ -194,8 +197,17 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
 .tile { pointer-events: none; } /* touches hit the cell underneath, even mid-hop */
 .kit .fur { fill: var(--col); }
 .kit .tail { fill: none; stroke: var(--col); stroke-width: 7; stroke-linecap: round; }
+.kit .tailo { fill: none; stroke: var(--ol); stroke-width: 12; stroke-linecap: round; }
+.kit .tails { fill: none; stroke: var(--col2); stroke-width: 7; stroke-dasharray: 3 6; }
+.kit .ol { stroke: var(--ol); stroke-width: 3; stroke-linejoin: round; }
+.kit .stripe { fill: none; stroke: var(--col2); stroke-width: 3.5; stroke-linecap: round; }
+.kit .white { fill: #fff7ec; }
+.kit .blush { fill: #ff9db0; opacity: .5; }
+.kit .cloudo { fill: var(--ol); }
+.kit .cloud { fill: var(--cloud); }
+.kit .thin { stroke-width: 2; }
 .kit .ear { fill: #f4a6b8; }
-.kit .ink { fill: none; stroke: #1a1d26; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.kit .ink { fill: none; stroke: var(--ol); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .kit .whisker { stroke: rgba(255,255,255,.6); stroke-width: 1.5; stroke-linecap: round; }
 .kit .paw { fill: #f3efe8; }
 .kit .zap { fill: #ffd84d; font: 800 22px system-ui, sans-serif; }
@@ -225,6 +237,39 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
   0% { opacity: .9; transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(.6); }
   100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--a)) translateY(-280%) scale(1.4); }
 }
+/* Fuse: every fight burns down; at zero it explodes and the board is lost. */
+.fuse {
+  position: absolute; left: 16%; right: 16%; bottom: 3%; height: 5%; border-radius: 4px;
+  background: var(--good); transform-origin: left center; pointer-events: none;
+}
+.live .fuse { animation: burn var(--ft) linear var(--fd) forwards; }
+@keyframes burn {
+  0% { transform: scaleX(1); background: var(--good); }
+  60% { background: var(--warn); }
+  85%, 100% { background: var(--bad); }
+  100% { transform: scaleX(0); }
+}
+.danger .blob { filter: drop-shadow(0 0 3px var(--bad)) drop-shadow(0 0 6px var(--bad)); }
+.tile.danger:not(.slime) { box-shadow: 0 0 0 3px var(--bad); }
+.fx .danger:not(.active) .kit { animation-duration: .14s; }
+.tile.boom { z-index: 2; }
+.boom .blob { animation: boom .5s ease-out forwards !important; }
+@keyframes boom { 40% { transform: scale(1.5); opacity: 1; } 100% { transform: scale(2.1); opacity: 0; } }
+.boom .puff { animation: blast .6s ease-out forwards; background: var(--warn); }
+@keyframes blast {
+  0% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--a)) translateY(-520%) scale(1.8); }
+}
+.pow {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font: 900 calc(var(--cell) * .36) system-ui, sans-serif; color: var(--warn);
+  -webkit-text-stroke: 2px var(--ol); animation: pow .6s ease-out both;
+}
+@keyframes pow { 0% { transform: scale(.3) rotate(-12deg); } 50% { transform: scale(1.3) rotate(6deg); } 100% { transform: scale(1.1) rotate(-4deg); } }
+#board.shake { animation: shake .4s linear; }
+@keyframes shake { 20% { transform: translate(-6px, 3px); } 40% { transform: translate(5px, -4px); } 60% { transform: translate(-4px, -2px); } 80% { transform: translate(3px, 3px); } }
+.card h2.lose { color: var(--bad); }
+.card p { margin: 0; color: var(--muted); }
 .tile.blocked { box-shadow: inset 0 0 0 4px var(--bad), 0 0 14px rgba(255,71,87,.55); }
 .tile .arrow {
   position: absolute; top: 3px; right: 6px; font-size: calc(var(--cell) * .26);
@@ -297,6 +342,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   <div class="debug">
     <label>Skin <select id="skin"><option value="kittens">Kittens</option><option value="slimes">Slimes</option><option value="numbers">Numbers</option></select></label>
     <label><input type="checkbox" id="effects" checked> Effects</label>
+    <label>Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="12" selected>12s</option><option value="20">20s</option></select></label>
     <label><input type="checkbox" id="showSol"> Show solution</label>
     <span id="info"></span>
   </div>
@@ -305,6 +351,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 <div id="overlay" hidden>
   <div class="card">
     <h2 id="winTitle">Solved</h2>
+    <p id="winMsg"></p>
     <dl><dt>Time</dt><dd id="winTime"></dd><dt>Undos</dt><dd id="winUndos"></dd></dl>
     <div class="row">
       <button class="btn" id="winRestart">Replay</button>
@@ -334,6 +381,9 @@ const S = {
   undos: 0,
   t0: 0, elapsed: 0, timer: 0,
   won: false,
+  lost: false,
+  fuseMs: 12000,    // fight timer length; 0 = off
+  fuse: [],         // per cell: absolute deadline (ms) for a fight, else null
   showSol: false,
   effects: true,    // split motion, region pulse, sound
   skin: 'kittens',  // 'kittens' | 'slimes' | 'numbers'
@@ -473,40 +523,56 @@ if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
   const boardEl = $('board'), stageEl = $('stage');
 
-  function tileColour(c, v) {
-    const hue = 25 + ((c * 137.508) % 310); // golden-angle spread, skips pure red (reserved for "blocked")
-    const light = S.skin !== 'numbers'
-      ? 58 - Math.log2(v) * 4                // sprites: singles pale, big ones deeper
+  function tileVars(c, v) {
+    const hue = (25 + ((c * 137.508) % 310)).toFixed(0); // golden-angle spread, skips pure red (reserved for "blocked")
+    if (S.skin === 'kittens') return `--col:hsl(${hue} 70% 64%);--col2:hsl(${hue} 60% 42%);--cloud:hsl(${hue} 55% 76%)`;
+    const light = S.skin === 'slimes'
+      ? 58 - Math.log2(v) * 4                // slimes: babies pale, big ones deeper
       : 30 + Math.log2(v) * 5;               // numbers: bigger values a touch brighter
-    return `hsl(${hue.toFixed(0)} 58% ${light}%)`;
+    return `--col:hsl(${hue} 58% ${light}%)`;
   }
 
-  // Kitten SVGs, viewBox 0 0 100 100. Fill comes from the tile's --col via CSS classes.
+  // Kitten SVGs, viewBox 0 0 100 100, cartoon style: dark outline, tabby stripes, white muzzle.
+  // Colours come from the tile's --col (fur), --col2 (stripes) and --cloud via CSS classes.
+  const TAIL = d => `<path class="tailo" d="${d}"/><path class="tail" d="${d}"/><path class="tails" d="${d}"/>`;
   const KITTEN = `<svg viewBox="0 0 100 100" aria-hidden="true">
-    <path class="fur" d="M18 50 L25 16 L46 34 Z M82 50 L75 16 L54 34 Z"/>
-    <path class="ear" d="M25 38 L28 24 L38 33 Z M75 38 L72 24 L62 33 Z"/>
-    <ellipse class="fur" cx="50" cy="60" rx="35" ry="29"/>
-    <path class="ink" d="M30 59 q6 5 12 0 M58 59 q6 5 12 0 M44 74 q3 3 6 0 q3 3 6 0"/>
-    <path class="ear" d="M46 67 h8 l-4 4 z"/>
-    <path class="whisker" d="M12 64 h17 M13 72 l16 -4 M88 64 h-17 M87 72 l-16 -4"/>
+    <ellipse class="fur ol" cx="60" cy="66" rx="32" ry="23"/>
+    <path class="stripe" d="M62 46 q5 6 3 13 M73 48 q5 6 2 13 M83 55 q3 5 0 11"/>
+    ${TAIL('M90 70 C 90 92, 52 96, 30 87')}
+    <path class="fur ol" d="M17 47 L14 19 L38 33 Z M40 31 L60 18 L61 45 Z"/>
+    <path class="ear" d="M20 41 L18 26 L31 34 Z M45 32 L56 25 L57 39 Z"/>
+    <ellipse class="fur ol" cx="37" cy="52" rx="24" ry="20"/>
+    <path class="stripe" d="M31 34 l1 6 M37 33 v6 M43 34 l-1 6"/>
+    <ellipse class="white" cx="38" cy="61" rx="12" ry="8"/>
+    <circle class="blush" cx="22" cy="58" r="4"/><circle class="blush" cx="53" cy="58" r="4"/>
+    <path class="ink" d="M24 52 q5 -5 10 0 M41 52 q5 -5 10 0"/>
+    <path class="ear" d="M35 57 h6 l-3 3 z"/>
+    <path class="ink thin" d="M33 62 q2.5 3 5 0 q2.5 3 5 0"/>
+    <path class="whisker" d="M13 58 l-9 -2 M13 62 l-9 2 M61 58 l9 -2 M61 62 l9 2"/>
+    <ellipse class="white ol" cx="31" cy="74" rx="7" ry="5"/><ellipse class="white ol" cx="46" cy="75" rx="7" ry="5"/>
   </svg>`;
-  const FIGHT_EARS = [[30, 22, -25], [56, 12, 10], [42, 14, -8], [72, 22, 28], [18, 36, -40]]; // x, tip y, tilt
+  const FIGHT_EARS = [[28, 10, -25], [56, 2, 12], [42, 4, -8], [74, 12, 30], [14, 26, -42]]; // x, tip y, tilt
   const FIGHT_EYES = [[40, 52], [62, 64], [32, 70], [64, 44]];
+  const FIGHT_PAWS = [[20, 80], [84, 78], [52, 92], [12, 58]];
+  const CLOUD = [[30, 58, 20], [50, 46, 24], [70, 58, 20], [38, 73, 18], [62, 73, 18], [50, 62, 22]];
   function fightCloud(v) {
-    const k = Math.log2(v); // 1..4: more kittens, more ears and eyes in the scrap
-    const ears = FIGHT_EARS.slice(0, Math.min(5, k + 1))
-      .map(([x, y, r]) => `<path class="fur" transform="rotate(${r} ${x} ${y + 18})" d="M${x - 9} ${y + 20} L${x} ${y} L${x + 9} ${y + 20} Z"/>`).join('');
+    const k = Math.log2(v); // 1..4: more kittens, more ears, eyes, paws and tails in the scrap
+    const ears = FIGHT_EARS.slice(0, Math.min(5, k + 1)).map(([x, y, r]) =>
+      `<g transform="rotate(${r} ${x} ${y + 18})"><path class="fur ol" d="M${x - 9} ${y + 20} L${x} ${y} L${x + 9} ${y + 20} Z"/>` +
+      `<path class="ear" d="M${x - 5} ${y + 17} L${x} ${y + 7} L${x + 5} ${y + 17} Z"/></g>`).join('');
     const eyes = FIGHT_EYES.slice(0, k)
       .map(([x, y]) => `M${x - 9} ${y - 3} l5 3 l-5 3 M${x + 9} ${y - 3} l-5 3 l5 3`).join(' ');
+    const paws = FIGHT_PAWS.slice(0, Math.min(4, k + 1))
+      .map(([x, y]) => `<circle class="white ol" cx="${x}" cy="${y}" r="6"/>`).join('');
+    const cloud = CLOUD.map(([x, y, r]) => `<circle class="cloudo" cx="${x}" cy="${y}" r="${r + 3}"/>`).join('') +
+      CLOUD.map(([x, y, r]) => `<circle class="cloud" cx="${x}" cy="${y}" r="${r}"/>`).join('');
     return `<svg viewBox="0 0 100 100" aria-hidden="true">
-      <path class="tail" d="M76 70 q20 -4 14 -26"/>
-      ${ears}
-      <circle class="fur" cx="30" cy="58" r="20"/><circle class="fur" cx="50" cy="48" r="24"/>
-      <circle class="fur" cx="70" cy="58" r="20"/><circle class="fur" cx="38" cy="73" r="18"/>
-      <circle class="fur" cx="62" cy="73" r="18"/><circle class="fur" cx="50" cy="62" r="22"/>
+      ${TAIL('M78 66 q20 -4 13 -28')}${k >= 3 ? TAIL('M22 70 q-18 2 -12 -24') : ''}
+      ${ears}${cloud}
+      <path class="ink thin" d="M36 62 q6 -6 12 0 q6 6 12 0" opacity=".35"/>
       <path class="ink" d="${eyes}"/>
-      <circle class="paw" cx="20" cy="78" r="6"/><circle class="paw" cx="83" cy="76" r="6"/>
-      <text class="zap" x="6" y="30">✶</text><text class="zap" x="84" y="26">✶</text>
+      ${paws}
+      <text class="zap" x="4" y="30">✶</text><text class="zap" x="84" y="24">✶</text>
     </svg>`;
   }
 
@@ -515,7 +581,7 @@ if (typeof document !== 'undefined') {
     if (S.skin === 'kittens') {
       const size = t.v === 1 ? 0.8 : 0.74 + Math.log2(t.v) * 0.06; // a 16-kitten brawl fills the cell
       const badge = t.v > 1 ? `<span class="badge">${t.v}</span>` : '';
-      const z = t.v === 1 && (i * 7) % 5 === 0 ? '<span class="z">z</span>' : '';
+      const z = t.v === 1 && (i * 7) % 4 === 0 ? '<span class="z">z<small>z</small></span>' : '';
       const puffs = popping ? [0, 60, 120, 180, 240, 300].map(a => `<i class="puff" style="--a:${a}deg"></i>`).join('') : '';
       return `<div class="blob kit" style="--s:${size}">${t.v > 1 ? fightCloud(t.v) : KITTEN}</div>${badge}${z}${puffs}`;
     }
@@ -540,11 +606,11 @@ if (typeof document !== 'undefined') {
 
   function render() {
     const { n, cells, drag } = S;
-    const stuck = !S.won && isStuck(cells, n);
+    const stuck = !S.won && !S.lost && isStuck(cells, n);
     const blocked = new Set(stuck ? blockedTiles(cells, n) : []);
     const hint = S.showSol && !S.won ? nextHint() : null;
     const hintDst = hint ? neighbour(n, hint.from, hint.dir) : -1;
-    const anim = S.effects ? S.anim : null;
+    const anim = S.effects || (S.anim && S.anim.boom != null) ? S.anim : null; // the explosion always shows
     const now = performance.now() / 1000;
     const phase = (offset, period) => -((now + offset) % period).toFixed(2) + 's';
     let wave = 0;
@@ -554,6 +620,8 @@ if (typeof document !== 'undefined') {
 
     boardEl.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
     boardEl.classList.toggle('fx', S.effects);
+    boardEl.classList.toggle('live', !!S.t0 && !S.won && !S.lost);
+    const nowMs = Date.now(), F = S.fuseMs / 1000;
     let html = '';
     for (let i = 0; i < n * n; i++) {
       let t = cells[i], cls = '', extra = '';
@@ -573,6 +641,16 @@ if (typeof document !== 'undefined') {
         else if (anim.region === t.c) { cls += ' flash'; style += `;--wd:${200 + wave++ * 50}ms`; }
       }
       if (blocked.has(i)) cls += ' blocked upset';
+      let fuseBar = '';
+      if (S.fuseMs && !S.lost && t && cells[i] && cells[i].v > 1 && !(drag && i === drag.dest)) {
+        const left = S.fuse[i] ? Math.max(0, S.fuse[i] - nowMs) : S.fuseMs;
+        if (S.t0 && left < 3000) cls += ' danger';
+        fuseBar = `<i class="fuse" style="--ft:${F}s;--fd:${((left - S.fuseMs) / 1000).toFixed(2)}s"></i>`;
+      }
+      if (anim && anim.boom === i) {
+        cls += ' boom';
+        fuseBar = '<span class="pow">POW!</span>' + Array.from({ length: 10 }, (_, k) => `<i class="puff" style="--a:${k * 36}deg"></i>`).join('');
+      }
       if (t && t.v === 1) cls += ' sleep';
       if (S.skin !== 'numbers') cls += ' slime';
       if (S.skin === 'kittens') {
@@ -580,7 +658,7 @@ if (typeof document !== 'undefined') {
         if (t && t.v > 1) { cls += ' fight'; style += `;--sh:${(0.5 - Math.log2(t.v) * 0.07).toFixed(2)}s`; }
       }
       if (hint && i === hint.from) extra = `<span class="arrow">${ARROWS[hint.dir]}</span>`;
-      const tile = t ? `<div class="tile${cls}" style="--col:${tileColour(t.c, t.v)}${style}">${tileInner(t, i, cls.includes(' pop'))}${extra}</div>`
+      const tile = t ? `<div class="tile${cls}" style="${tileVars(t.c, t.v)}${style}">${tileInner(t, i, cls.includes(' pop'))}${fuseBar}${extra}</div>`
         : S.skin === 'kittens' ? '<span class="bed"></span>' : '<span class="dot">1</span>';
       html += `<div class="cell${i === hintDst ? ' hint-dst' : ''}" data-i="${i}">${tile}</div>`;
     }
@@ -596,21 +674,59 @@ if (typeof document !== 'undefined') {
     $('undos').textContent = S.undos;
     $('left').textContent = cells.filter(t => !t).length;
     $('time').textContent = fmtTime(S.elapsed);
-    $('undo').disabled = !S.history.length || S.won;
+    $('undo').disabled = !S.history.length || S.won || S.lost;
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
   }
 
   // ---------- game flow ----------
   function stopTimer() { clearInterval(S.timer); S.timer = 0; }
+  // Fuses only burn once the clock starts, so nothing explodes while you read the board.
+  function armFuses() {
+    const now = Date.now();
+    S.fuse = S.cells.map((t, i) => (S.fuseMs && t && t.v > 1 ? S.fuse[i] || now + S.fuseMs : null));
+  }
+
+  let dangerKey = '';
+  function tick() {
+    const now = Date.now();
+    S.elapsed = now - S.t0;
+    $('time').textContent = fmtTime(S.elapsed);
+    if (S.won || S.lost) return;
+    let first = -1;
+    S.fuse.forEach((d, i) => { if (d && d <= now && (first < 0 || d < S.fuse[first])) first = i; });
+    if (first >= 0) return explode(first);
+    const key = S.fuse.map(d => (d && d - now < 3000 ? 1 : 0)).join('');
+    if (key !== dangerKey) { dangerKey = key; if (!S.drag) render(); }
+  }
+
   function startTimer() {
     S.t0 = Date.now();
-    S.timer = setInterval(() => { S.elapsed = Date.now() - S.t0; $('time').textContent = fmtTime(S.elapsed); }, 250);
+    armFuses();
+    S.timer = setInterval(tick, 100);
+  }
+
+  function explode(i) {
+    S.lost = true; S.drag = null; stopTimer();
+    S.anim = { boom: i };
+    boomSound();
+    boardEl.classList.remove('shake'); void boardEl.offsetWidth; boardEl.classList.add('shake');
+    render();
+    const n = S.cells[i].v;
+    $('winTitle').textContent = S.skin === 'kittens' ? 'Cat fight!' : 'Boom!';
+    $('winTitle').className = 'lose';
+    $('winMsg').textContent = S.skin === 'kittens' ? `${n} kittens fought too long and blew up.` : `A ${n} waited too long and exploded.`;
+    $('winTime').textContent = fmtTime(S.elapsed);
+    $('winUndos').textContent = S.undos;
+    $('winRestart').textContent = 'Try again';
+    setTimeout(() => { if (S.lost) $('overlay').hidden = false; }, 900);
   }
 
   function restart() {
     stopTimer();
-    Object.assign(S, { cells: cloneCells(S.board.cells), history: [], undos: 0, t0: 0, elapsed: 0, won: false, drag: null });
+    Object.assign(S, { cells: cloneCells(S.board.cells), history: [], undos: 0, t0: 0, elapsed: 0, won: false, lost: false, drag: null, fuse: [] });
+    dangerKey = '';
+    boardEl.classList.remove('shake');
     $('overlay').hidden = true;
     render();
   }
@@ -670,6 +786,17 @@ if (typeof document !== 'undefined') {
     src.connect(bp).connect(ng).connect(audio.destination);
     src.start(t);
   }
+  function boomSound() {
+    if (!audio) return; // the loss still shows with sound off
+    const t = audio.currentTime, len = 0.6;
+    const buf = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = buf.getChannelData(0);
+    for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / d.length, 2);
+    const src = audio.createBufferSource(), lp = audio.createBiquadFilter(), g = audio.createGain();
+    src.buffer = buf; lp.type = 'lowpass'; lp.frequency.value = 900; g.gain.value = 0.5;
+    src.connect(lp).connect(g).connect(audio.destination);
+    src.start(t);
+    tone(110, 0, 0.4, 0.25, 'sawtooth');
+  }
   const regionSound = () => [523, 659, 784].forEach((f, k) => tone(f, 0.06 + k * 0.07, 0.3, 0.14));
   const winSound = () => [523, 659, 784, 1047].forEach((f, k) => tone(f, 0.1 + k * 0.09, 0.5, 0.16));
 
@@ -678,8 +805,13 @@ if (typeof document !== 'undefined') {
     const next = applySplit(S.cells, S.n, i, dir);
     if (!next) return;
     if (!S.t0) startTimer();
-    S.history.push(S.cells);
+    const now = Date.now(), j = neighbour(S.n, i, dir);
+    S.history.push({ cells: S.cells, fuseLeft: S.fuse.map(d => (d ? d - now : null)) });
     S.cells = next;
+    // Splitting calms both halves: each remaining fight gets a fresh fuse.
+    S.fuse = S.fuse.slice();
+    S.fuse[i] = S.fuseMs && next[i].v > 1 ? now + S.fuseMs : null;
+    S.fuse[j] = S.fuseMs && next[j].v > 1 ? now + S.fuseMs : null;
     const c = next[i].c;
     const region = regionDone(next, c) ? c : null;
     S.anim = { from: i, to: neighbour(S.n, i, dir), dir, region, win: isWin(next) };
@@ -690,22 +822,29 @@ if (typeof document !== 'undefined') {
       $('winTime').textContent = fmtTime(S.elapsed);
       $('winUndos').textContent = S.undos;
       $('winTitle').textContent = S.skin === 'kittens' ? 'All asleep' : 'Solved';
+      $('winTitle').className = '';
+      $('winMsg').textContent = S.skin === 'kittens' ? 'Every kitten has its own bed.' : 'Every cell holds a 1.';
+      $('winRestart').textContent = 'Replay';
       winSound();
       setTimeout(() => { if (S.won) $('overlay').hidden = false; }, S.effects ? 1100 : 0);
     }
     render();
   }
 
+  // Undo restores the fuse time each fight had left, so it can't be used to refill fuses.
   function undo() {
-    if (!S.history.length || S.won) return;
-    S.cells = S.history.pop();
+    if (!S.history.length || S.won || S.lost) return;
+    const prev = S.history.pop(), now = Date.now();
+    S.cells = prev.cells;
+    S.fuse = prev.fuseLeft.map(r => (r == null ? null : now + r));
+    armFuses(); // fights that had no fuse yet (before the first move) get a full one
     S.undos++;
     render();
   }
 
   // ===================== INPUT =====================
   boardEl.addEventListener('pointerdown', e => {
-    if (S.won || S.drag) return;
+    if (S.won || S.lost || S.drag) return;
     initAudio();
     const cell = e.target.closest('.cell');
     if (!cell) return;
@@ -751,6 +890,15 @@ if (typeof document !== 'undefined') {
     try { localStorage.setItem('split.effects', S.effects ? '1' : '0'); } catch (err) {}
     render();
   });
+  $('fuse').addEventListener('change', e => {
+    S.fuseMs = +e.target.value * 1000;
+    try { localStorage.setItem('split.fuse', e.target.value); } catch (err) {}
+    restart();
+  });
+  try {
+    const f = localStorage.getItem('split.fuse');
+    if (['0', '8', '12', '20'].includes(f)) { S.fuseMs = +f * 1000; $('fuse').value = f; }
+  } catch (err) {}
   $('skin').addEventListener('change', e => {
     S.skin = e.target.value;
     try { localStorage.setItem('split.skin', S.skin); } catch (err) {}
