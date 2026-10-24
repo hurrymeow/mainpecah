@@ -533,6 +533,32 @@ test('How to play', async () => {
   return 'first entry per mode shows it once, Challenge adds fuses, link reopens it and pauses the clock';
 });
 
+// Player-facing words stay consistent: cells (not beds), Normal (not Challenge), Kaboom Kitty.
+test('Player text', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  await page.goto(URL.replace('?dev', ''));
+  await ready(page);
+  const words = () => page.evaluate(() => {
+    const out = [];
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (w.nextNode()) if (!w.currentNode.parentElement.closest('script,style,.devonly')) out.push(w.currentNode.textContent);
+    document.querySelectorAll('[aria-label],[alt],[title]').forEach(e => out.push(e.getAttribute('aria-label') || e.getAttribute('alt') || e.getAttribute('title')));
+    return out.join(' ').replace(/\s+/g, ' ');
+  });
+  let text = await words();
+  await page.click('#playChallenge'); // first entry: tutorial with the fuse step
+  text += ' ' + await words();
+  await page.click('#howtoGo');
+  // Win, lose and status copy is set in code, so read it from the script.
+  text += ' ' + await page.evaluate(() => document.querySelector('script:not([src])').textContent.match(/textContent = [^;]*'[^']*'/g).join(' '));
+  for (const bad of [/\bbeds?\b/i, /\bChallenge\b/, /Kaboom Kittens/, /\bof \d+\b/]) check(!bad.test(text), `stale player text: ${text.match(bad)}`);
+  for (const need of ['Kaboom Kitty', 'Casual', 'Normal', 'How to play', 'Swipe to break up a fight', 'empty cell']) check(text.includes(need), `missing "${need}"`);
+  check(await page.evaluate(() => document.querySelectorAll('#howto .cot:not([data-kit]) .bed').length === 2), 'tutorial empty cells lack the dotted oval');
+  await context.close();
+  return 'no bed / Challenge / Kaboom Kittens / "of N" in visible or scripted copy; tutorial shows empty-cell ovals';
+});
+
 test('Install offer', async () => {
   const { context, page, errors } = await open({}, false);
   check(!(await page.isVisible('#startInstall')) && !(await page.isVisible('#installRow')), 'install shown before the browser offered it');

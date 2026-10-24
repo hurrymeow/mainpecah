@@ -491,7 +491,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
   <div class="start">
     <img id="startArt" alt="">
     <h1>Kaboom Kitty</h1>
-    <p>Split every kitten fight until each kitten has its own bed.</p>
+    <p>Break up every kitten fight until each kitten has its own cell.</p>
     <button class="mode" id="playCasual"><b>Casual</b><span>No fuses. Take your time.</span><em id="casualStage">Stage 1</em></button>
     <button class="mode" id="playChallenge"><b>Normal</b><span>Leave a fight too long and it blows up.</span><em id="challengeStage">Stage 1</em></button>
     <button class="btn" id="startInstall" hidden>Install app</button>
@@ -502,12 +502,12 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
   <div class="howto">
     <h1 id="howtoTitle">How to play</h1>
     <ol class="steps">
-      <li><div class="pics"><span class="cot" data-kit="fight2"></span><span class="cot"></span><i>›</i><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span></div>
-        <p><b>Swipe a fight</b> into an empty bed next to it. It splits in half.</p></li>
-      <li><div class="pics"><span class="cot" data-kit="fight4"></span><span class="cot"></span><i>›</i><span class="cot" data-kit="fight2"></span><span class="cot" data-kit="fight2"></span></div>
+      <li><div class="pics"><span class="cot" data-kit="fight2"></span><span class="cot"><span class="bed"></span></span><i>›</i><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span></div>
+        <p><b>Swipe to break up a fight.</b> Push it into an empty cell next to it and it splits in half.</p></li>
+      <li><div class="pics"><span class="cot" data-kit="fight4"></span><span class="cot"><span class="bed"></span></span><i>›</i><span class="cot" data-kit="fight2"></span><span class="cot" data-kit="fight2"></span></div>
         <p><b>Big fights</b> split again and again: 4 makes two 2s, and each 2 makes two 1s.</p></li>
       <li><div class="pics"><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span></div>
-        <p><b>Win</b> when every kitten sleeps alone in its own bed. Boxed in? Undo or Restart.</p></li>
+        <p><b>Win</b> when every kitten sleeps alone in its own cell. Stuck? Undo or restart.</p></li>
       <li id="howtoFuse"><div class="pics"><span class="cot fused" data-kit="fight2"><b></b></span><i>›</i><span class="cot" data-kit="boom"></span></div>
         <p><b class="warn">Normal:</b> every fight has a fuse. Split it before the fuse burns down, or it blows up.</p></li>
     </ol>
@@ -1091,7 +1091,7 @@ if (typeof document !== 'undefined') {
       $('winUndos').textContent = S.undos;
       $('winTitle').textContent = S.skin === 'kittens' ? 'All asleep' : 'Solved';
       $('winTitle').className = '';
-      $('winMsg').textContent = S.skin === 'kittens' ? 'Every kitten has its own bed.' : 'Every cell holds a 1.';
+      $('winMsg').textContent = S.skin === 'kittens' ? 'Every kitten has its own cell.' : 'Every cell holds a 1.';
       $('winRestart').textContent = 'Replay';
       $('winNew').hidden = false;
       $('winNew').textContent = S.stage != null ? 'Next stage' : 'New board'; // New board only for dev custom boards
