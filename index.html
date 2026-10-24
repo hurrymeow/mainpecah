@@ -879,7 +879,7 @@ if (typeof document !== 'undefined') {
     if (stuck) { status.textContent = 'Stuck. Undo or restart.'; status.className = 'bad'; }
     else if (hint) { status.textContent = `Hint: split the ${cells[hint.from].v} ${hint.dir}`; status.className = 'hint'; }
     else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Undo to get hints back.'; status.className = 'hint'; }
-    else status.textContent = { kittens: 'Give every kitten its own cell to sleep', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
+    else status.textContent = { kittens: 'Give every kitten its own cell to sleep!', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
 
     $('undos').textContent = S.undos;
     $('time').textContent = fmtTime(S.elapsed);
