@@ -515,9 +515,9 @@ test('Start page and stages', async () => {
   const boards = await page.evaluate(() => ['casual', 'challenge'].map(m => {
     const keys = new Set();
     for (let k = 0; k < STAGES.length; k++) { const b = stageBoard(m, k); if (b.n === STAGES[k][0] && b.solution.length) keys.add(shapeKey(b.n, b.cells)); }
-    return { m, unique: keys.size };
+    return { m, unique: keys.size, stages: STAGES.length };
   }));
-  check(boards.every(b => STAGES.length === 100 && b.unique === 100), `stage boards must be 100 unique per mode: ${JSON.stringify(boards)}`);
+  check(boards.every(b => b.stages === 100 && b.unique === 100), `stage boards must be 100 unique per mode: ${JSON.stringify(boards)}`);
   check(/^4+5+6+$/.test(ladder), `stage ladder not 4x4 -> 5x5 -> 6x6: ${ladder}`);
   await context.close();
   check(!errors.length, errors.join(' | '));
