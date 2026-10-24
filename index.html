@@ -263,6 +263,7 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; letter-spacing: .06em
   background: var(--good); transform-origin: left center; pointer-events: none;
 }
 .fight .blob.kit { bottom: calc(5% + var(--fuse-h) + 2px); }
+.fight .kit img { object-position: 50%; } /* the wide 2-kitten cloud sits mid-cell, not on the floor */
 .live .fuse { animation: burn var(--ft) linear var(--fd) forwards; }
 @keyframes burn {
   0% { transform: scaleX(1); background: var(--good); }
