@@ -262,19 +262,21 @@ test('Stuck', async () => {
   const entries = [];
   for (let i = 1; i < 16; i++) entries.push([i, i === 15 ? 2 : 1, i]);
   await inject(page, 4, entries);
+  await page.waitForFunction(() => /Stuck/.test(document.getElementById('status').textContent), null, { timeout: 2000 }).catch(() => {});
   const r = await page.evaluate(() => {
     const st = document.getElementById('status'), tile = document.querySelector('.cell[data-i="15"] .tile');
-    const blob = tile.querySelector('.blob');
+    const blob = tile && tile.querySelector('.blob');
     return {
       text: st.textContent, cls: st.className, stuck: isStuck(S.cells, S.n),
       blocked: [...document.querySelectorAll('.tile.blocked')].map(t => +t.parentElement.dataset.i),
-      shadow: getComputedStyle(tile).boxShadow + ' ' + (blob ? getComputedStyle(blob).filter + ' ' + getComputedStyle(blob).boxShadow : ''),
+      shadow: (tile ? getComputedStyle(tile).boxShadow : 'no tile') + ' ' + (blob ? getComputedStyle(blob).filter + ' ' + getComputedStyle(blob).boxShadow : ''),
       color: getComputedStyle(st).color,
+      why: JSON.stringify({ drag: S.drag, won: S.won, lost: S.lost, downs: __downs.length, ups: __ups.length, key: keyOf(S.cells) }),
     };
   });
   await context.close();
   check(r.stuck, 'injected board is not stuck per isStuck()');
-  check(/Stuck/.test(r.text) && r.cls === 'bad', `status "${r.text}" class "${r.cls}"`);
+  check(/Stuck/.test(r.text) && r.cls === 'bad', `status "${r.text}" class "${r.cls}" ${r.why}`);
   check(r.color.includes(RED), `status colour ${r.color}`);
   check(r.blocked.length === 1 && r.blocked[0] === 15, `blocked tiles [${r.blocked}], want [15]`);
   check(r.shadow.includes(RED), `blocked tile not red: ${r.shadow}`);
