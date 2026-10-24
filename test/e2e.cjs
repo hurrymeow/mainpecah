@@ -28,10 +28,13 @@ async function open(opts = {}, withSettings = true) {
   await page.goto(URL);
   await ready(page);
   await page.click('#playCasual'); // past the start page
+  await skipHowto(page);
   if (withSettings) await openSettings(page);
   const cdp = await context.newCDPSession(page);
   return { context, page, errors, cdp };
 }
+// The first entry into each mode opens How to play; most tests just close it.
+const skipHowto = async page => { if (await page.isVisible('#howto')) await page.click('#howtoGo'); };
 const ready = page => page.waitForFunction(() => typeof S !== 'undefined' && S.board);
 // The dev controls live in a collapsed panel; open it with a real tap before using them.
 async function openSettings(page) {
@@ -120,7 +123,7 @@ async function loadFusePlan(page) {
 
 // ---------- cases ----------
 const cases = [];
-const test = (name, fn) => cases.push({ name, fn });
+const test = (name, fn) => (!process.env.ONLY || name.includes(process.env.ONLY)) && cases.push({ name, fn });
 
 test('Boot', async () => {
   const out = [];
@@ -461,6 +464,7 @@ test('Start page and stages', async () => {
   await ready(page);
   check(await page.isVisible('#start'), 'start page not shown on boot');
   await page.click('#playCasual');
+  await skipHowto(page);
   const st = () => page.evaluate(() => ({ mode: S.mode, stage: S.stage, n: S.n, fuse: S.fuseMs, title: document.getElementById('stageTitle').textContent, start: !document.getElementById('start').hidden }));
   let s = await st();
   check(!s.start && s.mode === 'casual' && s.stage === 0 && s.n === 4 && s.fuse === 0 && s.title === 'Stage 1 of 30', `casual: ${JSON.stringify(s)}`);
@@ -479,6 +483,7 @@ test('Start page and stages', async () => {
   check(await page.isVisible('#start'), 'Menu did not open the start page');
   check((await page.textContent('#casualStage')) === 'Continue from stage 2' && (await page.textContent('#challengeStage')) === 'Start from stage 1', 'start page shows wrong progress');
   await page.click('#playChallenge');
+  await skipHowto(page);
   s = await st();
   check(s.mode === 'challenge' && s.stage === 0 && s.fuse === 30000, `challenge: ${JSON.stringify(s)}`);
   await page.reload(); await ready(page);
@@ -490,6 +495,42 @@ test('Start page and stages', async () => {
   await context.close();
   check(!errors.length, errors.join(' | '));
   return 'start page on boot; Casual has no fuse; win -> Next stage; progress per mode survives reload; Challenge fuse from the stage';
+});
+
+test('How to play', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(URL);
+  await ready(page);
+  const shown = () => page.isVisible('#howto');
+  await page.click('#playCasual');
+  check(await shown(), 'no tutorial on first Casual entry');
+  check(!(await page.isVisible('#howtoFuse')), 'Casual tutorial mentions fuses');
+  check(await page.evaluate(() => [...document.querySelectorAll('#howto img')].every(i => i.src && i.naturalWidth)), 'tutorial sprites missing');
+  const box = await page.evaluate(() => { const r = document.querySelector('.howto').getBoundingClientRect(); return r.bottom <= innerHeight && r.top >= 0; });
+  check(box, 'tutorial does not fit one 390x844 screen');
+  await page.click('#howtoGo');
+  check(!(await shown()), 'Got it did not close the tutorial');
+  await page.click('#menu'); await page.click('#playCasual');
+  check(!(await shown()), 'tutorial shown again on second Casual entry');
+  await page.click('#menu'); await page.click('#playChallenge');
+  check(await shown() && await page.isVisible('#howtoFuse'), 'first Challenge entry has no fuse step');
+  await page.click('#howtoGo');
+  // Start the clock with a split, then reopen: the clock and fuses wait.
+  await hintSwipe(page);
+  await page.click('#help');
+  check(await shown(), 'How to play link did not open the tutorial');
+  const before = await page.evaluate(() => ({ t0: S.t0, fuse: S.fuse.find(Boolean), timer: S.timer }));
+  check(!before.timer, 'clock still running behind the tutorial');
+  await page.waitForTimeout(600);
+  await page.click('#howtoGo');
+  const after = await page.evaluate(() => ({ t0: S.t0, fuse: S.fuse.find(Boolean), timer: S.timer }));
+  check(after.timer && after.t0 - before.t0 >= 500 && after.fuse - before.fuse >= 500, `clock and fuses not shifted: ${JSON.stringify([before, after])}`);
+  await context.close();
+  check(!errors.length, errors.join(' | '));
+  return 'first entry per mode shows it once, Challenge adds fuses, link reopens it and pauses the clock';
 });
 
 test('Install offer', async () => {
@@ -544,6 +585,7 @@ test('Update banner', async () => {
     await page.goto(url);
     await ready(page);
     await page.click('#playCasual');
+    await skipHowto(page);
     await page.waitForFunction(() => navigator.serviceWorker.controller, null, { timeout: 10000 });
     check(!(await page.isVisible('#pwa')), 'first install showed the update banner');
     ver = 2;
