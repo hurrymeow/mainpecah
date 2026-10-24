@@ -1,5 +1,5 @@
 // deploy.yml stamps the commit into CACHE_NAME, so every deploy ships a new sw.js.
-const CACHE_NAME = 'kaboomkittens-v2';
+const CACHE_NAME = 'kaboomkittens-v1';
 
 // The app shell is fetched from the network first so updates show up when online.
 // The cache is only the offline fallback. GitHub Pages sends max-age=600, so revalidate.
