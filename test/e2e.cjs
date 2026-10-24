@@ -462,19 +462,19 @@ test('Start page and stages', async () => {
   await page.click('#playCasual');
   const st = () => page.evaluate(() => ({ mode: S.mode, stage: S.stage, n: S.n, fuse: S.fuseMs, title: document.getElementById('stageTitle').textContent, start: !document.getElementById('start').hidden }));
   let s = await st();
-  check(!s.start && s.mode === 'casual' && s.stage === 0 && s.n === 4 && s.fuse === 0 && s.title === 'Stage 1 of 18', `casual: ${JSON.stringify(s)}`);
+  check(!s.start && s.mode === 'casual' && s.stage === 0 && s.n === 4 && s.fuse === 0 && s.title === 'Stage 1 of 20', `casual: ${JSON.stringify(s)}`);
   while (await hintSwipe(page));
   await page.waitForSelector('#overlay:not([hidden])', { timeout: 3000 });
   check((await page.textContent('#winNew')) === 'Next stage', 'win offers no Next stage');
   await page.click('#winNew');
   s = await st();
-  check(s.stage === 1 && s.title === 'Stage 2 of 18', `after Next stage: ${JSON.stringify(s)}`);
+  check(s.stage === 1 && s.title === 'Stage 2 of 20', `after Next stage: ${JSON.stringify(s)}`);
   await page.click('#menu');
   check(await page.isVisible('#start'), 'Menu did not open the start page');
-  check((await page.textContent('#casualStage')) === 'Continue at stage 2 of 18' && (await page.textContent('#challengeStage')) === 'Start at stage 1 of 18', 'start page shows wrong progress');
+  check((await page.textContent('#casualStage')) === 'Continue at stage 2 of 20' && (await page.textContent('#challengeStage')) === 'Start at stage 1 of 20', 'start page shows wrong progress');
   await page.click('#playChallenge');
   s = await st();
-  check(s.mode === 'challenge' && s.stage === 0 && s.fuse === 12000, `challenge: ${JSON.stringify(s)}`);
+  check(s.mode === 'challenge' && s.stage === 0 && s.fuse === 30000, `challenge: ${JSON.stringify(s)}`);
   await page.reload(); await ready(page);
   await page.click('#playCasual');
   s = await st();
@@ -483,7 +483,7 @@ test('Start page and stages', async () => {
   check(/^4+5+6+$/.test(ladder), `stage ladder not 4x4 -> 5x5 -> 6x6: ${ladder}`);
   await context.close();
   check(!errors.length, errors.join(' | '));
-  return 'start page on boot; Casual has no fuse; win -> Next stage; progress per mode survives reload; Challenge fuse 12s';
+  return 'start page on boot; Casual has no fuse; win -> Next stage; progress per mode survives reload; Challenge fuse from the stage';
 });
 
 test('Install offer', async () => {
