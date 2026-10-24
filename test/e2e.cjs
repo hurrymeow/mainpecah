@@ -12,7 +12,7 @@ function check(cond, msg) { if (!cond) throw new Error(msg); }
 let browser;
 
 // ---------- page helpers ----------
-async function open(opts = {}) {
+async function open(opts = {}, withSettings = true) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, ...opts });
   const page = await context.newPage();
   const errors = [];
@@ -27,10 +27,15 @@ async function open(opts = {}) {
   });
   await page.goto(URL);
   await ready(page);
+  if (withSettings) await openSettings(page);
   const cdp = await context.newCDPSession(page);
   return { context, page, errors, cdp };
 }
 const ready = page => page.waitForFunction(() => typeof S !== 'undefined' && S.board);
+// The dev controls live in a collapsed panel; open it with a real tap before using them.
+async function openSettings(page) {
+  if (!(await page.evaluate(() => document.getElementById('settings').open))) await page.click('#settings summary');
+}
 const key = page => page.evaluate(() => keyOf(S.cells));
 
 async function center(page, i) {
@@ -119,9 +124,10 @@ const test = (name, fn) => cases.push({ name, fn });
 test('Boot', async () => {
   const out = [];
   for (const [w, h] of [[360, 640], [390, 844], [430, 932]]) {
-    const { context, page, errors } = await open({ viewport: { width: w, height: h }, isMobile: true, deviceScaleFactor: 2 });
+    const { context, page, errors } = await open({ viewport: { width: w, height: h }, isMobile: true, deviceScaleFactor: 2 }, false);
     await sleep(400);
     const m = await page.evaluate(() => ({
+      closed: !document.getElementById('settings').open,
       sh: document.documentElement.scrollHeight, sw: document.documentElement.scrollWidth,
       bh: document.body.scrollHeight, bw: document.body.scrollWidth,
       iw: innerWidth, ih: innerHeight,
@@ -129,6 +135,7 @@ test('Boot', async () => {
       right: Math.max(...[...document.querySelectorAll('#app *')].map(e => e.getBoundingClientRect().right)),
     }));
     await context.close();
+    check(m.closed, `${w}x${h}: settings panel open by default`);
     check(!errors.length, `${w}x${h}: errors: ${errors.join(' | ')}`);
     check(m.sh === m.ih && m.sw === m.iw && m.bh === m.ih && m.bw === m.iw, `${w}x${h}: scroll ${m.sw}x${m.sh} vs viewport ${m.iw}x${m.ih}`);
     check(m.bottom <= m.ih && m.right <= m.iw, `${w}x${h}: content overflows (${Math.round(m.right)}x${Math.round(m.bottom)})`);
@@ -365,11 +372,11 @@ test('Skins', async () => {
     out.push(`${skin} ${r.count}`);
   }
   await page.selectOption('#skin', 'slimes');
-  await page.reload(); await ready(page);
+  await page.reload(); await ready(page); await openSettings(page);
   const persisted = await page.evaluate(() => ({ s: S.skin, v: document.getElementById('skin').value, slime: !!document.querySelector('.tile.slime:not(.kitten)') }));
   check(persisted.s === 'slimes' && persisted.v === 'slimes' && persisted.slime, `skin after reload: ${JSON.stringify(persisted)}`);
   await page.selectOption('#skin', 'kittens');
-  await page.reload(); await ready(page);
+  await page.reload(); await ready(page); await openSettings(page);
   check(await page.evaluate(() => S.skin === 'kittens' && !!document.querySelector('.tile.kitten')), 'kittens did not persist');
 
   // Effects off: only fuse bars animate.

@@ -22,6 +22,12 @@
   --warn: #ffc04d;
   --gap: 6px;
   --cell: 64px;
+  /* Spacing, radius and type scales shared by the chrome around the board. */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
+  --r-sm: 8px; --r-md: 12px; --r-lg: 18px;
+  --fs-xs: 11px; --fs-sm: 13px; --fs-md: 15px; --fs-lg: 18px; --fs-xl: 24px; --fs-2xl: 30px;
+  --ctl-h: 40px;      /* size picker, slider row */
+  --fuse-h: max(3px, 6%);
   color-scheme: dark;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -34,25 +40,38 @@ html, body {
 body { position: fixed; inset: 0; }
 #app {
   height: 100%; max-width: 560px; margin: 0 auto;
-  display: flex; flex-direction: column; gap: 10px;
-  padding-block: max(10px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding-block: max(var(--s3), env(safe-area-inset-top, 0px)) max(var(--s3), env(safe-area-inset-bottom, 0px));
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
-.stats { display: flex; gap: 14px; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
-.stats b { color: var(--text); font-weight: 650; }
+header { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--s4); }
+h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; letter-spacing: .06em; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
+.stat {
+  display: flex; flex-direction: column; align-items: center; padding: var(--s1) 0;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-sm);
+}
+.stat span { font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.stat b { font-size: var(--fs-lg); font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
 
-.controls { display: flex; gap: 10px; align-items: center; }
-.seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: none; }
-.seg button { border: 0; background: none; color: var(--muted); padding: 8px 11px; font: inherit; font-size: 14px; }
-.seg button.on { background: var(--line); color: var(--text); }
-.slider { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-.slider input { flex: 1; min-width: 0; accent-color: var(--accent); }
-.slider output { color: var(--text); font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+/* The play area sits low, next to the thumb; spare height goes above the board. */
+.controls { display: flex; gap: var(--s2); align-items: stretch; height: var(--ctl-h); }
+.seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; flex: none; }
+.seg button { border: 0; background: none; color: var(--muted); padding: 0 var(--s3); font: inherit; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.seg button.on { background: var(--line); color: var(--text); font-weight: 650; }
+.slider {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3);
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md);
+  font-size: var(--fs-sm); color: var(--muted);
+}
+.slider input { flex: 1; min-width: 0; margin: 0; accent-color: var(--accent); }
+.slider output {
+  color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; min-width: 3ch; text-align: center;
+  background: var(--line); border-radius: var(--r-sm); padding: 2px var(--s1);
+}
 
-#stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#stage { flex: 1; min-height: 0; display: flex; align-items: flex-end; justify-content: center; }
 #board {
   display: grid; gap: var(--gap); padding: var(--gap);
   background: var(--panel); border-radius: 14px; touch-action: none;
@@ -105,7 +124,13 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
   position: absolute; left: 60%; top: 36%; opacity: 0; pointer-events: none;
   font-size: calc(var(--cell) * .15); font-weight: 800; color: rgba(233,236,243,.6);
 }
-.kitten .z { left: 30%; top: 4%; color: #9ad4e0; }
+.kitten .z { left: 56%; top: 34%; color: #9ad4e0; }
+.fx .kitten .z { animation-name: zzz-in; }
+@keyframes zzz-in { /* drifts up but ends inside the cell */
+  0% { opacity: 0; transform: translate(0, 0) scale(.6); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(30%, -120%) scale(1.1); }
+}
 .fx .z { animation: zzz 3.2s ease-out var(--d) infinite; }
 @keyframes zzz {
   0% { opacity: 0; transform: translate(0, 0) scale(.6); }
@@ -182,8 +207,10 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
 .stretch-up .eye::after { top: 8%; }
 .stretch-down .eye::after { top: 45%; }
 .badge {
-  position: absolute; right: 4%; top: 4%; padding: 0 .3em; border-radius: 6px;
-  font-size: calc(var(--cell) * .18); line-height: 1.35; color: #fff; background: rgba(0,0,0,.45);
+  position: absolute; right: 2px; top: 2px; min-width: 1.6em; padding: 0 .3em;
+  border-radius: 99px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums;
+  font-size: max(11px, calc(var(--cell) * .2)); line-height: 1.4; color: var(--bg);
+  background: var(--text); box-shadow: 0 0 0 1.5px var(--bg);
 }
 .slime.blocked { box-shadow: none; }
 .slime.blocked .blob { box-shadow: 0 0 0 3px var(--bad), 0 0 14px rgba(255,71,87,.6); }
@@ -219,11 +246,17 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
   0% { opacity: .9; transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(.6); }
   100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--a)) translateY(-280%) scale(1.4); }
 }
-/* Fuse: every fight burns down; at zero it explodes and the board is lost. */
+/* Fuse: every fight burns down; at zero it explodes and the board is lost.
+   It has its own track along the cell's bottom edge, and fight clouds sit above it. */
+.fuse-slot {
+  position: absolute; left: 14%; right: 14%; bottom: 5%; height: var(--fuse-h);
+  border-radius: 99px; background: rgba(0,0,0,.45); overflow: hidden; pointer-events: none;
+}
 .fuse {
-  position: absolute; left: 16%; right: 16%; bottom: 3%; height: 5%; border-radius: 4px;
+  position: absolute; inset: 0; border-radius: inherit;
   background: var(--good); transform-origin: left center; pointer-events: none;
 }
+.fight .blob.kit { bottom: calc(5% + var(--fuse-h) + 2px); }
 .live .fuse { animation: burn var(--ft) linear var(--fd) forwards; }
 @keyframes burn {
   0% { transform: scaleX(1); background: var(--good); }
@@ -257,36 +290,49 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
   color: var(--accent); text-shadow: 0 0 4px #000;
 }
 
-#status { height: 20px; text-align: center; font-size: 14px; color: var(--muted); }
+#status { min-height: 20px; text-align: center; font-size: var(--fs-sm); line-height: 20px; color: var(--muted); }
 #status.bad { color: var(--bad); font-weight: 700; }
 #status.hint { color: var(--accent); }
 
-.actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
 button.btn {
-  font: inherit; font-weight: 650; color: var(--text); background: var(--panel);
-  border: 1px solid var(--line); border-radius: 12px; padding: 13px 0;
+  font: inherit; font-size: var(--fs-md); font-weight: 650; color: var(--text); background: var(--panel);
+  border: 1px solid var(--line); border-radius: var(--r-md); min-height: 48px; padding: 0 var(--s2);
 }
 button.btn:active { background: var(--line); }
 button.btn:disabled { opacity: .4; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.debug { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
-.debug label { display: flex; align-items: center; gap: 6px; }
-.debug select { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; }
+/* Dev settings: collapsed under the actions. */
+#settings { font-size: var(--fs-sm); color: var(--muted); }
+#settings summary {
+  display: flex; align-items: center; gap: var(--s2); min-height: 28px; cursor: pointer; list-style: none;
+}
+#settings summary::-webkit-details-marker { display: none; }
+#settings summary::before { content: "▸"; transition: transform .15s; }
+#settings[open] summary::before { transform: rotate(90deg); }
+#info { margin-left: auto; font-variant-numeric: tabular-nums; }
+.debug {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); padding: var(--s3);
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md);
+}
+.debug label { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: 32px; }
+.debug label.check { justify-content: flex-start; }
+.debug select { font: inherit; color: var(--text); background: var(--well); border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--s1) var(--s2); }
 
 #overlay {
   position: fixed; inset: 0; background: rgba(5,6,10,.72);
-  display: flex; align-items: center; justify-content: center; padding: 24px;
+  display: flex; align-items: center; justify-content: center; padding: var(--s5);
 }
 .card {
-  background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
-  padding: 24px; width: min(320px, 100%); text-align: center;
-  display: flex; flex-direction: column; gap: 14px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: var(--s5); width: min(320px, 100%); text-align: center;
+  display: flex; flex-direction: column; gap: var(--s4);
 }
-.card h2 { margin: 0; font-size: 30px; color: var(--good); letter-spacing: .04em; }
-.card dl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 0; font-variant-numeric: tabular-nums; }
+.card h2 { margin: 0; font-size: var(--fs-2xl); color: var(--good); letter-spacing: .04em; }
+.card dl { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s1) var(--s3); margin: 0; font-variant-numeric: tabular-nums; }
 .card dt { color: var(--muted); text-align: right; }
 .card dd { margin: 0; text-align: left; font-weight: 700; }
-.card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.card .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .tile, .tile.slide, .tile.pop, .tile.flash, .blob, .eye, .z, .zap, .puff { transition: none; animation: none !important; } }
 </style>
@@ -296,12 +342,14 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   <header>
     <h1>SPLIT</h1>
     <div class="stats">
-      <span>Time <b id="time">0:00</b></span>
-      <span>Undos <b id="undos">0</b></span>
-      <span>Empty <b id="left">0</b></span>
+      <div class="stat"><span>Time</span><b id="time">0:00</b></div>
+      <div class="stat"><span>Undos</span><b id="undos">0</b></div>
+      <div class="stat"><span>Empty</span><b id="left">0</b></div>
     </div>
   </header>
 
+  <div id="stage"><div id="board"></div></div>
+  <div id="status"></div>
   <div class="controls">
     <div class="seg" id="sizes">
       <button data-n="4">4×4</button><button data-n="5">5×5</button><button data-n="6">6×6</button>
@@ -312,21 +360,20 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     </label>
   </div>
 
-  <div id="stage"><div id="board"></div></div>
-  <div id="status"></div>
-
   <div class="actions">
     <button class="btn" id="undo">Undo</button>
     <button class="btn" id="restart">Restart</button>
     <button class="btn" id="new">New board</button>
   </div>
-  <div class="debug">
-    <label>Skin <select id="skin"><option value="kittens">Kittens</option><option value="slimes">Slimes</option><option value="numbers">Numbers</option></select></label>
-    <label><input type="checkbox" id="effects" checked> Effects</label>
-    <label>Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="12" selected>12s</option><option value="20">20s</option></select></label>
-    <label><input type="checkbox" id="showSol"> Show solution</label>
-    <span id="info"></span>
-  </div>
+  <details id="settings">
+    <summary>Settings <span id="info"></span></summary>
+    <div class="debug">
+      <label>Skin <select id="skin"><option value="kittens">Kittens</option><option value="slimes">Slimes</option><option value="numbers">Numbers</option></select></label>
+      <label class="check"><input type="checkbox" id="effects" checked> Effects</label>
+      <label>Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="12" selected>12s</option><option value="20">20s</option></select></label>
+      <label class="check"><input type="checkbox" id="showSol"> Show solution</label>
+    </div>
+  </details>
 </div>
 
 <div id="overlay" hidden>
@@ -642,7 +689,7 @@ if (typeof document !== 'undefined') {
       if (S.fuseMs && !S.lost && t && cells[i] && cells[i].v > 1 && !(drag && i === drag.dest)) {
         const left = S.fuse[i] ? Math.max(0, S.fuse[i] - nowMs) : S.fuseMs;
         if (S.t0 && left < 3000) cls += ' danger';
-        fuseBar = `<i class="fuse" style="--ft:${F}s;--fd:${((left - S.fuseMs) / 1000).toFixed(2)}s"></i>`;
+        fuseBar = `<span class="fuse-slot"><i class="fuse" style="--ft:${F}s;--fd:${((left - S.fuseMs) / 1000).toFixed(2)}s"></i></span>`;
       }
       if (anim && anim.boom === i) {
         cls += ' boom';
@@ -912,6 +959,7 @@ if (typeof document !== 'undefined') {
   } catch (err) {}
   document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'z') undo(); });
   window.addEventListener('resize', layout);
+  $('settings').addEventListener('toggle', layout); // the board gives up height to the open panel
 
   loadSprites().then(() => {
     setSize(4);
