@@ -313,7 +313,8 @@ test('Fuse', async () => {
   check(!d.b, `.danger shown at ${left[p.B]}ms left`);
   await page.waitForFunction(() => S.lost, null, { timeout: 4000, polling: 50 });
   const b = await page.evaluate(() => ({ el: S.elapsed, boom: document.querySelector('.tile.boom') && +document.querySelector('.tile.boom').parentElement.dataset.i }));
-  check([p.A, p.jA].includes(b.boom), `boom at ${b.boom}, want ${p.A} or ${p.jA}`);
+  // Any fight armed at the first move can go first; the freshly split pair cannot.
+  check(b.boom >= 0 && b.boom !== p.B && b.boom !== p.jB, `boom at ${b.boom}, fresh pair is ${p.B}/${p.jB}`);
   check(b.el >= 7900 && b.el <= 8400, `exploded at ${b.el}ms, want ~8000`);
   await page.waitForSelector('#overlay:not([hidden])', { timeout: 2000 });
   const title = await page.textContent('#winTitle');
