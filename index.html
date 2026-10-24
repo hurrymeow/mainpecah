@@ -305,7 +305,7 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 #status { min-height: 20px; font-size: var(--fs-md); line-height: 20px; color: var(--text); }
 #status.bad { color: var(--bad); font-weight: 700; }
 #status.hint { color: var(--accent); }
-#quip { min-height: 18px; font-size: var(--fs-sm); line-height: 18px; color: var(--muted); font-style: italic; }
+#quip { min-height: 18px; font-size: var(--fs-sm); line-height: 18px; color: var(--muted); font-style: italic; text-align: center; padding: 0 var(--s3); }
 
 .actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s2); }
 button.btn {
@@ -487,7 +487,6 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
   <div id="stage">
     <div id="brief">
       <div id="status"></div>
-      <div id="quip"></div>
     </div>
     <div id="board"></div>
   </div>
@@ -497,6 +496,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
     <button class="btn" id="restart">Restart</button>
   </div>
   <button id="help">How to play</button>
+  <div id="quip"></div>
   <details id="settings">
     <summary aria-label="Settings"><span id="info" class="devonly"></span></summary>
     <div class="debug">
