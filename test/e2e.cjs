@@ -512,10 +512,16 @@ test('Start page and stages', async () => {
   const ladder = await page.evaluate(() => STAGES.map(([n]) => n).join(''));
   const casual = await page.evaluate(() => CASUAL_TILES.length === STAGES.length && CASUAL_TILES.every((v, k) => v >= SIZES[STAGES[k][0]].min && v <= SIZES[STAGES[k][0]].max));
   check(casual, 'Casual tile curve must cover every stage within each size\'s tile range');
+  const boards = await page.evaluate(() => ['casual', 'challenge'].map(m => {
+    const keys = new Set();
+    for (let k = 0; k < STAGES.length; k++) { const b = stageBoard(m, k); if (b.n === STAGES[k][0] && b.solution.length) keys.add(shapeKey(b.n, b.cells)); }
+    return { m, unique: keys.size };
+  }));
+  check(boards.every(b => STAGES.length === 100 && b.unique === 100), `stage boards must be 100 unique per mode: ${JSON.stringify(boards)}`);
   check(/^4+5+6+$/.test(ladder), `stage ladder not 4x4 -> 5x5 -> 6x6: ${ladder}`);
   await context.close();
   check(!errors.length, errors.join(' | '));
-  return 'start page on boot; Casual has no fuse; win -> Next stage; progress per mode survives reload; Challenge fuse from the stage';
+  return 'start page on boot; Casual has no fuse; win -> Next stage; progress per mode survives reload; Challenge fuse from the stage; 100 unique boards per mode';
 });
 
 test('How to play', async () => {
