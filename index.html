@@ -184,6 +184,47 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
 }
 .slime.blocked { box-shadow: none; }
 .slime.blocked .blob { box-shadow: 0 0 0 3px var(--bad), 0 0 14px rgba(255,71,87,.6); }
+/* Kitten skin: reuses the slime sprite slot (.blob) but draws an SVG instead.
+   A cell with several kittens is a fight cloud; one kitten curls up asleep. */
+.blob.kit {
+  height: var(--w); bottom: 4%; background: none; box-shadow: none; border-radius: 0;
+}
+.blob.kit::after { display: none; }
+.kit svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.tile { pointer-events: none; } /* touches hit the cell underneath, even mid-hop */
+.kit .fur { fill: var(--col); }
+.kit .tail { fill: none; stroke: var(--col); stroke-width: 7; stroke-linecap: round; }
+.kit .ear { fill: #f4a6b8; }
+.kit .ink { fill: none; stroke: #1a1d26; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.kit .whisker { stroke: rgba(255,255,255,.6); stroke-width: 1.5; stroke-linecap: round; }
+.kit .paw { fill: #f3efe8; }
+.kit .zap { fill: #ffd84d; font: 800 22px system-ui, sans-serif; }
+.bed {
+  position: absolute; left: 20%; right: 20%; bottom: 16%; height: 26%;
+  border: 2px dashed var(--dot); border-radius: 50%;
+}
+.fx .fight:not(.active) .kit { animation: scuffle var(--sh) linear var(--d) infinite; }
+@keyframes scuffle {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  20% { transform: translate(-3%, 1%) rotate(-4deg); }
+  40% { transform: translate(3%, -2%) rotate(3deg); }
+  60% { transform: translate(-2%, -1%) rotate(2deg); }
+  80% { transform: translate(2%, 2%) rotate(-3deg); }
+}
+.fx .kit .zap { animation: zap .6s steps(1) var(--d) infinite; }
+.fx .kit .zap + .zap { animation-delay: calc(var(--d) - .3s); }
+@keyframes zap { 0% { opacity: 1; } 50% { opacity: 0; } }
+.kitten.blocked .blob { box-shadow: none; filter: drop-shadow(0 0 2px var(--bad)) drop-shadow(0 0 5px var(--bad)); }
+/* Split burst: dust puffs fly out of the cloud. */
+.puff {
+  position: absolute; left: 50%; top: 58%; width: 16%; height: 16%; border-radius: 50%;
+  background: rgba(233,236,243,.75); opacity: 0; pointer-events: none;
+}
+.fx .puff { animation: puff .45s ease-out; }
+@keyframes puff {
+  0% { opacity: .9; transform: translate(-50%, -50%) rotate(var(--a)) translateY(0) scale(.6); }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--a)) translateY(-280%) scale(1.4); }
+}
 .tile.blocked { box-shadow: inset 0 0 0 4px var(--bad), 0 0 14px rgba(255,71,87,.55); }
 .tile .arrow {
   position: absolute; top: 3px; right: 6px; font-size: calc(var(--cell) * .26);
@@ -204,6 +245,7 @@ button.btn:disabled { opacity: .4; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .debug { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
 .debug label { display: flex; align-items: center; gap: 6px; }
+.debug select { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; }
 
 #overlay {
   position: fixed; inset: 0; background: rgba(5,6,10,.72);
@@ -220,7 +262,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .card dd { margin: 0; text-align: left; font-weight: 700; }
 .card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 [hidden] { display: none !important; }
-@media (prefers-reduced-motion: reduce) { .tile, .tile.slide, .tile.pop, .tile.flash, .blob, .eye, .z { transition: none; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .tile, .tile.slide, .tile.pop, .tile.flash, .blob, .eye, .z, .zap, .puff { transition: none; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -253,7 +295,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <button class="btn" id="new">New board</button>
   </div>
   <div class="debug">
-    <label><input type="checkbox" id="slimes" checked> Slimes</label>
+    <label>Skin <select id="skin"><option value="kittens">Kittens</option><option value="slimes">Slimes</option><option value="numbers">Numbers</option></select></label>
     <label><input type="checkbox" id="effects" checked> Effects</label>
     <label><input type="checkbox" id="showSol"> Show solution</label>
     <span id="info"></span>
@@ -262,7 +304,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 <div id="overlay" hidden>
   <div class="card">
-    <h2>Solved</h2>
+    <h2 id="winTitle">Solved</h2>
     <dl><dt>Time</dt><dd id="winTime"></dd><dt>Undos</dt><dd id="winUndos"></dd></dl>
     <div class="row">
       <button class="btn" id="winRestart">Replay</button>
@@ -294,7 +336,7 @@ const S = {
   won: false,
   showSol: false,
   effects: true,    // split motion, region pulse, sound
-  slimes: true,     // blob skin instead of plain number tiles
+  skin: 'kittens',  // 'kittens' | 'slimes' | 'numbers'
   anim: null,       // one-shot animation for the next render: {from, to, dir, region}
   drag: null,       // {id, i, x, y, dir, dest}
 };
@@ -433,14 +475,50 @@ if (typeof document !== 'undefined') {
 
   function tileColour(c, v) {
     const hue = 25 + ((c * 137.508) % 310); // golden-angle spread, skips pure red (reserved for "blocked")
-    const light = S.slimes
-      ? 58 - Math.log2(v) * 4                // slimes: babies pale, big ones deeper
+    const light = S.skin !== 'numbers'
+      ? 58 - Math.log2(v) * 4                // sprites: singles pale, big ones deeper
       : 30 + Math.log2(v) * 5;               // numbers: bigger values a touch brighter
     return `hsl(${hue.toFixed(0)} 58% ${light}%)`;
   }
 
-  function tileInner(t, i) {
-    if (!S.slimes) return String(t.v);
+  // Kitten SVGs, viewBox 0 0 100 100. Fill comes from the tile's --col via CSS classes.
+  const KITTEN = `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <path class="fur" d="M18 50 L25 16 L46 34 Z M82 50 L75 16 L54 34 Z"/>
+    <path class="ear" d="M25 38 L28 24 L38 33 Z M75 38 L72 24 L62 33 Z"/>
+    <ellipse class="fur" cx="50" cy="60" rx="35" ry="29"/>
+    <path class="ink" d="M30 59 q6 5 12 0 M58 59 q6 5 12 0 M44 74 q3 3 6 0 q3 3 6 0"/>
+    <path class="ear" d="M46 67 h8 l-4 4 z"/>
+    <path class="whisker" d="M12 64 h17 M13 72 l16 -4 M88 64 h-17 M87 72 l-16 -4"/>
+  </svg>`;
+  const FIGHT_EARS = [[30, 22, -25], [56, 12, 10], [42, 14, -8], [72, 22, 28], [18, 36, -40]]; // x, tip y, tilt
+  const FIGHT_EYES = [[40, 52], [62, 64], [32, 70], [64, 44]];
+  function fightCloud(v) {
+    const k = Math.log2(v); // 1..4: more kittens, more ears and eyes in the scrap
+    const ears = FIGHT_EARS.slice(0, Math.min(5, k + 1))
+      .map(([x, y, r]) => `<path class="fur" transform="rotate(${r} ${x} ${y + 18})" d="M${x - 9} ${y + 20} L${x} ${y} L${x + 9} ${y + 20} Z"/>`).join('');
+    const eyes = FIGHT_EYES.slice(0, k)
+      .map(([x, y]) => `M${x - 9} ${y - 3} l5 3 l-5 3 M${x + 9} ${y - 3} l-5 3 l5 3`).join(' ');
+    return `<svg viewBox="0 0 100 100" aria-hidden="true">
+      <path class="tail" d="M76 70 q20 -4 14 -26"/>
+      ${ears}
+      <circle class="fur" cx="30" cy="58" r="20"/><circle class="fur" cx="50" cy="48" r="24"/>
+      <circle class="fur" cx="70" cy="58" r="20"/><circle class="fur" cx="38" cy="73" r="18"/>
+      <circle class="fur" cx="62" cy="73" r="18"/><circle class="fur" cx="50" cy="62" r="22"/>
+      <path class="ink" d="${eyes}"/>
+      <circle class="paw" cx="20" cy="78" r="6"/><circle class="paw" cx="83" cy="76" r="6"/>
+      <text class="zap" x="6" y="30">✶</text><text class="zap" x="84" y="26">✶</text>
+    </svg>`;
+  }
+
+  function tileInner(t, i, popping) {
+    if (S.skin === 'numbers') return String(t.v);
+    if (S.skin === 'kittens') {
+      const size = t.v === 1 ? 0.8 : 0.74 + Math.log2(t.v) * 0.06; // a 16-kitten brawl fills the cell
+      const badge = t.v > 1 ? `<span class="badge">${t.v}</span>` : '';
+      const z = t.v === 1 && (i * 7) % 5 === 0 ? '<span class="z">z</span>' : '';
+      const puffs = popping ? [0, 60, 120, 180, 240, 300].map(a => `<i class="puff" style="--a:${a}deg"></i>`).join('') : '';
+      return `<div class="blob kit" style="--s:${size}">${t.v > 1 ? fightCloud(t.v) : KITTEN}</div>${badge}${z}${puffs}`;
+    }
     const size = 0.5 + Math.log2(t.v) * 0.12; // 1 → half a cell, 16 → nearly full
     const badge = t.v > 1 ? `<span class="badge">${t.v}</span>` : '';
     const z = t.v === 1 && (i * 7) % 5 === 0 ? '<span class="z">z</span>' : ''; // a few sleepers snore
@@ -496,9 +574,14 @@ if (typeof document !== 'undefined') {
       }
       if (blocked.has(i)) cls += ' blocked upset';
       if (t && t.v === 1) cls += ' sleep';
-      if (S.slimes) cls += ' slime';
+      if (S.skin !== 'numbers') cls += ' slime';
+      if (S.skin === 'kittens') {
+        cls += ' kitten';
+        if (t && t.v > 1) { cls += ' fight'; style += `;--sh:${(0.5 - Math.log2(t.v) * 0.07).toFixed(2)}s`; }
+      }
       if (hint && i === hint.from) extra = `<span class="arrow">${ARROWS[hint.dir]}</span>`;
-      const tile = t ? `<div class="tile${cls}" style="--col:${tileColour(t.c, t.v)}${style}">${tileInner(t, i)}${extra}</div>` : '<span class="dot">1</span>';
+      const tile = t ? `<div class="tile${cls}" style="--col:${tileColour(t.c, t.v)}${style}">${tileInner(t, i, cls.includes(' pop'))}${extra}</div>`
+        : S.skin === 'kittens' ? '<span class="bed"></span>' : '<span class="dot">1</span>';
       html += `<div class="cell${i === hintDst ? ' hint-dst' : ''}" data-i="${i}">${tile}</div>`;
     }
     boardEl.innerHTML = html;
@@ -508,7 +591,7 @@ if (typeof document !== 'undefined') {
     if (stuck) { status.textContent = 'Stuck. Undo or restart.'; status.className = 'bad'; }
     else if (hint) { status.textContent = `Hint: split the ${cells[hint.from].v} ${hint.dir}`; status.className = 'hint'; }
     else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Undo to get hints back.'; status.className = 'hint'; }
-    else status.textContent = S.slimes ? 'Put a baby slime in every cell' : 'Fill every cell with a 1';
+    else status.textContent = { kittens: 'Give every kitten its own cell to sleep', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
 
     $('undos').textContent = S.undos;
     $('left').textContent = cells.filter(t => !t).length;
@@ -565,7 +648,28 @@ if (typeof document !== 'undefined') {
     osc.start(t); osc.stop(t + len + 0.02);
   }
   // Pitch rises as tiles get smaller: splitting a 16 is low, splitting a 2 is high.
-  const splitSound = v => tone(330 * Math.pow(2, (4 - Math.log2(v)) * 3 / 12));
+  const splitSound = v => (S.skin === 'kittens' ? mew : tone)(330 * Math.pow(2, (4 - Math.log2(v)) * 3 / 12));
+  // A short rising-then-falling glide reads as a mew; a noise burst is the scuffle popping.
+  function mew(base) {
+    if (!audio || !S.effects) return;
+    const t = audio.currentTime, osc = audio.createOscillator(), g = audio.createGain();
+    const p = base * 2;
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(p * 0.8, t);
+    osc.frequency.linearRampToValueAtTime(p * 1.3, t + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(p * 0.7, t + 0.3);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.16, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+    osc.connect(g).connect(audio.destination);
+    osc.start(t); osc.stop(t + 0.34);
+    const len = 0.12, buf = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = buf.getChannelData(0);
+    for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / d.length);
+    const src = audio.createBufferSource(), bp = audio.createBiquadFilter(), ng = audio.createGain();
+    src.buffer = buf; bp.type = 'bandpass'; bp.frequency.value = 1800; ng.gain.value = 0.12;
+    src.connect(bp).connect(ng).connect(audio.destination);
+    src.start(t);
+  }
   const regionSound = () => [523, 659, 784].forEach((f, k) => tone(f, 0.06 + k * 0.07, 0.3, 0.14));
   const winSound = () => [523, 659, 784, 1047].forEach((f, k) => tone(f, 0.1 + k * 0.09, 0.5, 0.16));
 
@@ -585,6 +689,7 @@ if (typeof document !== 'undefined') {
       S.won = true; S.elapsed = Date.now() - S.t0; stopTimer();
       $('winTime').textContent = fmtTime(S.elapsed);
       $('winUndos').textContent = S.undos;
+      $('winTitle').textContent = S.skin === 'kittens' ? 'All asleep' : 'Solved';
       winSound();
       setTimeout(() => { if (S.won) $('overlay').hidden = false; }, S.effects ? 1100 : 0);
     }
@@ -646,13 +751,16 @@ if (typeof document !== 'undefined') {
     try { localStorage.setItem('split.effects', S.effects ? '1' : '0'); } catch (err) {}
     render();
   });
-  $('slimes').addEventListener('change', e => {
-    S.slimes = e.target.checked;
-    try { localStorage.setItem('split.slimes', S.slimes ? '1' : '0'); } catch (err) {}
+  $('skin').addEventListener('change', e => {
+    S.skin = e.target.value;
+    try { localStorage.setItem('split.skin', S.skin); } catch (err) {}
     render();
   });
   try { if (localStorage.getItem('split.effects') === '0') { S.effects = false; $('effects').checked = false; } } catch (err) {}
-  try { if (localStorage.getItem('split.slimes') === '0') { S.slimes = false; $('slimes').checked = false; } } catch (err) {}
+  try {
+    const skin = localStorage.getItem('split.skin');
+    if (['kittens', 'slimes', 'numbers'].includes(skin)) { S.skin = skin; $('skin').value = skin; }
+  } catch (err) {}
   document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'z') undo(); });
   window.addEventListener('resize', layout);
 
