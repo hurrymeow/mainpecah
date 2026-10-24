@@ -94,8 +94,51 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
   box-shadow: inset 0 calc(var(--w) * -.09) 0 rgba(0,0,0,.2);
   transform-origin: 50% 100%; transition: transform .12s ease-out;
 }
-.fx .blob { animation: breathe 2.6s ease-in-out infinite; animation-delay: var(--d); }
+.fx .blob { animation: breathe 2.6s ease-in-out var(--d) infinite; }
 @keyframes breathe { 50% { transform: scale(1.05, .95); } }
+/* Animation phases come from a shared clock (set per render), so re-renders don't make slimes jump. */
+.fx .slime:not(.sleep) .eye { animation: blink var(--bp) linear var(--bd) infinite; }
+@keyframes blink { 0%, 93%, 100% { transform: none; } 96% { transform: scaleY(.1); } }
+.z {
+  position: absolute; left: 60%; top: 36%; opacity: 0; pointer-events: none;
+  font-size: calc(var(--cell) * .15); font-weight: 800; color: rgba(233,236,243,.6);
+}
+.fx .z { animation: zzz 3.2s ease-out var(--d) infinite; }
+@keyframes zzz {
+  0% { opacity: 0; transform: translate(0, 0) scale(.6); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(60%, -160%) scale(1.15); }
+}
+/* Split: the parent wobbles like jelly, the baby hops over in an arc and lands with a squash. */
+.tile.slime.pop, .tile.slime.slide { animation: none; }
+.fx .slime.pop .blob { animation: wobble .45s ease-out, breathe 2.6s ease-in-out .45s infinite; }
+.fx .tile.slime.slide { animation: hop .28s ease-out; }
+.fx .slime.slide .blob { animation: land .42s ease-out; }
+@keyframes hop {
+  0% { transform: translate(calc(var(--sx) * (var(--cell) + var(--gap))), calc(var(--sy) * (var(--cell) + var(--gap)))); }
+  50% { transform: translate(calc(var(--sx) * .5 * (var(--cell) + var(--gap))), calc(var(--sy) * .5 * (var(--cell) + var(--gap)) - var(--cell) * .3)); }
+  100% { transform: none; }
+}
+@keyframes land {
+  0%, 62% { transform: scale(.84, 1.16); }
+  80% { transform: scale(1.26, .74); }
+  100% { transform: none; }
+}
+@keyframes wobble {
+  0% { transform: scale(1.26, .76); }
+  30% { transform: scale(.86, 1.14); }
+  55% { transform: scale(1.07, .95); }
+  78% { transform: scale(.98, 1.02); }
+  100% { transform: none; }
+}
+/* Region done: its slimes jump in a wave. Win: the whole board does. */
+.fx .slime.flash .blob, .fx .slime.cheer .blob { animation: jump .5s ease-out var(--wd) both; }
+@keyframes jump {
+  0%, 100% { transform: none; }
+  25% { transform: scale(1.16, .82); }
+  50% { transform: translateY(-40%) scale(.9, 1.12); }
+  80% { transform: scale(1.12, .88); }
+}
 .eye {
   position: absolute; top: 32%; width: 19%; height: 26%;
   background: #fff; border-radius: 50%;
@@ -114,12 +157,23 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
 .sleep .eye::after { display: none; }
 .sleep .blob::after { width: 10%; left: 45%; height: 6%; top: 64%; }
 .upset .blob { animation: none; transform: scale(1.12, .8); }
+.fx .upset .blob { animation: tremble .32s linear infinite; }
+@keyframes tremble {
+  0%, 50%, 100% { transform: scale(1.12, .8); }
+  25% { transform: translateX(-3%) scale(1.12, .8); }
+  75% { transform: translateX(3%) scale(1.12, .8); }
+}
 .upset .eye { height: 13%; top: 38%; }
 .upset .blob::after { border-bottom: 0; border-top: max(2px, calc(var(--w) * .045)) solid rgba(10,12,18,.6); border-radius: 50% 50% 0 0; top: 66%; }
 .stretch-right .blob { animation: none; transform-origin: 0 100%; transform: scale(1.22, .88); }
 .stretch-left .blob { animation: none; transform-origin: 100% 100%; transform: scale(1.22, .88); }
 .stretch-up .blob { animation: none; transform: scale(.88, 1.24); }
 .stretch-down .blob { animation: none; transform: scale(1.14, .82); }
+.stretch-right .blob, .stretch-left .blob { --ax: 1.22; --ay: .88; }
+.stretch-up .blob { --ax: .88; --ay: 1.24; }
+.stretch-down .blob { --ax: 1.14; --ay: .82; }
+.fx [class*="stretch-"] .blob { animation: stretch .24s cubic-bezier(.34, 1.8, .6, 1) both; }
+@keyframes stretch { from { transform: none; } to { transform: scale(var(--ax), var(--ay)); } }
 .stretch-right .eye::after { left: 45%; }
 .stretch-left .eye::after { left: 5%; }
 .stretch-up .eye::after { top: 8%; }
@@ -166,7 +220,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .card dd { margin: 0; text-align: left; font-weight: 700; }
 .card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 [hidden] { display: none !important; }
-@media (prefers-reduced-motion: reduce) { .tile, .tile.slide, .tile.pop, .tile.flash, .blob { transition: none; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .tile, .tile.slide, .tile.pop, .tile.flash, .blob, .eye, .z { transition: none; animation: none !important; } }
 </style>
 </head>
 <body>
@@ -389,7 +443,8 @@ if (typeof document !== 'undefined') {
     if (!S.slimes) return String(t.v);
     const size = 0.5 + Math.log2(t.v) * 0.12; // 1 → half a cell, 16 → nearly full
     const badge = t.v > 1 ? `<span class="badge">${t.v}</span>` : '';
-    return `<div class="blob" style="--s:${size};--d:${-((i * 0.37) % 2.6).toFixed(2)}s"><i class="eye"></i><i class="eye"></i></div>${badge}`;
+    const z = t.v === 1 && (i * 7) % 5 === 0 ? '<span class="z">z</span>' : ''; // a few sleepers snore
+    return `<div class="blob" style="--s:${size}"><i class="eye"></i><i class="eye"></i></div>${badge}${z}`;
   }
 
   function fmtTime(ms) {
@@ -412,6 +467,9 @@ if (typeof document !== 'undefined') {
     const hint = S.showSol && !S.won ? nextHint() : null;
     const hintDst = hint ? neighbour(n, hint.from, hint.dir) : -1;
     const anim = S.effects ? S.anim : null;
+    const now = performance.now() / 1000;
+    const phase = (offset, period) => -((now + offset) % period).toFixed(2) + 's';
+    let wave = 0;
     S.anim = null;
     const done = new Set();
     if (S.effects) cells.forEach(t => { if (t && !done.has(t.c) && regionDone(cells, t.c)) done.add(t.c); });
@@ -420,7 +478,9 @@ if (typeof document !== 'undefined') {
     boardEl.classList.toggle('fx', S.effects);
     let html = '';
     for (let i = 0; i < n * n; i++) {
-      let t = cells[i], cls = '', extra = '', style = '';
+      let t = cells[i], cls = '', extra = '';
+      const blinkPeriod = 3.2 + (i * 1.13) % 2.5;
+      let style = `;--d:${phase(i * 0.37, 2.6)};--bp:${blinkPeriod.toFixed(2)}s;--bd:${phase(i * 0.71, blinkPeriod)}`;
       if (drag && drag.dest >= 0) {
         const src = cells[drag.i];
         if (i === drag.i) { t = { v: src.v / 2, c: src.c }; cls = ` active stretch-${drag.dir}`; }
@@ -428,9 +488,11 @@ if (typeof document !== 'undefined') {
       }
       if (t && done.has(t.c) && !(drag && (i === drag.i || i === drag.dest))) cls += ' done';
       if (anim && t) {
-        if (anim.region === t.c) cls += ' flash';
-        else if (i === anim.from) cls += ' pop';
-        else if (i === anim.to) { cls += ' slide'; style = `;--sx:${-DIRS[anim.dir][1]};--sy:${-DIRS[anim.dir][0]}`; }
+        // The split pair always plays its own motion; the wave follows once the baby lands.
+        if (i === anim.from) cls += ' pop';
+        else if (i === anim.to) { cls += ' slide'; style += `;--sx:${-DIRS[anim.dir][1]};--sy:${-DIRS[anim.dir][0]}`; }
+        else if (anim.win) { cls += ' cheer'; style += `;--wd:${250 + (Math.floor(i / n) + i % n) * 45}ms`; }
+        else if (anim.region === t.c) { cls += ' flash'; style += `;--wd:${200 + wave++ * 50}ms`; }
       }
       if (blocked.has(i)) cls += ' blocked upset';
       if (t && t.v === 1) cls += ' sleep';
@@ -516,7 +578,7 @@ if (typeof document !== 'undefined') {
     S.cells = next;
     const c = next[i].c;
     const region = regionDone(next, c) ? c : null;
-    S.anim = { from: i, to: neighbour(S.n, i, dir), dir, region };
+    S.anim = { from: i, to: neighbour(S.n, i, dir), dir, region, win: isWin(next) };
     splitSound(v);
     if (region !== null) regionSound();
     if (isWin(next)) {
@@ -524,7 +586,7 @@ if (typeof document !== 'undefined') {
       $('winTime').textContent = fmtTime(S.elapsed);
       $('winUndos').textContent = S.undos;
       winSound();
-      setTimeout(() => { if (S.won) $('overlay').hidden = false; }, S.effects ? 700 : 0);
+      setTimeout(() => { if (S.won) $('overlay').hidden = false; }, S.effects ? 1100 : 0);
     }
     render();
   }
