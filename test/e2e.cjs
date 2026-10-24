@@ -27,6 +27,7 @@ async function open(opts = {}, withSettings = true) {
   });
   await page.goto(URL);
   await ready(page);
+  await page.click('#playCasual'); // past the start page
   if (withSettings) await openSettings(page);
   const cdp = await context.newCDPSession(page);
   return { context, page, errors, cdp };
@@ -372,11 +373,11 @@ test('Skins', async () => {
     out.push(`${skin} ${r.count}`);
   }
   await page.selectOption('#skin', 'slimes');
-  await page.reload(); await ready(page); await openSettings(page);
+  await page.reload(); await ready(page); await page.click('#playCasual'); await openSettings(page);
   const persisted = await page.evaluate(() => ({ s: S.skin, v: document.getElementById('skin').value, slime: !!document.querySelector('.tile.slime:not(.kitten)') }));
   check(persisted.s === 'slimes' && persisted.v === 'slimes' && persisted.slime, `skin after reload: ${JSON.stringify(persisted)}`);
   await page.selectOption('#skin', 'kittens');
-  await page.reload(); await ready(page); await openSettings(page);
+  await page.reload(); await ready(page); await page.click('#playCasual'); await openSettings(page);
   check(await page.evaluate(() => S.skin === 'kittens' && !!document.querySelector('.tile.kitten')), 'kittens did not persist');
 
   // Effects off: only fuse bars animate.
@@ -450,6 +451,41 @@ test('Show solution', async () => {
   return 'arrow and outline shown; off-path move reports off the solution path';
 });
 
+test('Start page and stages', async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(URL);
+  await ready(page);
+  check(await page.isVisible('#start'), 'start page not shown on boot');
+  await page.click('#playCasual');
+  const st = () => page.evaluate(() => ({ mode: S.mode, stage: S.stage, n: S.n, fuse: S.fuseMs, title: document.getElementById('stageTitle').textContent, start: !document.getElementById('start').hidden }));
+  let s = await st();
+  check(!s.start && s.mode === 'casual' && s.stage === 0 && s.n === 4 && s.fuse === 0 && s.title === 'STAGE 1', `casual: ${JSON.stringify(s)}`);
+  while (await hintSwipe(page));
+  await page.waitForSelector('#overlay:not([hidden])', { timeout: 3000 });
+  check((await page.textContent('#winNew')) === 'Next stage', 'win offers no Next stage');
+  await page.click('#winNew');
+  s = await st();
+  check(s.stage === 1 && s.title === 'STAGE 2', `after Next stage: ${JSON.stringify(s)}`);
+  await page.click('#menu');
+  check(await page.isVisible('#start'), 'Menu did not open the start page');
+  check((await page.textContent('#casualStage')) === 'Stage 2' && (await page.textContent('#challengeStage')) === 'Stage 1', 'start page shows wrong progress');
+  await page.click('#playChallenge');
+  s = await st();
+  check(s.mode === 'challenge' && s.stage === 0 && s.fuse === 12000, `challenge: ${JSON.stringify(s)}`);
+  await page.reload(); await ready(page);
+  await page.click('#playCasual');
+  s = await st();
+  check(s.stage === 1 && s.fuse === 0, `casual after reload: ${JSON.stringify(s)}`);
+  const ladder = await page.evaluate(() => STAGES.map(([n]) => n).join(''));
+  check(/^4+5+6+$/.test(ladder), `stage ladder not 4x4 -> 5x5 -> 6x6: ${ladder}`);
+  await context.close();
+  check(!errors.length, errors.join(' | '));
+  return 'start page on boot; Casual has no fuse; win -> Next stage; progress per mode survives reload; Challenge fuse 12s';
+});
+
 test('Install offer', async () => {
   const { context, page, errors } = await open({}, false);
   // The stage gives up the bar's height; the board must still fit inside it.
@@ -491,7 +527,7 @@ test('Update banner', async () => {
     const file = path.join(root, path.normalize(name));
     if (!file.startsWith(root) || !fs.existsSync(file)) { res.writeHead(404); return res.end(); }
     let body = fs.readFileSync(file);
-    if (name === '/sw.js') body = body.toString().replace("'split-v1'", `'split-test-${ver}'`);
+    if (name === '/sw.js') body = body.toString().replace("'dynameowte-v1'", `'dynameowte-test-${ver}'`);
     res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
     res.end(body);
   });
@@ -504,6 +540,7 @@ test('Update banner', async () => {
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(url);
     await ready(page);
+    await page.click('#playCasual');
     await page.waitForFunction(() => navigator.serviceWorker.controller, null, { timeout: 10000 });
     check(!(await page.isVisible('#pwa')), 'first install showed the update banner');
     ver = 2;

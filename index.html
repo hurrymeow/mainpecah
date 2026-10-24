@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#0a0a0a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Split">
-<title>Split</title>
+<meta name="apple-mobile-web-app-title" content="Dyna-meow-te">
+<title>Dyna-meow-te</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -66,6 +66,15 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; letter-spacing: .06em
 .seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; flex: none; }
 .seg button { border: 0; background: none; color: var(--muted); padding: 0 var(--s3); font: inherit; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .seg button.on { background: var(--line); color: var(--text); font-weight: 650; }
+#menu { min-height: 0; flex: none; padding: 0 var(--s4); font-size: var(--fs-sm); }
+#stageInfo {
+  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: var(--s2);
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md);
+  font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+#stageInfo b { color: var(--text); font-weight: 650; }
+#stageInfo b.hot { color: var(--warn); }
+.debug .seg, .debug .slider { grid-column: 1 / -1; height: var(--ctl-h); }
 .slider {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3);
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md);
@@ -337,6 +346,27 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #pwa button.btn { min-height: 36px; padding: 0 var(--s3); font-size: var(--fs-sm); }
 #pwaGo { background: var(--text); color: var(--bg); border-color: var(--text); }
 
+/* Start page: pick a mode, carry on from the stage you reached. */
+#start {
+  position: fixed; inset: 0; z-index: 10; background: var(--bg); overflow-y: auto;
+  display: flex; align-items: center; justify-content: center;
+  padding: max(var(--s5), env(safe-area-inset-top, 0px)) 16px max(var(--s5), env(safe-area-inset-bottom, 0px));
+}
+.start { width: min(360px, 100%); display: flex; flex-direction: column; gap: var(--s4); text-align: center; }
+#startArt { width: 168px; height: 150px; object-fit: contain; align-self: center; }
+.start h1 { font-size: 36px; letter-spacing: .02em; }
+.start p { margin: 0 0 var(--s2); color: var(--muted); }
+button.mode {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px var(--s3); align-items: center; text-align: left;
+  padding: var(--s4); font: inherit; color: var(--text); background: var(--panel);
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+}
+button.mode:active { background: var(--line); }
+button.mode b { font-size: var(--fs-lg); }
+button.mode span { grid-column: 1; color: var(--muted); font-size: var(--fs-sm); }
+button.mode em { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); }
+#playChallenge b { color: var(--warn); }
+
 #overlay {
   position: fixed; inset: 0; background: rgba(5,6,10,.72);
   display: flex; align-items: center; justify-content: center; padding: var(--s5);
@@ -358,7 +388,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 <body>
 <div id="app">
   <header>
-    <h1>SPLIT</h1>
+    <h1 id="stageTitle">STAGE 1</h1>
     <div class="stats">
       <div class="stat"><span>Time</span><b id="time">0:00</b></div>
       <div class="stat"><span>Undos</span><b id="undos">0</b></div>
@@ -374,13 +404,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   <div id="stage"><div id="board"></div></div>
   <div id="status"></div>
   <div class="controls">
-    <div class="seg" id="sizes">
-      <button data-n="4">4×4</button><button data-n="5">5×5</button><button data-n="6">6×6</button>
-    </div>
-    <label class="slider">Tiles
-      <input id="tiles" type="range" min="2" max="10" value="5">
-      <output id="tilesOut">5</output>
-    </label>
+    <button class="btn" id="menu">Menu</button>
+    <div id="stageInfo"></div>
   </div>
 
   <div class="actions">
@@ -395,9 +420,26 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <label class="check"><input type="checkbox" id="effects" checked> Effects</label>
       <label>Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="12" selected>12s</option><option value="20">20s</option></select></label>
       <label class="check"><input type="checkbox" id="showSol"> Show solution</label>
+      <div class="seg" id="sizes">
+        <button data-n="4">4×4</button><button data-n="5">5×5</button><button data-n="6">6×6</button>
+      </div>
+      <label class="slider">Tiles
+        <input id="tiles" type="range" min="2" max="10" value="5">
+        <output id="tilesOut">5</output>
+      </label>
       <div class="app" id="installRow"><span>Install app</span><button id="installBtn" hidden>Install</button><span id="installHint">iPhone: Share › Add to Home Screen</span></div>
     </div>
   </details>
+</div>
+
+<div id="start">
+  <div class="start">
+    <img id="startArt" alt="">
+    <h1>Dyna-meow-te</h1>
+    <p>Split every kitten fight until each kitten has its own bed.</p>
+    <button class="mode" id="playCasual"><b>Casual</b><span>No fuses. Take your time.</span><em id="casualStage">Stage 1</em></button>
+    <button class="mode" id="playChallenge"><b>Challenge</b><span>Leave a fight too long and it blows up.</span><em id="challengeStage">Stage 1</em></button>
+  </div>
 </div>
 
 <div id="overlay" hidden>
@@ -422,11 +464,20 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 const MAX_TILE = 16;
 const THRESHOLD = 20; // px before a drag counts as a swipe
 const SIZES = { 4: { min: 2, max: 10, def: 5 }, 5: { min: 3, max: 15, def: 8 }, 6: { min: 4, max: 20, def: 11 } };
+// The stage ladder: [size, starting tiles]. Fewer tiles means bigger fights and more splits.
+// Past the last stage, play continues at the last stage's settings.
+const STAGES = [
+  [4, 8], [4, 7], [4, 6], [4, 5], [4, 4],
+  [5, 12], [5, 10], [5, 9], [5, 8], [5, 7], [5, 6],
+  [6, 16], [6, 14], [6, 12], [6, 11], [6, 10], [6, 9], [6, 8],
+];
 const DIRS = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
 const ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
 
 const S = {
   n: 4, target: 5,
+  mode: 'casual',   // 'casual' (no fuses) | 'challenge'
+  stage: 0,         // index into STAGES; null when the dev controls set a custom board
   board: null,      // generator output: {n, cells, solution, path}
   cells: null,      // current cells
   history: [],      // previous cells, for unlimited undo
@@ -434,7 +485,7 @@ const S = {
   t0: 0, elapsed: 0, timer: 0,
   won: false,
   lost: false,
-  fuseMs: 12000,    // fight timer length; 0 = off
+  fuseMs: 0,        // fight timer length; 0 = off. Challenge sets it, Casual clears it.
   fuse: [],         // per cell: absolute deadline (ms) for a fight, else null
   showSol: false,
   effects: true,    // split motion, region pulse, sound
@@ -745,6 +796,9 @@ if (typeof document !== 'undefined') {
     $('undo').disabled = !S.history.length || S.won || S.lost;
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
+    $('stageTitle').textContent = S.stage == null ? 'CUSTOM' : 'STAGE ' + (S.stage + 1);
+    const mode = S.mode === 'challenge' ? '<b class="hot">Challenge</b>' : '<b>Casual</b>';
+    $('stageInfo').innerHTML = `${mode} · ${n}×${n}` + (S.stage != null && S.stage < STAGES.length ? ` · ${S.stage + 1} of ${STAGES.length}` : '');
   }
 
   // ---------- game flow ----------
@@ -787,6 +841,7 @@ if (typeof document !== 'undefined') {
     $('winTime').textContent = fmtTime(S.elapsed);
     $('winUndos').textContent = S.undos;
     $('winRestart').textContent = 'Try again';
+    $('winNew').textContent = 'New board';
     setTimeout(() => { if (S.lost) $('overlay').hidden = false; }, 900);
   }
 
@@ -805,13 +860,50 @@ if (typeof document !== 'undefined') {
     restart();
   }
 
+  function syncSlider() {
+    const { min, max } = SIZES[S.n], slider = $('tiles');
+    slider.min = min; slider.max = max; slider.value = S.target;
+    $('tilesOut').textContent = S.target;
+  }
+
+  // Dev controls: a custom board, off the stage ladder.
   function setSize(n) {
-    S.n = n;
-    const { min, max, def } = SIZES[n];
-    const slider = $('tiles');
-    slider.min = min; slider.max = max; slider.value = def;
-    S.target = def; $('tilesOut').textContent = def;
+    S.n = n; S.target = SIZES[n].def; S.stage = null;
+    syncSlider();
     newBoard();
+  }
+
+  function goStage(k) {
+    S.stage = k;
+    [S.n, S.target] = STAGES[Math.min(k, STAGES.length - 1)];
+    syncSlider();
+    newBoard();
+  }
+
+  // ---------- modes & progress ----------
+  // Each mode remembers the furthest stage reached. Challenge uses the Fuse setting (12s unless changed).
+  const stageKey = mode => 'split.stage.' + mode;
+  function savedStage(mode) {
+    try { const k = +localStorage.getItem(stageKey(mode)); return Number.isInteger(k) && k > 0 ? k : 0; } catch (err) { return 0; }
+  }
+  function challengeFuse() {
+    try { const f = +localStorage.getItem('split.fuse'); if ([8, 12, 20].includes(f)) return f * 1000; } catch (err) {}
+    return 12000;
+  }
+  function play(mode) {
+    S.mode = mode;
+    S.fuseMs = mode === 'challenge' ? challengeFuse() : 0;
+    $('fuse').value = String(S.fuseMs / 1000);
+    $('start').hidden = true;
+    initAudio();
+    goStage(savedStage(mode));
+  }
+  function showStart() {
+    stopTimer();
+    $('overlay').hidden = true;
+    $('casualStage').textContent = 'Stage ' + (savedStage('casual') + 1);
+    $('challengeStage').textContent = 'Stage ' + (savedStage('challenge') + 1);
+    $('start').hidden = false;
   }
 
   // ---------- sound ----------
@@ -893,6 +985,10 @@ if (typeof document !== 'undefined') {
       $('winTitle').className = '';
       $('winMsg').textContent = S.skin === 'kittens' ? 'Every kitten has its own bed.' : 'Every cell holds a 1.';
       $('winRestart').textContent = 'Replay';
+      $('winNew').textContent = S.stage != null ? 'Next stage' : 'New board';
+      if (S.stage != null && S.stage + 1 > savedStage(S.mode)) {
+        try { localStorage.setItem(stageKey(S.mode), String(S.stage + 1)); } catch (err) {}
+      }
       winSound();
       setTimeout(() => { if (S.won) $('overlay').hidden = false; }, S.effects ? 1100 : 0);
     }
@@ -950,12 +1046,15 @@ if (typeof document !== 'undefined') {
 
   $('sizes').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setSize(+b.dataset.n); });
   $('tiles').addEventListener('input', e => { $('tilesOut').textContent = e.target.value; });
-  $('tiles').addEventListener('change', e => { S.target = +e.target.value; newBoard(); });
+  $('tiles').addEventListener('change', e => { S.target = +e.target.value; S.stage = null; newBoard(); });
   $('undo').addEventListener('click', undo);
   $('restart').addEventListener('click', restart);
   $('new').addEventListener('click', newBoard);
   $('winRestart').addEventListener('click', restart);
-  $('winNew').addEventListener('click', newBoard);
+  $('winNew').addEventListener('click', () => (S.won && S.stage != null ? goStage(S.stage + 1) : newBoard()));
+  $('menu').addEventListener('click', showStart);
+  $('playCasual').addEventListener('click', () => play('casual'));
+  $('playChallenge').addEventListener('click', () => play('challenge'));
   $('showSol').addEventListener('change', e => { S.showSol = e.target.checked; render(); });
   $('effects').addEventListener('change', e => {
     S.effects = e.target.checked;
@@ -964,13 +1063,9 @@ if (typeof document !== 'undefined') {
   });
   $('fuse').addEventListener('change', e => {
     S.fuseMs = +e.target.value * 1000;
-    try { localStorage.setItem('split.fuse', e.target.value); } catch (err) {}
+    if (S.mode === 'challenge' && S.fuseMs) try { localStorage.setItem('split.fuse', e.target.value); } catch (err) {}
     restart();
   });
-  try {
-    const f = localStorage.getItem('split.fuse');
-    if (['0', '8', '12', '20'].includes(f)) { S.fuseMs = +f * 1000; $('fuse').value = f; }
-  } catch (err) {}
   $('skin').addEventListener('change', e => {
     S.skin = e.target.value;
     try { localStorage.setItem('split.skin', S.skin); } catch (err) {}
@@ -996,7 +1091,7 @@ if (typeof document !== 'undefined') {
     const bar = $('pwa'), wasHidden = bar.hidden;
     const offer = pwa.installEvent && !pwa.declined && !isStandalone();
     bar.hidden = !pwa.updateReady && !offer;
-    $('pwaMsg').textContent = pwa.updateReady ? 'A new version of Split is ready.' : 'Play Split like any other app, even offline.';
+    $('pwaMsg').textContent = pwa.updateReady ? 'A new version of Dyna-meow-te is ready.' : 'Play Dyna-meow-te like any other app, even offline.';
     $('pwaGo').textContent = pwa.updateReady ? 'Update' : 'Install';
     $('pwaNo').hidden = pwa.updateReady;
     $('installRow').hidden = isStandalone();
@@ -1042,7 +1137,10 @@ if (typeof document !== 'undefined') {
   }
 
   loadSprites().then(() => {
-    setSize(4);
+    $('startArt').src = sprite('fight4', 25);
+    showStart();
+    goStage(0); // a board sits behind the start page so the layout is ready
+
     // Open with ?test to run the generator check in the page.
     if (/[?&]test\b/.test(location.search)) {
       const r = selfTest(1000);
