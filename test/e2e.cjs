@@ -34,9 +34,20 @@ async function open(opts = {}, withSettings = true) {
   await page.click('#playCasual'); // past the start page
   await skipHowto(page);
   if (withSettings) await openSettings(page);
+  await settled(page);
   const cdp = await context.newCDPSession(page);
   return { context, page, errors, cdp };
 }
+// Opening Settings or closing How to play re-centres the game block a frame or two later.
+// Wait until the board stops moving so taps land where center() measured.
+const settled = page => page.evaluate(() => new Promise(done => {
+  let last = '', same = 0;
+  (function step() {
+    const r = document.getElementById('board').getBoundingClientRect(), k = [r.x, r.y, r.width].join();
+    same = k === last ? same + 1 : 0; last = k;
+    if (same >= 3) done(); else requestAnimationFrame(step);
+  })();
+}));
 // The first entry into each mode opens How to play; most tests just close it.
 const skipHowto = async page => { if (await page.isVisible('#howto')) await page.click('#howtoGo'); };
 const ready = page => page.waitForFunction(() => typeof S !== 'undefined' && S.board);
