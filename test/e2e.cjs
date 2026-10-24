@@ -450,6 +450,78 @@ test('Show solution', async () => {
   return 'arrow and outline shown; off-path move reports off the solution path';
 });
 
+test('Install offer', async () => {
+  const { context, page, errors } = await open({}, false);
+  // The stage gives up the bar's height; the board must still fit inside it.
+  const boardH = () => page.evaluate(() => { const s = document.getElementById('stage').getBoundingClientRect(), b = document.getElementById('board').getBoundingClientRect(); return b.height <= s.height + 0.5 && b.top >= s.top - 0.5 ? s.height : -1; });
+  const h0 = await boardH();
+  await page.evaluate(() => {
+    const e = new Event('beforeinstallprompt', { cancelable: true });
+    e.prompt = () => { window.__prompted = true; return Promise.resolve(); };
+    dispatchEvent(e);
+  });
+  check(await page.isVisible('#pwa'), 'install bar hidden after beforeinstallprompt');
+  check((await page.textContent('#pwaGo')) === 'Install', 'bar button is not Install');
+  const h1 = await boardH();
+  check(h1 > 0 && h1 < h0, `stage did not give up height to the bar, or the board overflows it (${h0} -> ${h1})`);
+  await page.click('#pwaNo');
+  check(!(await page.isVisible('#pwa')), 'bar still shown after Not now');
+  check((await boardH()) === h0, 'stage did not take its height back');
+  await openSettings(page);
+  check(await page.isVisible('#installBtn'), 'Settings has no Install button');
+  await page.click('#installBtn');
+  check(await page.evaluate(() => window.__prompted), 'Install did not open the prompt');
+  await page.reload();
+  await ready(page);
+  await page.evaluate(() => dispatchEvent(Object.assign(new Event('beforeinstallprompt', { cancelable: true }), { prompt: () => Promise.resolve() })));
+  check(!(await page.isVisible('#pwa')), 'bar came back after Not now and a reload');
+  await context.close();
+  check(!errors.length, errors.join(' | '));
+  return 'bar shows, board still fits, Not now sticks, Settings Install prompts';
+});
+
+// Serves the repo over http so the service worker registers. sw.js gets a version suffix we can bump.
+test('Update banner', async () => {
+  const http = require('http'), fs = require('fs');
+  const root = path.join(__dirname, '..');
+  let ver = 1;
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/manifest+json', '.png': 'image/png' };
+  const server = http.createServer((req, res) => {
+    const name = decodeURIComponent(req.url.split('?')[0]).replace(/^\/$/, '/index.html');
+    const file = path.join(root, path.normalize(name));
+    if (!file.startsWith(root) || !fs.existsSync(file)) { res.writeHead(404); return res.end(); }
+    let body = fs.readFileSync(file);
+    if (name === '/sw.js') body = body.toString().replace("'split-v1'", `'split-test-${ver}'`);
+    res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+    res.end(body);
+  });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${server.address().port}/`;
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto(url);
+    await ready(page);
+    await page.waitForFunction(() => navigator.serviceWorker.controller, null, { timeout: 10000 });
+    check(!(await page.isVisible('#pwa')), 'first install showed the update banner');
+    ver = 2;
+    await page.evaluate(() => navigator.serviceWorker.getRegistration().then(r => r.update()));
+    await page.waitForSelector('#pwa:not([hidden])', { timeout: 10000 });
+    check((await page.textContent('#pwaGo')) === 'Update', 'banner button is not Update');
+    check(!(await page.isVisible('#pwaNo')), 'update banner offers Not now');
+    await Promise.all([page.waitForNavigation(), page.click('#pwaGo')]);
+    await ready(page);
+    check(!(await page.isVisible('#pwa')), 'banner still shown after reload');
+    check(!errors.length, errors.join(' | '));
+  } finally {
+    await context.close();
+    server.close();
+  }
+  return 'first install is quiet; a new sw.js shows Update, which reloads';
+});
+
 (async () => {
   browser = await chromium.launch();
   let pass = 0;
