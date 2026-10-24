@@ -438,24 +438,17 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
 .card dd { margin: 0; text-align: left; font-weight: 700; }
 .card .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
 .card .row:has(> [hidden]) { grid-template-columns: 1fr; }
-/* Win: the card pops in, a kitten bounces on top, stars stamp in one by one, confetti flies out. */
+/* Win: the card pops in, a sleeping kitten lands on top, confetti flies out. */
 .card.won { position: relative; overflow: visible; padding-top: calc(var(--s5) + 28px); animation: card-pop .5s cubic-bezier(.2, 1.5, .4, 1) both;
   box-shadow: 0 0 0 1px rgba(79,214,156,.25), 0 12px 48px rgba(79,214,156,.18); }
 @keyframes card-pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
-#winKit { position: absolute; left: 50%; top: -58px; width: 108px; height: 92px; object-fit: contain; margin-left: -54px;
-  animation: kit-bounce .7s ease-in-out .35s 4 both; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
-@keyframes kit-bounce { 0%, 100% { transform: translateY(0) scale(1, 1); } 15% { transform: translateY(0) scale(1.12, .88); } 50% { transform: translateY(-18px) scale(.95, 1.06); } 85% { transform: translateY(0) scale(1.1, .9); } }
+#winKit { position: absolute; left: 50%; top: -44px; width: 132px; height: 70px; object-fit: contain; margin-left: -66px; transform-origin: 50% 100%;
+  animation: kit-in .5s cubic-bezier(.2, 1.6, .4, 1) .2s both, kit-breathe 2.4s ease-in-out .7s infinite; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
+@keyframes kit-in { 0% { transform: translateY(-30px) scale(.5); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes kit-breathe { 50% { transform: scale(1.04, .96); } }
 .card.won h2 { font-size: calc(var(--fs-2xl) * 1.2); animation: title-in .5s cubic-bezier(.2, 1.6, .4, 1) .15s both; text-shadow: 0 0 18px rgba(79,214,156,.45); }
 @keyframes title-in { 0% { transform: scale(.3) rotate(-8deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
-.stars { display: flex; justify-content: center; gap: var(--s2); margin-top: calc(-1 * var(--s2)); }
-.stars i { width: 36px; height: 36px; background: var(--line); font-style: normal;
-  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
-.stars i:nth-child(2) { transform: translateY(-6px) scale(1.15); }
-.stars i.on { background: var(--warn); animation: star-in .45s cubic-bezier(.2, 1.8, .4, 1) var(--sd) both; }
-@keyframes star-in { 0% { transform: scale(0) rotate(-90deg); } 100% { transform: var(--st, none); } }
-.stars i.on:nth-child(2) { --st: translateY(-6px) scale(1.15); }
-#winBest { margin: 0; color: var(--warn); font-weight: 700; animation: best-pulse 1s ease-in-out .9s 3 both; }
-@keyframes best-pulse { 50% { transform: scale(1.1); } }
+#winNew { background: var(--good); color: var(--bg); border-color: var(--good); }
 #burst { position: absolute; left: 50%; top: 45%; width: 0; height: 0; pointer-events: none; }
 #burst b { position: absolute; left: 0; top: 0; font-size: var(--fz); color: var(--fc); line-height: 1; opacity: 0;
   animation: fly 1.3s cubic-bezier(.15, .7, .3, 1) var(--fd) forwards; }
@@ -465,7 +458,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
   100% { transform: translate(calc(-50% + var(--fx)), calc(-50% + var(--fy))) rotate(var(--fr)) scale(1); opacity: 0; }
 }
 [hidden] { display: none !important; }
-@media (prefers-reduced-motion: reduce) { .card.won, .card.won h2, #winKit, .stars i.on, #winBest { animation: none !important; } #burst { display: none; } }
+@media (prefers-reduced-motion: reduce) { .card.won, .card.won h2, #winKit { animation: none !important; } #burst { display: none; } }
 @media (prefers-reduced-motion: reduce) { .tile, .tile.slide, .tile.pop, .tile.flash, .blob, .eye, .z, .zap, .puff { transition: none; animation: none !important; } }
 </style>
 </head>
@@ -551,12 +544,10 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
   <div class="card">
     <img id="winKit" alt="" hidden>
     <h2 id="winTitle">Solved</h2>
-    <div id="winStars" class="stars" hidden><i></i><i></i><i></i></div>
     <p id="winMsg"></p>
-    <p id="winBest" hidden>New best time!</p>
     <dl><dt>Time</dt><dd id="winTime"></dd><dt>Undos</dt><dd id="winUndos"></dd></dl>
     <div class="row">
-      <button class="btn" id="winRestart">Replay</button>
+      <button class="btn" id="winRestart">Try again</button>
       <button class="btn" id="winNew">New board</button>
     </div>
   </div>
@@ -997,6 +988,7 @@ if (typeof document !== 'undefined') {
     $('winTime').textContent = fmtTime(S.elapsed);
     $('winUndos').textContent = S.undos;
     $('winRestart').textContent = 'Try again';
+    $('winRestart').hidden = false;
     winFx(false);
     $('winNew').hidden = true; // stages are linear: a lost stage is only retried
     setTimeout(() => { if (S.lost) $('overlay').hidden = false; }, 900);
@@ -1152,40 +1144,17 @@ if (typeof document !== 'undefined') {
     tone(110, 0, 0.4, 0.25, 'sawtooth');
   }
   const regionSound = () => [523, 659, 784].forEach((f, k) => tone(f, 0.06 + k * 0.07, 0.3, 0.14));
-  const starSound = k => { tone(880 * Math.pow(2, k * 4 / 12), 0, 0.25, 0.14, 'sine'); tone(1760 * Math.pow(2, k * 4 / 12), 0.02, 0.18, 0.05, 'sine'); };
   const winSound = () => [523, 659, 784, 1047].forEach((f, k) => tone(f, 0.1 + k * 0.09, 0.5, 0.16));
 
-  // Stars: 3 with no undos, 2 with up to two, 1 otherwise. Best time is kept per mode and stage.
-  const winStars = () => (S.undos === 0 ? 3 : S.undos <= 2 ? 2 : 1);
   function winFx(won) {
     $('overlay').querySelector('.card').classList.toggle('won', won);
-    $('winStars').hidden = !won;
     $('winKit').hidden = !won || S.skin !== 'kittens';
-    $('winBest').hidden = true;
     $('burst').textContent = '';
     if (!won) return;
-    if (S.skin === 'kittens') $('winKit').src = sprite('jump', 25);
-    const n = winStars();
-    $('winStars').setAttribute('aria-label', `${n} of 3 stars`);
-    $('winStars').querySelectorAll('i').forEach((el, k) => { el.className = ''; el.dataset.on = k < n ? '1' : ''; });
-    if (S.stage == null) return;
-    const key = `split.best.${S.mode}.${S.stage}`;
-    let best = 0;
-    try { best = +localStorage.getItem(key) || 0; } catch (err) {}
-    if (!best || S.elapsed < best) {
-      try { localStorage.setItem(key, String(S.elapsed)); } catch (err) {}
-      $('winBest').hidden = !best; // the first clear sets the record quietly
-    }
+    if (S.skin === 'kittens') $('winKit').src = sprite('sleep', 25);
   }
   function celebrate() {
-    const calm = !S.effects || matchMedia('(prefers-reduced-motion: reduce)').matches;
-    $('winStars').querySelectorAll('i').forEach((el, k) => {
-      if (!el.dataset.on) return;
-      el.style.setProperty('--sd', calm ? '0s' : `${0.35 + k * 0.22}s`);
-      el.className = 'on';
-      if (!calm) setTimeout(() => starSound(k), 350 + k * 220);
-    });
-    if (calm) return;
+    if (!S.effects || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const glyphs = ['★', '♥', '✦', '✿', '●'], colours = ['#ffc04d', '#4fd69c', '#8fb3ff', '#ff8fb8', '#ffffff'];
     let html = '';
     for (let k = 0; k < 36; k++) {
@@ -1220,7 +1189,7 @@ if (typeof document !== 'undefined') {
       $('winTitle').textContent = S.skin === 'kittens' ? 'All asleep' : 'Solved';
       $('winTitle').className = '';
       $('winMsg').textContent = S.skin === 'kittens' ? 'Every kitten has its own cell.' : 'Every cell holds a 1.';
-      $('winRestart').textContent = 'Replay';
+      $('winRestart').hidden = true; // a win moves on; Restart under the board still replays
       $('winNew').hidden = false;
       $('winNew').textContent = S.stage != null ? 'Next stage' : 'New board'; // New board only for dev custom boards
       if (S.stage != null && S.stage + 1 > savedStage(S.mode)) {
