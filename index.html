@@ -315,14 +315,15 @@ button.btn:active { background: var(--line); }
 button.btn:disabled { opacity: .4; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Dev settings: collapsed under the actions. */
-/* Mode chip: shows Casual or Challenge, and tapping it goes back to pick the other. */
+/* Difficulty chip: shows Casual or Normal (internally 'challenge'); tapping it goes back to pick the other. */
 #menu {
   display: flex; align-items: center; gap: var(--s1); min-height: 32px; padding: 0 var(--s3);
   font: inherit; font-size: var(--fs-sm); font-weight: 650; color: var(--text);
   background: var(--panel); border: 1px solid var(--line); border-radius: 99px;
 }
 #menu.hot { color: var(--warn); }
-#menu::after { content: "⇄"; color: var(--muted); font-weight: 400; }
+#menu span { color: var(--muted); font-weight: 400; }
+#menu::after { content: "▾"; color: var(--muted); font-weight: 400; }
 #menu:active { background: var(--line); }
 /* Settings: a gear top right of the app opens a bottom sheet. */
 #app { position: relative; }
@@ -464,7 +465,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
     <h1>Kaboom Kittens</h1>
     <p>Split every kitten fight until each kitten has its own bed.</p>
     <button class="mode" id="playCasual"><b>Casual</b><span>No fuses. Take your time.</span><em id="casualStage">Stage 1</em></button>
-    <button class="mode" id="playChallenge"><b>Challenge</b><span>Leave a fight too long and it blows up.</span><em id="challengeStage">Stage 1</em></button>
+    <button class="mode" id="playChallenge"><b>Normal</b><span>Leave a fight too long and it blows up.</span><em id="challengeStage">Stage 1</em></button>
     <button class="btn" id="startInstall" hidden>Install app</button>
   </div>
 </div>
@@ -829,7 +830,7 @@ if (typeof document !== 'undefined') {
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
     $('stageTitle').textContent = S.stage == null ? 'Custom' : `Stage ${S.stage + 1} of ${STAGES.length}`;
-    $('menu').textContent = S.mode === 'challenge' ? 'Challenge' : 'Casual';
+    $('menu').innerHTML = `<span>Difficulty:</span> ${S.mode === 'challenge' ? 'Normal' : 'Casual'}`;
     $('menu').classList.toggle('hot', S.mode === 'challenge');
     const pick = $('stagePick'), top = Math.min(savedStage(S.mode), STAGES.length - 1); // unlocked up to the furthest reached
     const pickKey = `${S.mode}:${top}:${S.stage}`;
