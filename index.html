@@ -341,7 +341,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   cursor: pointer; list-style: none;
 }
 #settings summary::-webkit-details-marker { display: none; }
-body:has(#start:not([hidden])) #settings summary, body:has(#overlay:not([hidden])) #settings summary { display: none; } /* gear belongs to the game screen */
+body:has(#overlay:not([hidden])) #settings summary { display: none; } /* no gear over the win and lose dialogs */
+body:has(#start:not([hidden])) #settings summary { top: max(12px, env(safe-area-inset-top, 0px)); } /* on the start page the gear sits in the corner */
 #settings summary::before { content: "⚙"; font-size: 20px; line-height: 1; }
 #settings[open] summary::before { content: "✕"; font-size: 16px; }
 #info { position: absolute; right: 48px; top: 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -482,6 +483,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
         <input id="tiles" type="range" min="2" max="10" value="5">
         <output id="tilesOut">5</output>
       </label>
+      <div class="app" id="shareRow"><span>Share app</span><button id="shareBtn">Share link</button></div>
       <div class="app" id="installRow"><span>Install app</span><button id="installBtn" hidden>Install</button><span id="installHint">iPhone: Share › Add to Home Screen</span></div>
     </div>
   </details>
@@ -1005,6 +1007,19 @@ if (typeof document !== 'undefined') {
     $('howto').hidden = false;
     $('howtoGo').focus();
   }
+  // Installed apps hide the address bar, so this is the only way to find the link.
+  async function shareApp() {
+    const url = new URL('./', location.href).href, btn = $('shareBtn');
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Kaboom Kitty', url }); return; }
+      catch (err) { if (err && err.name === 'AbortError') return; }
+    }
+    let msg = 'Link copied';
+    try { await navigator.clipboard.writeText(url); } catch (err) { msg = url; }
+    btn.textContent = msg;
+    setTimeout(() => { btn.textContent = 'Share link'; }, 2500);
+  }
+
   function showStart() {
     stopTimer();
     $('overlay').hidden = true;
@@ -1163,6 +1178,7 @@ if (typeof document !== 'undefined') {
   $('menu').addEventListener('click', showStart);
   $('stagePick').addEventListener('change', e => goStage(+e.target.value));
   $('help').addEventListener('click', showHowto);
+  $('shareBtn').addEventListener('click', shareApp);
   $('howtoGo').addEventListener('click', hideHowto);
   // The settings sheet closes on a tap outside it (dev mode keeps it inline and open).
   document.addEventListener('pointerdown', e => {
