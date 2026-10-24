@@ -238,6 +238,8 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 .kit img { width: 100%; height: 100%; object-fit: contain; object-position: 50% 50%; display: block; }
 .kit img.flip { transform: scaleX(-1); }
 .tile { pointer-events: none; } /* touches hit the cell underneath, even mid-hop */
+.box { display: block; width: 78%; height: 78%; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M8 24 18 12h28l10 12z' fill='%23e2b47c' stroke='%237a4f24' stroke-width='2.5' stroke-linejoin='round'/%3E%3Crect x='8' y='24' width='48' height='30' rx='3' fill='%23cf9a5e' stroke='%237a4f24' stroke-width='2.5'/%3E%3Cpath d='M29 24h6v30h-6z' fill='%23ead2a8' opacity='.85'/%3E%3Cpath d='M14 30h9M14 35h6' stroke='%237a4f24' stroke-width='2' stroke-linecap='round' opacity='.5'/%3E%3Cpath d='M38 40v-4a6 6 0 0 1 12 0v4' fill='none' stroke='%235b6170' stroke-width='3.5'/%3E%3Crect x='35' y='39' width='18' height='14' rx='3' fill='%23f2c94c' stroke='%238a6a12' stroke-width='2'/%3E%3Ccircle cx='44' cy='45' r='2.2' fill='%238a6a12'/%3E%3Cpath d='M44 46.5v3' stroke='%238a6a12' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+.cell.locked { display: grid; place-items: center; }
 .bed {
   position: absolute; left: 20%; right: 20%; bottom: 24%; height: 26%;
   border: 2px dashed var(--dot); border-radius: 50%;
@@ -560,6 +562,8 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
         <p><b>Big fights</b> split again and again: 4 makes two 2s, and each 2 makes two 1s.</p></li>
       <li><div class="pics"><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span></div>
         <p><b>Win</b> when every kitten sleeps alone in its own cell. Stuck? Swipe a kitten back onto its twin to rejoin them, or restart.</p></li>
+      <li><div class="pics"><span class="cot" data-kit="fight2"></span><i>✕</i><span class="cot"><span class="box"></span></span></div>
+        <p><b>Boxes</b> are locked. No kitten can split into one or sleep there, so you never need to fill it.</p></li>
       <li id="howtoFuse"><div class="pics"><span class="cot fused" data-kit="fight2"><b></b></span><i>›</i><span class="cot" data-kit="boom"></span></div>
         <p><b class="warn">Normal:</b> every fight has a fuse. Split it before the fuse burns down, or it blows up.</p></li>
     </ol>
@@ -591,32 +595,33 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
 const MAX_TILE = 16;
 const THRESHOLD = 20; // px before a drag counts as a swipe
 const SIZES = { 4: { min: 2, max: 10, def: 5 }, 5: { min: 3, max: 15, def: 8 }, 6: { min: 4, max: 20, def: 11 } };
-// The stage ladder: [columns, rows, starting tiles, Normal fuse in seconds].
+// The stage ladder: [columns, rows, starting tiles, Normal fuse in seconds, locked cells].
 // Fewer tiles means bigger fights and more splits; a shorter fuse leaves less time for each.
 // The board grows every 10 stages, one side at a time: 4x4, 4x5, 5x5 ... 7x8, then stays 7x8 from
 // stage 71 so cells stay big enough to swipe on a phone. Each size starts
 // easier than the last one ended and ramps up. Stages 1-3 are easy in both modes.
 // A band's last tile count is about the fewest the generator reaches on that board.
 // Bigger boards hold more fights burning at once, so their fuses run longer.
+// Locked cells start at stage 11 with one, rising to about 15% of the board on 7x8.
 // Past the last stage, play continues at its settings.
 const FUSES = [40, 35, 30, 25, 20, 15, 12, 10];
-// count stages of w x h, tiles and fuse stepping evenly from the first value to the second.
-function ramp(w, h, count, [t0, t1], [f0, f1] = [0, 0]) {
+// count stages of w x h, tiles, fuse and locks stepping evenly from the first value to the second.
+function ramp(w, h, count, [t0, t1], [f0, f1] = [0, 0], [l0, l1] = [0, 0]) {
   return Array.from({ length: count }, (_, i) => {
     const at = (a, b) => a + (b - a) * (count > 1 ? i / (count - 1) : 0);
     const f = at(f0, f1);
-    return [w, h, Math.round(at(t0, t1)), FUSES.reduce((x, y) => (Math.abs(y - f) < Math.abs(x - f) ? y : x))];
+    return [w, h, Math.round(at(t0, t1)), FUSES.reduce((x, y) => (Math.abs(y - f) < Math.abs(x - f) ? y : x)), Math.round(at(l0, l1))];
   });
 }
 const STAGES = [
-  [4, 4, 10, 30], [4, 4, 9, 30], [4, 4, 8, 30], ...ramp(4, 4, 7, [7, 5], [25, 15]),
-  ...ramp(4, 5, 10, [9, 6], [25, 15]),
-  ...ramp(5, 5, 10, [11, 7], [30, 15]),
-  ...ramp(5, 6, 10, [13, 9], [30, 20]),
-  ...ramp(6, 6, 10, [15, 10], [35, 20]),
-  ...ramp(6, 7, 10, [17, 12], [35, 25]),
-  ...ramp(7, 7, 10, [19, 14], [40, 25]),
-  ...ramp(7, 8, 30, [22, 15], [40, 20]),
+  [4, 4, 10, 30, 0], [4, 4, 9, 30, 0], [4, 4, 8, 30, 0], ...ramp(4, 4, 7, [7, 5], [25, 15]),
+  ...ramp(4, 5, 10, [9, 6], [25, 15], [1, 2]),
+  ...ramp(5, 5, 10, [11, 7], [30, 15], [2, 3]),
+  ...ramp(5, 6, 10, [13, 9], [30, 20], [2, 4]),
+  ...ramp(6, 6, 10, [15, 10], [35, 20], [3, 5]),
+  ...ramp(6, 7, 10, [17, 12], [35, 25], [4, 6]),
+  ...ramp(7, 7, 10, [19, 14], [40, 25], [5, 7]),
+  ...ramp(7, 8, 30, [22, 15], [40, 20], [6, 9]),
 ];
 // Casual has no fuse, so it gets fewer starting tiles per stage, on the same boards.
 const CASUAL_TILES = [
@@ -654,7 +659,9 @@ const S = {
 
 // A split leaves twins sharing one link, tw = {from: parent tile, left: parent's fuse ms}.
 // Only twins can merge, and only back into the fight they came from.
-const cloneCells = cells => cells.map(t => t && { v: t.v, c: t.c, tw: t.tw });
+// A locked cell holds LOCK: no kitten can split into it, rejoin through it or sleep in it.
+const LOCK = Object.freeze({ v: 0, lock: true });
+const cloneCells = cells => cells.map(t => t && (t.lock ? t : { v: t.v, c: t.c, tw: t.tw }));
 const keyOf = cells => cells.map(t => (t ? t.v : 0)).join(',');
 
 // ===================== GENERATOR =====================
@@ -662,13 +669,16 @@ const keyOf = cells => cells.map(t => (t ? t.v : 0)).join(',');
 // tile count hits the target. Each merge is recorded; replaying them backwards
 // as splits is a guaranteed solution.
 
-// n columns by h rows; cells run row by row.
-function generate(n, target, rand = Math.random, h = n) {
+// n columns by h rows; cells run row by row. locks cells are boxed up first and
+// never take part, so the replayed solution still works around them.
+function generate(n, target, rand = Math.random, h = n, locks = 0) {
   let best = null;
   for (let attempt = 0; attempt < 200; attempt++) {
     const v = new Array(n * h).fill(1);
+    const locked = placeLocks(n, h, locks, rand);
+    for (const i of locked) v[i] = 0;
     const merges = [];
-    let tiles = n * h;
+    let tiles = n * h - locked.length;
     while (tiles > target) {
       const pairs = [];
       for (let i = 0; i < n * h; i++) {
@@ -684,12 +694,12 @@ function generate(n, target, rand = Math.random, h = n) {
       tiles--;
     }
     if (Math.max(...v) > MAX_TILE) continue; // reject
-    if (!best || tiles < best.tiles) best = { v, merges, tiles };
+    if (!best || tiles < best.tiles) best = { v, merges, tiles, locked };
     if (tiles <= target) break;
   }
 
   let colour = 0;
-  const cells = best.v.map(x => (x ? { v: x, c: colour++ } : null));
+  const cells = best.v.map((x, i) => (x ? { v: x, c: colour++ } : best.locked.includes(i) ? LOCK : null));
   const solution = best.merges.slice().reverse()
     .map(m => ({ from: m.keep, dir: dirBetween(n, m.keep, m.gone, h) }));
 
@@ -724,7 +734,7 @@ function shapeKey(n, cells) {
       if (s & 1) y = h - 1 - y;
       if (s & 2) x = n - 1 - x;
       const t = cells[y * n + x];
-      k += t ? t.v.toString(16) : '.';
+      k += t ? (t.lock ? 'x' : t.v.toString(16)) : '.';
     }
     keys.push(k);
   }
@@ -735,12 +745,12 @@ const stageBoards = { casual: [], challenge: [] };
 function stageBoard(mode, k) {
   const list = stageBoards[mode], seen = new Set(list.map(b => shapeKey(b.n, b.cells)));
   for (let j = list.length; j <= k; j++) {
-    const [n, h, normal] = STAGES[Math.min(j, STAGES.length - 1)];
+    const [n, h, normal, , locks] = STAGES[Math.min(j, STAGES.length - 1)];
     const target = mode === 'casual' ? CASUAL_TILES[Math.min(j, STAGES.length - 1)] : normal;
     // Take the first new layout that hits the tile target; failing that, the new one closest to it.
     let best = null;
     for (let attempt = 0; attempt < 20; attempt++) {
-      const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h);
+      const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks);
       const key = shapeKey(n, b.cells);
       if (seen.has(key) || (best && b.tiles >= best.b.tiles)) continue;
       best = { b, key };
@@ -750,6 +760,21 @@ function stageBoard(mode, k) {
     list.push(best.b);
   }
   return list[k];
+}
+
+// count random cells to lock, never leaving an open cell walled in on every side.
+function placeLocks(n, h, count, rand) {
+  for (let tries = 0; tries < 100; tries++) {
+    const locked = new Set();
+    while (locked.size < count) locked.add(Math.floor(rand() * n * h));
+    const open = i => i >= 0 && !locked.has(i);
+    let ok = true;
+    for (let i = 0; i < n * h && ok; i++) {
+      if (open(i) && !Object.keys(DIRS).some(d => open(neighbour(n, i, d, h)))) ok = false;
+    }
+    if (ok) return [...locked];
+  }
+  return [];
 }
 
 // ===================== MOVES =====================
@@ -801,7 +826,7 @@ function regionDone(cells, c) {
   return cells.every(t => !t || t.c !== c || t.v === 1);
 }
 
-const isWin = cells => cells.every(t => t && t.v === 1);
+const isWin = cells => cells.every(t => t && (t.lock || t.v === 1));
 
 function blockedTiles(cells, n) {
   const out = [];
@@ -1004,6 +1029,7 @@ if (typeof document !== 'undefined') {
     let html = '';
     for (let i = 0; i < cells.length; i++) {
       let t = cells[i], cls = '', extra = '';
+      if (t && t.lock) { html += `<div class="cell locked" data-i="${i}"><span class="box"></span></div>`; continue; }
       const blinkPeriod = 3.2 + (i * 1.13) % 2.5;
       let style = `;--d:${phase(i * 0.37, 2.6)};--bp:${blinkPeriod.toFixed(2)}s;--bd:${phase(i * 0.71, blinkPeriod)}`;
       if (drag && drag.dest >= 0) {
@@ -1053,7 +1079,11 @@ if (typeof document !== 'undefined') {
     else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Rejoin twins to get hints back.'; status.className = 'hint'; }
     else status.textContent = { kittens: 'Give every kitten its own cell to sleep!', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
 
-    $('quip').textContent = S.skin === 'kittens' ? QUIPS[(S.stage || 0) % QUIPS.length] : '';
+    // The first board with locked cells explains them until it's solved.
+    const locks = cells.some(t => t && t.lock);
+    let lockTip = false;
+    try { lockTip = locks && !localStorage.getItem('split.lockTip'); if (lockTip && S.won) localStorage.setItem('split.lockTip', '1'); } catch (err) {}
+    $('quip').textContent = lockTip ? 'Boxes are locked. No kitten can go in one.' : S.skin === 'kittens' ? QUIPS[(S.stage || 0) % QUIPS.length] : '';
     $('time').textContent = fmtTime(S.elapsed);
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
@@ -1419,7 +1449,7 @@ if (typeof document !== 'undefined') {
     const cell = e.target.closest('.cell');
     if (!cell) return;
     const i = +cell.dataset.i;
-    if (!S.cells[i]) return;
+    if (!S.cells[i] || S.cells[i].lock) return;
     e.preventDefault();
     boardEl.setPointerCapture(e.pointerId);
     S.drag = { id: e.pointerId, i, x: e.clientX, y: e.clientY, dir: null, dest: -1, join: -1 };

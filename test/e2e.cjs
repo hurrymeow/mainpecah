@@ -257,6 +257,27 @@ test('Oblong boards', async () => {
   return out.join('; ');
 });
 
+test('Locked cells', async () => {
+  const { context, page, errors } = await open({}, false);
+  // Casual stage 1 is 4x4 with no fuse. A 2 with a box on its right and room below:
+  // swiping right does nothing, swiping down splits.
+  await page.evaluate(() => { const c = new Array(16).fill(null); c[0] = { v: 2, c: 0 }; c[1] = LOCK; S.cells = c; });
+  const { x, y } = await center(page, 0);
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.up();
+  // A raw # ends a data: URL early and the box draws nothing, so the SVG must be fully encoded.
+  const box = await page.evaluate(() => { const b = document.querySelector('.cell.locked[data-i="1"] .box'); return !!b && /^url\("data:image\/svg\+xml,[^#]+"\)$/.test(getComputedStyle(b).backgroundImage); });
+  const before = await key(page);
+  await mouseSwipe(page, 0, 'right');
+  const r1 = await page.evaluate(() => ({ lock: !!(S.cells[1] && S.cells[1].lock), v: S.cells[0] && S.cells[0].v }));
+  check(box && (await key(page)) === before && r1.lock && r1.v === 2, `swipe into a box changed the board: ${JSON.stringify(r1)} box=${box}`);
+  await mouseSwipe(page, 0, 'down');
+  const r2 = await page.evaluate(() => [S.cells[0] && S.cells[0].v, S.cells[4] && S.cells[4].v, isWin([{ v: 1 }, LOCK])]);
+  check(r2[0] === 1 && r2[1] === 1 && r2[2], `split beside a box failed or win ignores boxes wrongly: ${r2}`);
+  await context.close();
+  check(!errors.length, errors.join(' | '));
+  return 'box drawn; swipe into a box is a no-op; split beside it works; win skips boxes';
+});
+
 test('Rejoin/Restart/New', async () => {
   const { context, page, errors } = await open();
   await page.selectOption('#fuse', '0');
@@ -554,14 +575,23 @@ test('Start page and stages', async () => {
   check(casual, 'Casual tile curve must cover every stage with no more tiles than Normal');
   const boards = await page.evaluate(() => ['casual', 'challenge'].map(m => {
     const keys = new Set();
-    for (let k = 0; k < STAGES.length; k++) { const b = stageBoard(m, k); if (b.n === STAGES[k][0] && b.h === STAGES[k][1] && b.solution.length) keys.add(shapeKey(b.n, b.cells)); }
-    return { m, unique: keys.size, stages: STAGES.length };
+    let solved = 0, locks = 0;
+    for (let k = 0; k < STAGES.length; k++) {
+      const b = stageBoard(m, k);
+      if (b.n === STAGES[k][0] && b.h === STAGES[k][1] && b.solution.length) keys.add(shapeKey(b.n, b.cells));
+      if (b.cells.filter(t => t && t.lock).length === STAGES[k][4]) locks++;
+      // Replay the recorded solution: every stage must be solvable from its starting board.
+      let cur = b.cells;
+      for (const s of b.solution) { cur = applySplit(cur, b.n, s.from, s.dir); if (!cur) break; }
+      if (cur && isWin(cur)) solved++;
+    }
+    return { m, unique: keys.size, stages: STAGES.length, solved, locks };
   }));
-  check(boards.every(b => b.stages === 100 && b.unique === 100), `stage boards must be 100 unique per mode: ${JSON.stringify(boards)}`);
+  check(boards.every(b => b.stages === 100 && b.unique === 100 && b.solved === 100 && b.locks === 100), `stage boards must be 100 unique, solvable, with the right locks per mode: ${JSON.stringify(boards)}`);
   check(ladder === '4x4 4x5 5x5 5x6 6x6 6x7 7x7 7x8' && (await page.evaluate(() => STAGES.every(([w, h], k) => STAGES.filter(s => s[0] === w && s[1] === h).length === (k < 70 ? 10 : 30)))), `stage ladder should grow every 10 stages from 4x4, then stay 7x8 from stage 71: ${ladder}`);
   await context.close();
   check(!errors.length, errors.join(' | '));
-  return 'start page on boot; Casual has no fuse; win -> Next stage; progress per mode survives reload; Challenge fuse from the stage; 100 unique boards per mode';
+  return 'start page on boot; Casual has no fuse; win -> Next stage; progress per mode survives reload; Challenge fuse from the stage; 100 unique solvable boards per mode';
 });
 
 test('How to play', async () => {
