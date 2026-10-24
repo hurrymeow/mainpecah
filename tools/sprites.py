@@ -1,6 +1,6 @@
 """Cut the AI-generated kitten art out of its (fake checkerboard / white) background.
 
-Usage: python3 tools/sprites.py SRC_DIR
+Usage: python3 tools/sprites.py SRC_DIR    (or --trim to re-trim the existing assets)
 Expects SRC_DIR/{sleep,fight2,fight4,fight8,boom,jump}.jpg and writes assets/<name>.webp.
 Background = light, unsaturated pixels connected to the image border. The art's dark outline
 stops the flood fill, so light-grey fur and clouds inside it are kept.
@@ -49,12 +49,24 @@ def cut(path):
     out[rim] = OUTLINE
 
     img = Image.fromarray(np.dstack([out, alpha]).clip(0, 255).astype(np.uint8), 'RGBA')
-    img = img.crop(img.getbbox())
     img.thumbnail((MAX_SIDE, MAX_SIDE), Image.LANCZOS)
-    return img
+    return trim(img)
+
+
+def trim(img):
+    """Drop near-invisible haze, then crop to the art so CSS can centre it by its box."""
+    a = img.getchannel('A').point(lambda v: 0 if v < 24 else v)
+    img.putalpha(a)
+    return img.crop(a.getbbox())
 
 
 if __name__ == '__main__':
+    if sys.argv[1] == '--trim':
+        for f in sorted((Path(__file__).resolve().parent.parent / 'assets').glob('*.webp')):
+            img = trim(Image.open(f).convert('RGBA'))
+            img.save(f, 'WEBP', quality=88, method=6)
+            print(f.stem, img.size)
+        sys.exit()
     src = Path(sys.argv[1])
     dst = Path(__file__).resolve().parent.parent / 'assets'
     dst.mkdir(exist_ok=True)
