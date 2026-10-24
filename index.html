@@ -17,6 +17,7 @@
   --accent: #8fb3ff;
   --bad: #ff4757;
   --good: #4fd69c;
+  --dot: rgba(233,236,243,.13);
   --gap: 6px;
   --cell: 64px;
   color-scheme: dark;
@@ -65,6 +66,22 @@ h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .06em; }
 }
 .tile.active { transform: scale(.94); }
 .tile.ghost { opacity: .5; outline: 2px dashed rgba(255,255,255,.75); outline-offset: -5px; }
+.dot {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: calc(var(--cell) * .24); color: var(--dot);
+}
+.tile.done { filter: saturate(.45) brightness(.88); }
+.tile.slide { animation: slide .14s ease-out; }
+.tile.pop { animation: pop .2s ease-out; }
+.tile.flash { animation: flash .55s ease-out; }
+@keyframes slide {
+  from { transform: translate(calc(var(--sx) * (var(--cell) + var(--gap))), calc(var(--sy) * (var(--cell) + var(--gap)))) scale(.9); }
+}
+@keyframes pop { 0% { transform: scale(.86); } 60% { transform: scale(1.07); } }
+@keyframes flash {
+  0% { filter: brightness(1.9) saturate(1); transform: scale(1.1); }
+  100% { filter: saturate(.45) brightness(.88); transform: none; }
+}
 .tile.blocked { box-shadow: inset 0 0 0 4px var(--bad), 0 0 14px rgba(255,71,87,.55); }
 .tile .arrow {
   position: absolute; top: 3px; right: 6px; font-size: calc(var(--cell) * .26);
@@ -101,7 +118,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .card dd { margin: 0; text-align: left; font-weight: 700; }
 .card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 [hidden] { display: none !important; }
-@media (prefers-reduced-motion: reduce) { .tile { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tile, .tile.slide, .tile.pop, .tile.flash { transition: none; animation: none; } }
 </style>
 </head>
 <body>
@@ -111,7 +128,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div class="stats">
       <span>Time <b id="time">0:00</b></span>
       <span>Undos <b id="undos">0</b></span>
-      <span>Left <b id="left">0</b></span>
+      <span>Empty <b id="left">0</b></span>
     </div>
   </header>
 
@@ -134,6 +151,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <button class="btn" id="new">New board</button>
   </div>
   <div class="debug">
+    <label><input type="checkbox" id="effects" checked> Effects</label>
     <label><input type="checkbox" id="showSol"> Show solution</label>
     <span id="info"></span>
   </div>
@@ -172,6 +190,8 @@ const S = {
   t0: 0, elapsed: 0, timer: 0,
   won: false,
   showSol: false,
+  effects: true,    // split motion, region pulse, sound
+  anim: null,       // one-shot animation for the next render: {from, to, dir, region}
   drag: null,       // {id, i, x, y, dir, dest}
 };
 
@@ -248,6 +268,11 @@ function applySplit(cells, n, i, dir) {
   out[i].v /= 2;
   out[j] = { v: out[i].v, c: out[i].c };
   return out;
+}
+
+// A colour region is done when every tile descended from that starting tile is a 1.
+function regionDone(cells, c) {
+  return cells.every(t => !t || t.c !== c || t.v === 1);
 }
 
 const isWin = cells => cells.every(t => t && t.v === 1);
@@ -327,19 +352,29 @@ if (typeof document !== 'undefined') {
     const blocked = new Set(stuck ? blockedTiles(cells, n) : []);
     const hint = S.showSol && !S.won ? nextHint() : null;
     const hintDst = hint ? neighbour(n, hint.from, hint.dir) : -1;
+    const anim = S.effects ? S.anim : null;
+    S.anim = null;
+    const done = new Set();
+    if (S.effects) cells.forEach(t => { if (t && !done.has(t.c) && regionDone(cells, t.c)) done.add(t.c); });
 
     boardEl.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
     let html = '';
     for (let i = 0; i < n * n; i++) {
-      let t = cells[i], cls = '', extra = '';
+      let t = cells[i], cls = '', extra = '', style = '';
       if (drag && drag.dest >= 0) {
         const src = cells[drag.i];
         if (i === drag.i) { t = { v: src.v / 2, c: src.c }; cls = ' active'; }
         if (i === drag.dest) { t = { v: src.v / 2, c: src.c }; cls = ' ghost'; }
       }
+      if (t && done.has(t.c) && !(drag && (i === drag.i || i === drag.dest))) cls += ' done';
+      if (anim && t) {
+        if (anim.region === t.c) cls += ' flash';
+        else if (i === anim.from) cls += ' pop';
+        else if (i === anim.to) { cls += ' slide'; style = `;--sx:${-DIRS[anim.dir][1]};--sy:${-DIRS[anim.dir][0]}`; }
+      }
       if (blocked.has(i)) cls += ' blocked';
       if (hint && i === hint.from) extra = `<span class="arrow">${ARROWS[hint.dir]}</span>`;
-      const tile = t ? `<div class="tile${cls}" style="background:${tileColour(t.c, t.v)}">${t.v}${extra}</div>` : '';
+      const tile = t ? `<div class="tile${cls}" style="background:${tileColour(t.c, t.v)}${style}">${t.v}${extra}</div>` : '<span class="dot">1</span>';
       html += `<div class="cell${i === hintDst ? ' hint-dst' : ''}" data-i="${i}">${tile}</div>`;
     }
     boardEl.innerHTML = html;
@@ -349,7 +384,7 @@ if (typeof document !== 'undefined') {
     if (stuck) { status.textContent = 'Stuck. Undo or restart.'; status.className = 'bad'; }
     else if (hint) { status.textContent = `Hint: split the ${cells[hint.from].v} ${hint.dir}`; status.className = 'hint'; }
     else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Undo to get hints back.'; status.className = 'hint'; }
-    else status.textContent = S.t0 ? '' : 'Swipe a tile into an empty cell to split it';
+    else status.textContent = 'Fill every cell with a 1';
 
     $('undos').textContent = S.undos;
     $('left').textContent = cells.filter(t => !t).length;
@@ -388,17 +423,46 @@ if (typeof document !== 'undefined') {
     newBoard();
   }
 
+  // ---------- sound ----------
+  // Created on the first touch, since browsers only allow audio after a gesture.
+  let audio = null;
+  function initAudio() {
+    if (audio || !S.effects) return;
+    try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audio = null; }
+  }
+  function tone(freq, at = 0, len = 0.12, vol = 0.18, type = 'triangle') {
+    if (!audio || !S.effects) return;
+    const t = audio.currentTime + at, osc = audio.createOscillator(), g = audio.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + len);
+    osc.connect(g).connect(audio.destination);
+    osc.start(t); osc.stop(t + len + 0.02);
+  }
+  // Pitch rises as tiles get smaller: splitting a 16 is low, splitting a 2 is high.
+  const splitSound = v => tone(330 * Math.pow(2, (4 - Math.log2(v)) * 3 / 12));
+  const regionSound = () => [523, 659, 784].forEach((f, k) => tone(f, 0.06 + k * 0.07, 0.3, 0.14));
+  const winSound = () => [523, 659, 784, 1047].forEach((f, k) => tone(f, 0.1 + k * 0.09, 0.5, 0.16));
+
   function move(i, dir) {
+    const v = S.cells[i] && S.cells[i].v;
     const next = applySplit(S.cells, S.n, i, dir);
     if (!next) return;
     if (!S.t0) startTimer();
     S.history.push(S.cells);
     S.cells = next;
+    const c = next[i].c;
+    const region = regionDone(next, c) ? c : null;
+    S.anim = { from: i, to: neighbour(S.n, i, dir), dir, region };
+    splitSound(v);
+    if (region !== null) regionSound();
     if (isWin(next)) {
       S.won = true; S.elapsed = Date.now() - S.t0; stopTimer();
       $('winTime').textContent = fmtTime(S.elapsed);
       $('winUndos').textContent = S.undos;
-      $('overlay').hidden = false;
+      winSound();
+      setTimeout(() => { if (S.won) $('overlay').hidden = false; }, S.effects ? 700 : 0);
     }
     render();
   }
@@ -413,6 +477,7 @@ if (typeof document !== 'undefined') {
   // ===================== INPUT =====================
   boardEl.addEventListener('pointerdown', e => {
     if (S.won || S.drag) return;
+    initAudio();
     const cell = e.target.closest('.cell');
     if (!cell) return;
     const i = +cell.dataset.i;
@@ -452,6 +517,12 @@ if (typeof document !== 'undefined') {
   $('winRestart').addEventListener('click', restart);
   $('winNew').addEventListener('click', newBoard);
   $('showSol').addEventListener('change', e => { S.showSol = e.target.checked; render(); });
+  $('effects').addEventListener('change', e => {
+    S.effects = e.target.checked;
+    try { localStorage.setItem('split.effects', S.effects ? '1' : '0'); } catch (err) {}
+    render();
+  });
+  try { if (localStorage.getItem('split.effects') === '0') { S.effects = false; $('effects').checked = false; } } catch (err) {}
   document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && e.key === 'z') undo(); });
   window.addEventListener('resize', layout);
 
