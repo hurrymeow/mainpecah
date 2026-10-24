@@ -53,9 +53,12 @@ body { position: fixed; inset: 0; }
 }
 /* Header: stage and mode on the left, the settings gear pinned top right; stats in one quiet row. */
 header { display: grid; gap: var(--s3); padding-right: 48px; }
-.title { display: grid; gap: 2px; }
+/* Stage picker: the title is the label; a transparent native select over it opens the list. */
+.pick { position: relative; justify-self: start; display: flex; align-items: center; gap: var(--s2); }
+.pick::after { content: "▾"; font-size: var(--fs-md); color: var(--muted); }
+.pick select { position: absolute; inset: 0; opacity: 0; font-size: 16px; cursor: pointer; }
 h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
-.stats { display: flex; gap: var(--s5); }
+.stats { display: flex; align-items: center; gap: var(--s5); }
 .stat { display: flex; align-items: baseline; gap: var(--s1); }
 .stat span { font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .stat b { font-size: var(--fs-md); font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -65,9 +68,6 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 .seg button.on { background: var(--line); color: var(--text); font-weight: 650; }
 /* Plain info above the board: where you are, then what to do. Not controls. */
 #brief { display: grid; gap: 2px; text-align: center; flex: none; }
-#stageInfo { font-size: var(--fs-sm); color: var(--muted); text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
-#stageInfo b { color: var(--text); font-weight: 650; }
-#stageInfo b.hot { color: var(--warn); }
 .debug .seg, .debug .slider { grid-column: 1 / -1; height: var(--ctl-h); }
 .slider {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3);
@@ -315,12 +315,15 @@ button.btn:active { background: var(--line); }
 button.btn:disabled { opacity: .4; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Dev settings: collapsed under the actions. */
-/* Change difficulty: a quiet text link under the main buttons. */
+/* Mode chip: shows Casual or Challenge, and tapping it goes back to pick the other. */
 #menu {
-  align-self: center; border: 0; background: none; padding: var(--s1) var(--s3); min-height: 32px;
-  font: inherit; font-size: var(--fs-sm); color: var(--muted); text-decoration: underline; text-underline-offset: 3px;
+  display: flex; align-items: center; gap: var(--s1); min-height: 32px; padding: 0 var(--s3);
+  font: inherit; font-size: var(--fs-sm); font-weight: 650; color: var(--text);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 99px;
 }
-#menu:active { color: var(--text); }
+#menu.hot { color: var(--warn); }
+#menu::after { content: "⇄"; color: var(--muted); font-weight: 400; }
+#menu:active { background: var(--line); }
 /* Settings: a gear top right of the app opens a bottom sheet. */
 #app { position: relative; }
 #settings { font-size: var(--fs-sm); color: var(--muted); margin-top: calc(var(--s3) * -1); }
@@ -412,11 +415,11 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
 <body>
 <div id="app">
   <header>
-    <div class="title"><h1 id="stageTitle">Stage 1</h1><div id="stageInfo"></div></div>
+    <label class="pick"><h1 id="stageTitle">Stage 1</h1><select id="stagePick" aria-label="Pick a stage"></select></label>
     <div class="stats">
+      <button id="menu" aria-label="Change mode"></button>
       <div class="stat"><span>Time</span><b id="time">0:00</b></div>
       <div class="stat"><span>Undos</span><b id="undos">0</b></div>
-      <div class="stat"><span>Empty</span><b id="left">0</b></div>
     </div>
   </header>
   <div id="pwa" role="status" hidden>
@@ -435,7 +438,6 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
     <button class="btn" id="undo">Undo</button>
     <button class="btn" id="restart">Restart</button>
   </div>
-  <button id="menu">Change difficulty</button>
   <details id="settings">
     <summary aria-label="Settings"><span id="info" class="devonly"></span></summary>
     <div class="debug">
@@ -822,14 +824,21 @@ if (typeof document !== 'undefined') {
     else status.textContent = { kittens: 'Give every kitten its own cell to sleep', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
 
     $('undos').textContent = S.undos;
-    $('left').textContent = cells.filter(t => !t).length;
     $('time').textContent = fmtTime(S.elapsed);
     $('undo').disabled = !S.history.length || S.won || S.lost;
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
     $('stageTitle').textContent = S.stage == null ? 'Custom' : `Stage ${S.stage + 1} of ${STAGES.length}`;
-    const mode = S.mode === 'challenge' ? '<b class="hot">Challenge</b>' : '<b>Casual</b>';
-    $('stageInfo').innerHTML = `${mode} · ${n}×${n}`;
+    $('menu').textContent = S.mode === 'challenge' ? 'Challenge' : 'Casual';
+    $('menu').classList.toggle('hot', S.mode === 'challenge');
+    const pick = $('stagePick'), top = Math.min(savedStage(S.mode), STAGES.length - 1); // unlocked up to the furthest reached
+    const pickKey = `${S.mode}:${top}:${S.stage}`;
+    if (pick.dataset.key !== pickKey) { // rebuild only on change, so a render can't close an open picker
+      pick.dataset.key = pickKey;
+      pick.innerHTML = STAGES.map((_, k) => `<option value="${k}"${k > top ? ' disabled' : ''}>Stage ${k + 1}${k > top ? ' (locked)' : ''}</option>`).join('');
+      pick.value = S.stage == null ? '' : String(S.stage);
+      pick.disabled = S.stage == null;
+    }
   }
 
   // ---------- game flow ----------
@@ -1082,6 +1091,7 @@ if (typeof document !== 'undefined') {
   $('winRestart').addEventListener('click', restart);
   $('winNew').addEventListener('click', () => (S.won && S.stage != null ? goStage(S.stage + 1) : newBoard()));
   $('menu').addEventListener('click', showStart);
+  $('stagePick').addEventListener('change', e => goStage(+e.target.value));
   // The settings sheet closes on a tap outside it (dev mode keeps it inline and open).
   document.addEventListener('pointerdown', e => {
     const set = $('settings');

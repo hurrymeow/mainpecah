@@ -470,6 +470,11 @@ test('Start page and stages', async () => {
   await page.click('#winNew');
   s = await st();
   check(s.stage === 1 && s.title === 'Stage 2 of 30', `after Next stage: ${JSON.stringify(s)}`);
+  const locked = await page.evaluate(() => [...document.querySelectorAll('#stagePick option')].map(o => o.disabled).join(''));
+  check(locked.startsWith('falsefalsetrue'), 'stage picker should unlock only stages 1-2');
+  await page.selectOption('#stagePick', '0');
+  s = await st();
+  check(s.stage === 0 && s.title === 'Stage 1 of 30', `stage picker did not go back: ${JSON.stringify(s)}`);
   await page.click('#menu');
   check(await page.isVisible('#start'), 'Menu did not open the start page');
   check((await page.textContent('#casualStage')) === 'Continue from stage 2' && (await page.textContent('#challengeStage')) === 'Start from stage 1', 'start page shows wrong progress');
