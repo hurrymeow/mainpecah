@@ -327,6 +327,7 @@ test('Fuse', async () => {
   await page.waitForSelector('#overlay:not([hidden])', { timeout: 2000 });
   const title = await page.textContent('#winTitle');
   check(title === 'Cat fight!', `overlay title "${title}"`);
+  check(!(await page.isVisible('#winNew')), 'lose dialog still offers New board');
 
   // Undo keeps fights burning: no refill for fights the undone split didn't touch.
   await page.click('#winRestart');

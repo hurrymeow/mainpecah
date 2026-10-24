@@ -404,6 +404,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
 .card dt { color: var(--muted); text-align: right; }
 .card dd { margin: 0; text-align: left; font-weight: 700; }
 .card .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+.card .row:has(> [hidden]) { grid-template-columns: 1fr; }
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .tile, .tile.slide, .tile.pop, .tile.flash, .blob, .eye, .z, .zap, .puff { transition: none; animation: none !important; } }
 </style>
@@ -871,7 +872,7 @@ if (typeof document !== 'undefined') {
     $('winTime').textContent = fmtTime(S.elapsed);
     $('winUndos').textContent = S.undos;
     $('winRestart').textContent = 'Try again';
-    $('winNew').textContent = 'New board';
+    $('winNew').hidden = true; // stages are linear: a lost stage is only retried
     setTimeout(() => { if (S.lost) $('overlay').hidden = false; }, 900);
   }
 
@@ -1013,7 +1014,8 @@ if (typeof document !== 'undefined') {
       $('winTitle').className = '';
       $('winMsg').textContent = S.skin === 'kittens' ? 'Every kitten has its own bed.' : 'Every cell holds a 1.';
       $('winRestart').textContent = 'Replay';
-      $('winNew').textContent = S.stage != null ? 'Next stage' : 'New board';
+      $('winNew').hidden = false;
+      $('winNew').textContent = S.stage != null ? 'Next stage' : 'New board'; // New board only for dev custom boards
       if (S.stage != null && S.stage + 1 > savedStage(S.mode)) {
         try { localStorage.setItem(stageKey(S.mode), String(S.stage + 1)); } catch (err) {}
       }
