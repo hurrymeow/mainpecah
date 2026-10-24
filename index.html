@@ -1101,7 +1101,10 @@ if (typeof document !== 'undefined') {
     $('pwaMsg').textContent = 'A new version of Kaboom Kittens is ready.';
     $('pwaGo').textContent = 'Update';
     $('startInstall').hidden = !pwa.installEvent || isStandalone();
-    $('installRow').hidden = isStandalone();
+    // Chrome never offers install for an app that's already installed, so no offer means no row.
+    // iPhone has no offer at all, so it gets the Share hint instead.
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    $('installRow').hidden = isStandalone() || (!pwa.installEvent && !ios);
     $('installBtn').hidden = !pwa.installEvent;
     $('installHint').hidden = !!pwa.installEvent;
     if (bar.hidden !== wasHidden) layout(); // the board gives up height to the bar

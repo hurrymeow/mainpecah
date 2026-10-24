@@ -488,6 +488,7 @@ test('Start page and stages', async () => {
 
 test('Install offer', async () => {
   const { context, page, errors } = await open({}, false);
+  check(!(await page.isVisible('#startInstall')) && !(await page.isVisible('#installRow')), 'install shown before the browser offered it');
   const fire = () => page.evaluate(() => {
     const e = new Event('beforeinstallprompt', { cancelable: true });
     e.prompt = () => { window.__prompted = true; return Promise.resolve(); };
