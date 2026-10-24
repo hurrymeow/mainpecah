@@ -366,6 +366,8 @@ body:not(.dev) .devonly { display: none !important; }
 }
 .debug label { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: 32px; }
 .debug label.check { justify-content: flex-start; }
+.debug label.vol { grid-column: 1 / -1; }
+.debug label.vol input { flex: 0 1 55%; min-width: 0; accent-color: var(--text); }
 .debug .app { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: 32px; }
 .debug .app button { font: inherit; color: var(--text); background: var(--well); border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--s1) var(--s3); }
 .debug select { font: inherit; color: var(--text); background: var(--well); border: 1px solid var(--line); border-radius: var(--r-sm); padding: var(--s1) var(--s2); }
@@ -495,7 +497,9 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
     <div class="debug">
       <h2 class="sheet-title">Settings</h2>
       <label class="devonly">Skin <select id="skin"><option value="kittens">Kittens</option><option value="slimes">Slimes</option><option value="numbers">Numbers</option></select></label>
-      <label class="check"><input type="checkbox" id="effects" checked> Sound and effects</label>
+      <label class="vol">Effects volume <input id="sfxVol" type="range" min="0" max="100" step="10" value="100" aria-label="Effects volume"></label>
+      <label class="vol">Music volume <input id="musicVol" type="range" min="0" max="100" step="10" value="50" aria-label="Music volume"></label>
+      <label class="check"><input type="checkbox" id="effects" checked> Animations</label>
       <label class="devonly">Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="10">10s</option><option value="12" selected>12s</option><option value="15">15s</option><option value="20">20s</option><option value="25">25s</option><option value="30">30s</option></select></label>
       <label class="check"><input type="checkbox" id="showSol"> Hints</label>
       <div class="seg devonly" id="sizes">
@@ -598,7 +602,9 @@ const S = {
   fuseMs: 0,        // fight timer length; 0 = off. Challenge sets it, Casual clears it.
   fuse: [],         // per cell: absolute deadline (ms) for a fight, else null
   showSol: false,
-  effects: true,    // split motion, region pulse, sound
+  effects: true,    // split motion, region pulse
+  sfxVol: 1,        // 0..1, 0 = effects muted
+  musicVol: 0.5,    // 0..1, 0 = music off
   skin: 'kittens',  // 'kittens' | 'slimes' | 'numbers'
   anim: null,       // one-shot animation for the next render: {from, to, dir, region}
   drag: null,       // {id, i, x, y, dir, dest}
@@ -1094,26 +1100,30 @@ if (typeof document !== 'undefined') {
 
   // ---------- sound ----------
   // Created on the first touch, since browsers only allow audio after a gesture.
-  let audio = null;
+  // Every effect routes through sfxOut, so the Effects volume slider scales them all.
+  let audio = null, sfxOut = null;
   function initAudio() {
-    if (audio || !S.effects) return;
-    try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audio = null; }
+    if (audio || !S.sfxVol) return;
+    try {
+      audio = new (window.AudioContext || window.webkitAudioContext)();
+      sfxOut = audio.createGain(); sfxOut.gain.value = S.sfxVol; sfxOut.connect(audio.destination);
+    } catch (e) { audio = null; }
   }
   function tone(freq, at = 0, len = 0.12, vol = 0.18, type = 'triangle') {
-    if (!audio || !S.effects) return;
+    if (!audio || !S.sfxVol) return;
     const t = audio.currentTime + at, osc = audio.createOscillator(), g = audio.createGain();
     osc.type = type; osc.frequency.value = freq;
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(vol, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.001, t + len);
-    osc.connect(g).connect(audio.destination);
+    osc.connect(g).connect(sfxOut);
     osc.start(t); osc.stop(t + len + 0.02);
   }
   // Pitch rises as tiles get smaller: splitting a 16 is low, splitting a 2 is high.
   const splitSound = v => (S.skin === 'kittens' ? mew : tone)(330 * Math.pow(2, (4 - Math.log2(v)) * 3 / 12));
   // A short rising-then-falling glide reads as a mew; a noise burst is the scuffle popping.
   function mew(base) {
-    if (!audio || !S.effects) return;
+    if (!audio || !S.sfxVol) return;
     const t = audio.currentTime, osc = audio.createOscillator(), g = audio.createGain();
     const p = base * 2;
     osc.type = 'triangle';
@@ -1123,23 +1133,23 @@ if (typeof document !== 'undefined') {
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(0.16, t + 0.03);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
-    osc.connect(g).connect(audio.destination);
+    osc.connect(g).connect(sfxOut);
     osc.start(t); osc.stop(t + 0.34);
     const len = 0.12, buf = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = buf.getChannelData(0);
     for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / d.length);
     const src = audio.createBufferSource(), bp = audio.createBiquadFilter(), ng = audio.createGain();
     src.buffer = buf; bp.type = 'bandpass'; bp.frequency.value = 1800; ng.gain.value = 0.12;
-    src.connect(bp).connect(ng).connect(audio.destination);
+    src.connect(bp).connect(ng).connect(sfxOut);
     src.start(t);
   }
   function boomSound() {
-    if (!audio) return; // the loss still shows with sound off
+    if (!audio || !S.sfxVol) return; // the loss still shows with sound off
     const t = audio.currentTime, len = 0.6;
     const buf = audio.createBuffer(1, audio.sampleRate * len, audio.sampleRate), d = buf.getChannelData(0);
     for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / d.length, 2);
     const src = audio.createBufferSource(), lp = audio.createBiquadFilter(), g = audio.createGain();
     src.buffer = buf; lp.type = 'lowpass'; lp.frequency.value = 900; g.gain.value = 0.5;
-    src.connect(lp).connect(g).connect(audio.destination);
+    src.connect(lp).connect(g).connect(sfxOut);
     src.start(t);
     tone(110, 0, 0.4, 0.25, 'sawtooth');
   }
@@ -1280,6 +1290,26 @@ if (typeof document !== 'undefined') {
     try { localStorage.setItem('split.effects', S.effects ? '1' : '0'); } catch (err) {}
     render();
   });
+  // Volumes are kept as 0..100 in localStorage; 0 means off.
+  function setVol(which, pct, save) {
+    pct = Math.max(0, Math.min(100, Math.round(pct)));
+    S[which] = pct / 100;
+    $(which).value = pct;
+    if (which === 'sfxVol' && sfxOut) sfxOut.gain.value = S.sfxVol;
+    if (save) try { localStorage.setItem('split.' + which, String(pct)); } catch (err) {}
+  }
+  ['sfxVol', 'musicVol'].forEach(id => $(id).addEventListener('input', e => {
+    setVol(id, +e.target.value, true);
+    if (id === 'sfxVol') { initAudio(); tone(660, 0, 0.1, 0.16); } // a short blip previews the level
+  }));
+  try {
+    for (const id of ['sfxVol', 'musicVol']) {
+      const v = localStorage.getItem('split.' + id);
+      if (v !== null && v !== '' && isFinite(+v)) setVol(id, +v, false);
+    }
+    // "Sound and effects" used to mute sound too; carry that choice over once.
+    if (localStorage.getItem('split.effects') === '0' && localStorage.getItem('split.sfxVol') === null) setVol('sfxVol', 0, true);
+  } catch (err) {}
   $('fuse').addEventListener('change', e => {
     S.fuseMs = +e.target.value * 1000;
     restart();
