@@ -834,8 +834,10 @@ if (typeof document !== 'undefined') {
   function undo() {
     if (!S.history.length || S.won || S.lost) return;
     const prev = S.history.pop(), now = Date.now();
+    // Only the two cells of the undone split change; every other fight keeps burning.
+    const changed = k => (prev.cells[k] && prev.cells[k].v) !== (S.cells[k] && S.cells[k].v);
+    S.fuse = prev.fuseLeft.map((r, k) => (!changed(k) ? S.fuse[k] : r == null ? null : now + r));
     S.cells = prev.cells;
-    S.fuse = prev.fuseLeft.map(r => (r == null ? null : now + r));
     armFuses(); // fights that had no fuse yet (before the first move) get a full one
     S.undos++;
     render();
