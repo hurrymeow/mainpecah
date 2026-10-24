@@ -19,8 +19,8 @@ jobs:
         run: |
           mkdir _site
           cp -r index.html manifest.json sw.js icons _site/
-          sed -i -E "s/dynameowte-v[0-9]+/dynameowte-${GITHUB_SHA::7}/" _site/sw.js
-          grep -q "'dynameowte-${GITHUB_SHA::7}'" _site/sw.js || { echo "sw.js cache name was not stamped"; exit 1; }
+          sed -i -E "s/kaboomkittens-v[0-9]+/kaboomkittens-${GITHUB_SHA::7}/" _site/sw.js
+          grep -q "'kaboomkittens-${GITHUB_SHA::7}'" _site/sw.js || { echo "sw.js cache name was not stamped"; exit 1; }
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

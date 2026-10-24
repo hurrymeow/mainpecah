@@ -1,6 +1,6 @@
 {
-  "name": "Dyna-meow-te",
-  "short_name": "Dyna-meow-te",
+  "name": "Kaboom Kittens",
+  "short_name": "Kaboom Kittens",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#0a0a0a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Dyna-meow-te">
-<title>Dyna-meow-te</title>
+<meta name="apple-mobile-web-app-title" content="Kaboom Kittens">
+<title>Kaboom Kittens</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -435,7 +435,7 @@ button.mode em { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-
 <div id="start">
   <div class="start">
     <img id="startArt" alt="">
-    <h1>Dyna-meow-te</h1>
+    <h1>Kaboom Kittens</h1>
     <p>Split every kitten fight until each kitten has its own bed.</p>
     <button class="mode" id="playCasual"><b>Casual</b><span>No fuses. Take your time.</span><em id="casualStage">Stage 1</em></button>
     <button class="mode" id="playChallenge"><b>Challenge</b><span>Leave a fight too long and it blows up.</span><em id="challengeStage">Stage 1</em></button>
@@ -1091,7 +1091,7 @@ if (typeof document !== 'undefined') {
     const bar = $('pwa'), wasHidden = bar.hidden;
     const offer = pwa.installEvent && !pwa.declined && !isStandalone();
     bar.hidden = !pwa.updateReady && !offer;
-    $('pwaMsg').textContent = pwa.updateReady ? 'A new version of Dyna-meow-te is ready.' : 'Play Dyna-meow-te like any other app, even offline.';
+    $('pwaMsg').textContent = pwa.updateReady ? 'A new version of Kaboom Kittens is ready.' : 'Play Kaboom Kittens like any other app, even offline.';
     $('pwaGo').textContent = pwa.updateReady ? 'Update' : 'Install';
     $('pwaNo').hidden = pwa.updateReady;
     $('installRow').hidden = isStandalone();
