@@ -344,10 +344,26 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   border: 1px solid var(--line); border-radius: 50%; background: var(--panel); color: var(--text);
   cursor: pointer; list-style: none;
 }
-#settings summary::-webkit-details-marker { display: none; }
-body:has(#overlay:not([hidden])) #settings summary { display: none; } /* no gear over the win and lose dialogs */
-body:has(#start:not([hidden])) #settings summary { top: max(12px, env(safe-area-inset-top, 0px)); } /* on the start page the gear sits in the corner */
-#settings summary svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; } /* sliders icon, as in countmakan */
+#settings summary::-webkit-details-marker, #sound summary::-webkit-details-marker { display: none; }
+body:has(#overlay:not([hidden])) #settings summary, body:has(#overlay:not([hidden])) #sound summary { display: none; } /* no gear over the win and lose dialogs */
+body:has(#start:not([hidden])) #settings summary, body:has(#start:not([hidden])) #sound summary { top: max(12px, env(safe-area-inset-top, 0px)); } /* on the start page the gear sits in the corner */
+/* Volume: its own button just left of the settings button, same look; opens a small sheet. */
+#sound { font-size: var(--fs-sm); color: var(--muted); }
+#sound summary {
+  position: absolute; top: var(--gear-top, 12px); right: calc(max(16px, env(safe-area-inset-right, 0px)) + 48px);
+  width: 40px; height: 40px; display: grid; place-items: center; z-index: 21;
+  border: 1px solid var(--line); border-radius: 50%; background: var(--panel); color: var(--text);
+  cursor: pointer; list-style: none;
+}
+#sound .off, #sound.muted .on { display: none; }
+#sound.muted .off { display: inline; }
+#sound[open] summary svg { display: none; }
+#sound[open] summary::before { content: "✕"; font-size: 16px; line-height: 1; }
+#sound .debug { display: none; }
+#sound[open] .debug { display: grid; position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 560px; grid-template-columns: 1fr; gap: var(--s1);
+  padding: var(--s4) var(--s4) max(var(--s5), env(safe-area-inset-bottom, 0px)); border-radius: var(--r-lg) var(--r-lg) 0 0; border-bottom: 0;
+  box-shadow: 0 0 0 100vmax rgba(0,0,0,.55); animation: sheet-up .2s ease-out; }
+#sound summary svg, #settings summary svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; } /* sliders icon, as in countmakan */
 #settings[open] summary svg { display: none; }
 #settings[open] summary::before { content: "✕"; font-size: 16px; line-height: 1; }
 #info { position: absolute; right: 48px; top: 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -494,13 +510,19 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
   </div>
   <button id="help">How to play</button>
   <div id="quip"></div>
+  <details id="sound">
+    <summary aria-label="Volume"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><g class="on"><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></g><g class="off"><path d="M16 9l5 6"/><path d="M21 9l-5 6"/></g></svg></summary>
+    <div class="debug">
+      <h2 class="sheet-title">Volume</h2>
+      <label class="vol">Effects volume <input id="sfxVol" type="range" min="0" max="100" step="10" value="100" aria-label="Effects volume"></label>
+      <label class="vol">Music volume <input id="musicVol" type="range" min="0" max="100" step="10" value="50" aria-label="Music volume"></label>
+    </div>
+  </details>
   <details id="settings">
     <summary aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span id="info" class="devonly"></span></summary>
     <div class="debug">
       <h2 class="sheet-title">Settings</h2>
       <label class="devonly">Skin <select id="skin"><option value="kittens">Kittens</option><option value="slimes">Slimes</option><option value="numbers">Numbers</option></select></label>
-      <label class="vol">Effects volume <input id="sfxVol" type="range" min="0" max="100" step="10" value="100" aria-label="Effects volume"></label>
-      <label class="vol">Music volume <input id="musicVol" type="range" min="0" max="100" step="10" value="50" aria-label="Music volume"></label>
       <label class="check"><input type="checkbox" id="effects" checked> Animations</label>
       <label class="devonly">Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="10">10s</option><option value="12" selected>12s</option><option value="15">15s</option><option value="20">20s</option><option value="25">25s</option><option value="30">30s</option></select></label>
       <label class="check"><input type="checkbox" id="showSol"> Hints</label>
@@ -1426,9 +1448,11 @@ if (typeof document !== 'undefined') {
   $('howtoGo').addEventListener('click', hideHowto);
   // The settings sheet closes on a tap outside it (dev mode keeps it inline and open).
   document.addEventListener('pointerdown', e => {
-    const set = $('settings');
-    if (!set.open || document.body.classList.contains('dev') || set.contains(e.target)) return;
-    set.open = false; e.preventDefault(); e.stopPropagation();
+    const sound = $('sound'), set = $('settings');
+    const dev = document.body.classList.contains('dev');
+    const hit = sound.open ? sound : set.open && !dev ? set : null;
+    if (!hit || hit.contains(e.target)) return;
+    hit.open = false; e.preventDefault(); e.stopPropagation();
     const eat = ev => { ev.stopPropagation(); ev.preventDefault(); };
     addEventListener('click', eat, { capture: true, once: true }); // the tap only closes
     setTimeout(() => removeEventListener('click', eat, true), 600);
@@ -1448,6 +1472,7 @@ if (typeof document !== 'undefined') {
     $(which).value = pct;
     if (which === 'sfxVol' && sfxOut) sfxOut.gain.value = S.sfxVol;
     if (which === 'musicVol' && musicOut) musicOut.gain.value = S.musicVol * MUSIC_MIX;
+    $('sound').classList.toggle('muted', !S.sfxVol && !S.musicVol);
     if (save) try { localStorage.setItem('split.' + which, String(pct)); } catch (err) {}
   }
   ['sfxVol', 'musicVol'].forEach(id => $(id).addEventListener('input', e => {
@@ -1480,7 +1505,8 @@ if (typeof document !== 'undefined') {
     if (['kittens', 'slimes', 'numbers'].includes(skin)) { S.skin = skin; $('skin').value = skin; }
   } catch (err) {}
   window.addEventListener('resize', layout);
-  $('settings').addEventListener('toggle', layout); // the board gives up height to the open panel
+  $('sound').addEventListener('toggle', () => { if ($('sound').open) $('settings').open = false; layout(); });
+  $('settings').addEventListener('toggle', () => { if ($('settings').open) $('sound').open = false; layout(); }); // the board gives up height to the open panel
 
   // ---------- Install & updates ----------
   // Chrome's menu install can say "already installed" when another app on hurrymeow.github.io
