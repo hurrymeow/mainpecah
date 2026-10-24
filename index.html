@@ -347,8 +347,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #settings summary::-webkit-details-marker { display: none; }
 body:has(#overlay:not([hidden])) #settings summary { display: none; } /* no gear over the win and lose dialogs */
 body:has(#start:not([hidden])) #settings summary { top: max(12px, env(safe-area-inset-top, 0px)); } /* on the start page the gear sits in the corner */
-#settings summary::before { content: "⚙"; font-size: 20px; line-height: 1; }
-#settings[open] summary::before { content: "✕"; font-size: 16px; }
+#settings summary svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; } /* sliders icon, as in countmakan */
+#settings[open] summary svg { display: none; }
+#settings[open] summary::before { content: "✕"; font-size: 16px; line-height: 1; }
 #info { position: absolute; right: 48px; top: 10px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 body:not(.dev) #settings .debug {
   position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 560px;
@@ -494,7 +495,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
   <button id="help">How to play</button>
   <div id="quip"></div>
   <details id="settings">
-    <summary aria-label="Settings"><span id="info" class="devonly"></span></summary>
+    <summary aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span id="info" class="devonly"></span></summary>
     <div class="debug">
       <h2 class="sheet-title">Settings</h2>
       <label class="devonly">Skin <select id="skin"><option value="kittens">Kittens</option><option value="slimes">Slimes</option><option value="numbers">Numbers</option></select></label>
