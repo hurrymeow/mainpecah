@@ -488,32 +488,28 @@ test('Start page and stages', async () => {
 
 test('Install offer', async () => {
   const { context, page, errors } = await open({}, false);
-  // The stage gives up the bar's height; the board must still fit inside it.
-  const boardH = () => page.evaluate(() => { const s = document.getElementById('stage').getBoundingClientRect(), b = document.getElementById('board').getBoundingClientRect(); return b.height <= s.height + 0.5 && b.top >= s.top - 0.5 ? s.height : -1; });
-  const h0 = await boardH();
-  await page.evaluate(() => {
+  const fire = () => page.evaluate(() => {
     const e = new Event('beforeinstallprompt', { cancelable: true });
     e.prompt = () => { window.__prompted = true; return Promise.resolve(); };
     dispatchEvent(e);
   });
-  check(await page.isVisible('#pwa'), 'install bar hidden after beforeinstallprompt');
-  check((await page.textContent('#pwaGo')) === 'Install', 'bar button is not Install');
-  const h1 = await boardH();
-  check(h1 > 0 && h1 < h0, `stage did not give up height to the bar, or the board overflows it (${h0} -> ${h1})`);
-  await page.click('#pwaNo');
-  check(!(await page.isVisible('#pwa')), 'bar still shown after Not now');
-  check((await boardH()) === h0, 'stage did not take its height back');
+  await fire();
+  check(!(await page.isVisible('#pwa')), 'install bar shown in game; the offer belongs on the start page');
+  await page.click('#menu');
+  check(await page.isVisible('#startInstall'), 'start page has no Install button after beforeinstallprompt');
+  await page.click('#startInstall');
+  check(await page.evaluate(() => window.__prompted), 'start page Install did not open the prompt');
+  check(!(await page.isVisible('#startInstall')), 'Install still shown after prompting');
+  await page.evaluate(() => { window.__prompted = false; });
+  await fire();
+  await page.click('#playCasual');
   await openSettings(page);
   check(await page.isVisible('#installBtn'), 'Settings has no Install button');
   await page.click('#installBtn');
-  check(await page.evaluate(() => window.__prompted), 'Install did not open the prompt');
-  await page.reload();
-  await ready(page);
-  await page.evaluate(() => dispatchEvent(Object.assign(new Event('beforeinstallprompt', { cancelable: true }), { prompt: () => Promise.resolve() })));
-  check(!(await page.isVisible('#pwa')), 'bar came back after Not now and a reload');
+  check(await page.evaluate(() => window.__prompted), 'Settings Install did not open the prompt');
   await context.close();
   check(!errors.length, errors.join(' | '));
-  return 'bar shows, board still fits, Not now sticks, Settings Install prompts';
+  return 'no in-game bar, start page Install prompts, Settings Install prompts';
 });
 
 // Serves the repo over http so the service worker registers. sw.js gets a version suffix we can bump.

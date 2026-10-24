@@ -358,6 +358,7 @@ button.mode {
   padding: var(--s4); font: inherit; color: var(--text); background: var(--panel);
   border: 1px solid var(--line); border-radius: var(--r-lg);
 }
+#startInstall { margin-top: var(--s2); background: var(--text); color: var(--bg); border-color: var(--text); }
 button.mode:active { background: var(--line); }
 button.mode b { font-size: var(--fs-lg); }
 button.mode span { grid-column: 1; color: var(--muted); font-size: var(--fs-sm); }
@@ -394,7 +395,6 @@ button.mode em { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-
   </header>
   <div id="pwa" role="status" hidden>
     <span id="pwaMsg"></span>
-    <button class="btn" id="pwaNo">Not now</button>
     <button class="btn" id="pwaGo"></button>
   </div>
 
@@ -437,6 +437,7 @@ button.mode em { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-
     <p>Split every kitten fight until each kitten has its own bed.</p>
     <button class="mode" id="playCasual"><b>Casual</b><span>No fuses. Take your time.</span><em id="casualStage">Stage 1</em></button>
     <button class="mode" id="playChallenge"><b>Challenge</b><span>Leave a fight too long and it blows up.</span><em id="challengeStage">Stage 1</em></button>
+    <button class="btn" id="startInstall" hidden>Install app</button>
   </div>
 </div>
 
@@ -1081,17 +1082,15 @@ if (typeof document !== 'undefined') {
   // ---------- Install & updates ----------
   // Chrome's menu install can say "already installed" when another app on hurrymeow.github.io
   // is installed. The page prompt checks this app's scope correctly, so offer it in the page.
-  const INSTALL_DECLINED = 'split.installDeclined';
-  const pwa = { installEvent: null, declined: false, updateReady: false };
-  try { pwa.declined = localStorage.getItem(INSTALL_DECLINED) === '1'; } catch (err) {}
+  // The install offer lives on the start page; the in-game bar is only for updates.
+  const pwa = { installEvent: null, updateReady: false };
   const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   function renderPwa() {
     const bar = $('pwa'), wasHidden = bar.hidden;
-    const offer = pwa.installEvent && !pwa.declined && !isStandalone();
-    bar.hidden = !pwa.updateReady && !offer;
-    $('pwaMsg').textContent = pwa.updateReady ? 'A new version of Kaboom Kittens is ready.' : 'Play Kaboom Kittens like any other app, even offline.';
-    $('pwaGo').textContent = pwa.updateReady ? 'Update' : 'Install';
-    $('pwaNo').hidden = pwa.updateReady;
+    bar.hidden = !pwa.updateReady;
+    $('pwaMsg').textContent = 'A new version of Kaboom Kittens is ready.';
+    $('pwaGo').textContent = 'Update';
+    $('startInstall').hidden = !pwa.installEvent || isStandalone();
     $('installRow').hidden = isStandalone();
     $('installBtn').hidden = !pwa.installEvent;
     $('installHint').hidden = !!pwa.installEvent;
@@ -1105,13 +1104,9 @@ if (typeof document !== 'undefined') {
   }
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pwa.installEvent = e; renderPwa(); });
   window.addEventListener('appinstalled', () => { pwa.installEvent = null; renderPwa(); });
-  $('pwaGo').addEventListener('click', () => { if (pwa.updateReady) location.reload(); else install(); });
+  $('pwaGo').addEventListener('click', () => location.reload());
   $('installBtn').addEventListener('click', install);
-  $('pwaNo').addEventListener('click', () => {
-    pwa.declined = true;
-    try { localStorage.setItem(INSTALL_DECLINED, '1'); } catch (err) {}
-    renderPwa();
-  });
+  $('startInstall').addEventListener('click', install);
   renderPwa();
 
   // A new deploy ships a new sw.js. It installs, takes over at once and fires
