@@ -491,6 +491,8 @@ test('Start page and stages', async () => {
   s = await st();
   check(s.stage === 1 && s.fuse === 0, `casual after reload: ${JSON.stringify(s)}`);
   const ladder = await page.evaluate(() => STAGES.map(([n]) => n).join(''));
+  const casual = await page.evaluate(() => CASUAL_TILES.length === STAGES.length && CASUAL_TILES.every((v, k) => v >= SIZES[STAGES[k][0]].min && v <= SIZES[STAGES[k][0]].max));
+  check(casual, 'Casual tile curve must cover every stage within each size\'s tile range');
   check(/^4+5+6+$/.test(ladder), `stage ladder not 4x4 -> 5x5 -> 6x6: ${ladder}`);
   await context.close();
   check(!errors.length, errors.join(' | '));

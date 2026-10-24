@@ -474,7 +474,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
       <h2 class="sheet-title">Settings</h2>
       <label class="devonly">Skin <select id="skin"><option value="kittens">Kittens</option><option value="slimes">Slimes</option><option value="numbers">Numbers</option></select></label>
       <label class="check"><input type="checkbox" id="effects" checked> Sound and effects</label>
-      <label class="devonly">Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="12" selected>12s</option><option value="15">15s</option><option value="20">20s</option><option value="25">25s</option><option value="30">30s</option></select></label>
+      <label class="devonly">Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="10">10s</option><option value="12" selected>12s</option><option value="15">15s</option><option value="20">20s</option><option value="25">25s</option><option value="30">30s</option></select></label>
       <label class="check"><input type="checkbox" id="showSol"> Hints</label>
       <div class="seg devonly" id="sizes">
         <button data-n="4">4×4</button><button data-n="5">5×5</button><button data-n="6">6×6</button>
@@ -541,11 +541,21 @@ const THRESHOLD = 20; // px before a drag counts as a swipe
 const SIZES = { 4: { min: 2, max: 10, def: 5 }, 5: { min: 3, max: 15, def: 8 }, 6: { min: 4, max: 20, def: 11 } };
 // The stage ladder: [size, starting tiles, Challenge fuse in seconds].
 // Fewer tiles means bigger fights and more splits; a shorter fuse leaves less time for each.
-// Stages 1-10 stay gentle; the ramp starts after that. Past the last stage, play continues at its settings.
+// 4x4 runs stages 1-12, 5x5 13-28, 6x6 29-50. Stages 1-10 stay gentle; the ramp starts after that. Past the last stage, play continues at its settings.
 const STAGES = [
-  [4, 10, 30], [4, 10, 30], [4, 9, 30], [4, 9, 30], [4, 8, 30], [4, 8, 30], [4, 8, 25], [4, 7, 25],
-  [5, 15, 30], [5, 15, 30], [5, 14, 30], [5, 13, 30], [5, 13, 25], [5, 12, 25], [5, 12, 25], [5, 11, 20], [5, 10, 20], [5, 9, 20],
-  [6, 20, 30], [6, 19, 25], [6, 18, 25], [6, 17, 25], [6, 16, 20], [6, 15, 20], [6, 14, 20], [6, 13, 15], [6, 12, 15], [6, 11, 15], [6, 10, 12], [6, 9, 12],
+  [4, 10, 30], [4, 10, 30], [4, 9, 30], [4, 9, 30], [4, 8, 30], [4, 8, 30], [4, 8, 30], [4, 7, 30],
+  [4, 7, 25], [4, 7, 25], [4, 6, 25], [4, 6, 20],
+  [5, 15, 30], [5, 14, 30], [5, 13, 30], [5, 13, 25], [5, 12, 25], [5, 12, 25], [5, 11, 25], [5, 11, 20],
+  [5, 10, 20], [5, 10, 20], [5, 9, 20], [5, 9, 15], [5, 8, 15], [5, 8, 15], [5, 7, 15], [5, 7, 12],
+  [6, 20, 30], [6, 19, 30], [6, 18, 25], [6, 17, 25], [6, 16, 25], [6, 15, 20], [6, 15, 20], [6, 14, 20],
+  [6, 13, 20], [6, 13, 15], [6, 12, 15], [6, 12, 15], [6, 11, 15], [6, 11, 12], [6, 10, 12], [6, 10, 12],
+  [6, 9, 12], [6, 9, 12], [6, 8, 12], [6, 8, 10], [6, 7, 10], [6, 7, 10],
+];
+// Casual has no fuse, so it gets fewer starting tiles per stage: stages 1-3 are easy, then it ramps quickly.
+const CASUAL_TILES = [
+  10, 8, 7, 6, 6, 5, 5, 5, 4, 4, 4, 3,
+  10, 9, 9, 8, 8, 7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4,
+  12, 11, 11, 10, 10, 9, 9, 9, 8, 8, 8, 7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4,
 ];
 const DIRS = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
 const ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
@@ -964,7 +974,9 @@ if (typeof document !== 'undefined') {
   function goStage(k) {
     S.stage = k;
     let fuse;
-    [S.n, S.target, fuse] = STAGES[Math.min(k, STAGES.length - 1)];
+    const last = Math.min(k, STAGES.length - 1);
+    [S.n, S.target, fuse] = STAGES[last];
+    if (S.mode === 'casual') S.target = CASUAL_TILES[last];
     S.fuseMs = S.mode === 'challenge' ? fuse * 1000 : 0;
     $('fuse').value = String(S.fuseMs / 1000);
     syncSlider();
