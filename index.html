@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#0a0a0a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Kaboom Kittens">
-<title>Kaboom Kittens</title>
+<meta name="apple-mobile-web-app-title" content="Kaboom Kitty">
+<title>Kaboom Kitty</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -490,7 +490,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
 <div id="start">
   <div class="start">
     <img id="startArt" alt="">
-    <h1>Kaboom Kittens</h1>
+    <h1>Kaboom Kitty</h1>
     <p>Split every kitten fight until each kitten has its own bed.</p>
     <button class="mode" id="playCasual"><b>Casual</b><span>No fuses. Take your time.</span><em id="casualStage">Stage 1</em></button>
     <button class="mode" id="playChallenge"><b>Normal</b><span>Leave a fight too long and it blows up.</span><em id="challengeStage">Stage 1</em></button>
@@ -1210,7 +1210,7 @@ if (typeof document !== 'undefined') {
   function renderPwa() {
     const bar = $('pwa'), wasHidden = bar.hidden;
     bar.hidden = !pwa.updateReady;
-    $('pwaMsg').textContent = 'A new version of Kaboom Kittens is ready.';
+    $('pwaMsg').textContent = 'A new version of Kaboom Kitty is ready.';
     $('pwaGo').textContent = 'Update';
     $('startInstall').hidden = !pwa.installEvent || isStandalone();
     // Chrome never offers install for an app that's already installed, so no offer means no row.

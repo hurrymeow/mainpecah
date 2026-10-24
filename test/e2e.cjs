@@ -571,7 +571,7 @@ test('Update banner', async () => {
     const file = path.join(root, path.normalize(name));
     if (!file.startsWith(root) || !fs.existsSync(file)) { res.writeHead(404); return res.end(); }
     let body = fs.readFileSync(file);
-    if (name === '/sw.js') body = body.toString().replace("'kaboomkittens-v1'", `'kaboomkittens-test-${ver}'`);
+    if (name === '/sw.js') body = body.toString().replace("'kaboomkitty-v1'", `'kaboomkitty-test-${ver}'`);
     res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
     res.end(body);
   });

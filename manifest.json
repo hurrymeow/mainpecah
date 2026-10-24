@@ -1,6 +1,6 @@
 {
-  "name": "Kaboom Kittens",
-  "short_name": "Kaboom Kittens",
+  "name": "Kaboom Kitty",
+  "short_name": "Kaboom Kitty",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
