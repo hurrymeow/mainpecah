@@ -524,7 +524,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
       <h2 class="sheet-title">Settings</h2>
       <label class="devonly">Skin <select id="skin"><option value="kittens">Kittens</option><option value="slimes">Slimes</option><option value="numbers">Numbers</option></select></label>
       <label class="check"><input type="checkbox" id="effects" checked> Animations</label>
-      <label class="devonly">Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="10">10s</option><option value="12" selected>12s</option><option value="15">15s</option><option value="20">20s</option><option value="25">25s</option><option value="30">30s</option></select></label>
+      <label class="devonly">Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="10">10s</option><option value="12" selected>12s</option><option value="15">15s</option><option value="20">20s</option><option value="25">25s</option><option value="30">30s</option><option value="35">35s</option><option value="40">40s</option><option value="45">45s</option></select></label>
       <label class="check"><input type="checkbox" id="showSol"> Hints</label>
       <div class="seg devonly" id="sizes">
         <button data-n="4">4×4</button><button data-n="5">5×5</button><button data-n="6">6×6</button>
@@ -591,40 +591,55 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
 const MAX_TILE = 16;
 const THRESHOLD = 20; // px before a drag counts as a swipe
 const SIZES = { 4: { min: 2, max: 10, def: 5 }, 5: { min: 3, max: 15, def: 8 }, 6: { min: 4, max: 20, def: 11 } };
-// The stage ladder: [size, starting tiles, Normal fuse in seconds].
+// The stage ladder: [columns, rows, starting tiles, Normal fuse in seconds].
 // Fewer tiles means bigger fights and more splits; a shorter fuse leaves less time for each.
-// 4x4 runs stages 1-24, 5x5 25-56, 6x6 57-100. Stages 1-3 are easy in both modes; the ramp starts after that.
-// The generator rarely reaches fewer than 6 tiles on 5x5 or 8 on 6x6, so the curves stop there.
+// The board grows every 10 stages, one side at a time: 4x4, 4x5, 5x5 ... 8x9. Each size starts
+// easier than the last one ended and ramps up. Stages 1-3 are easy in both modes.
+// A band's last tile count is about the fewest the generator reaches on that board.
+// Bigger boards hold more fights burning at once, so their fuses run longer.
 // Past the last stage, play continues at its settings.
-const FUSES = [30, 25, 20, 15, 12, 10];
-// count stages of size n, tiles and fuse stepping evenly from the first value to the second.
-function ramp(n, count, [t0, t1], [f0, f1] = [0, 0]) {
+const FUSES = [45, 40, 35, 30, 25, 20, 15, 12, 10];
+// count stages of w x h, tiles and fuse stepping evenly from the first value to the second.
+function ramp(w, h, count, [t0, t1], [f0, f1] = [0, 0]) {
   return Array.from({ length: count }, (_, i) => {
     const at = (a, b) => a + (b - a) * (count > 1 ? i / (count - 1) : 0);
     const f = at(f0, f1);
-    return [n, Math.round(at(t0, t1)), FUSES.reduce((x, y) => (Math.abs(y - f) < Math.abs(x - f) ? y : x))];
+    return [w, h, Math.round(at(t0, t1)), FUSES.reduce((x, y) => (Math.abs(y - f) < Math.abs(x - f) ? y : x))];
   });
 }
 const STAGES = [
-  [4, 10, 30], [4, 9, 30], [4, 8, 30],
-  ...ramp(4, 21, [7, 4], [25, 12]),
-  ...ramp(5, 32, [14, 6], [25, 10]),
-  ...ramp(6, 44, [18, 8], [25, 10]),
+  [4, 4, 10, 30], [4, 4, 9, 30], [4, 4, 8, 30], ...ramp(4, 4, 7, [7, 5], [25, 15]),
+  ...ramp(4, 5, 10, [9, 6], [25, 15]),
+  ...ramp(5, 5, 10, [11, 7], [30, 15]),
+  ...ramp(5, 6, 10, [13, 9], [30, 20]),
+  ...ramp(6, 6, 10, [15, 10], [35, 20]),
+  ...ramp(6, 7, 10, [17, 12], [35, 25]),
+  ...ramp(7, 7, 10, [19, 14], [40, 25]),
+  ...ramp(7, 8, 10, [22, 17], [40, 30]),
+  ...ramp(8, 8, 10, [25, 20], [45, 30]),
+  ...ramp(8, 9, 10, [28, 23], [45, 30]),
 ];
-// Casual has no fuse, so it gets fewer starting tiles per stage: stages 1-3 are easy, then it ramps quickly.
+// Casual has no fuse, so it gets fewer starting tiles per stage, on the same boards.
 const CASUAL_TILES = [
-  10, 8, 7, ...ramp(4, 21, [6, 3]),
-  ...ramp(5, 32, [10, 6]),
-  ...ramp(6, 44, [12, 8]),
-].map(x => (Array.isArray(x) ? x[1] : x));
+  10, 8, 7, ...ramp(4, 4, 7, [6, 4]),
+  ...ramp(4, 5, 10, [7, 5]),
+  ...ramp(5, 5, 10, [9, 7]),
+  ...ramp(5, 6, 10, [11, 8]),
+  ...ramp(6, 6, 10, [12, 10]),
+  ...ramp(6, 7, 10, [14, 12]),
+  ...ramp(7, 7, 10, [16, 14]),
+  ...ramp(7, 8, 10, [19, 17]),
+  ...ramp(8, 8, 10, [22, 20]),
+  ...ramp(8, 9, 10, [25, 23]),
+].map(x => (Array.isArray(x) ? x[2] : x));
 const DIRS = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
 const ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
 
 const S = {
-  n: 4, target: 5,
+  n: 4, h: 4, target: 5, // board columns and rows
   mode: 'casual',   // 'casual' (no fuses) | 'challenge'
   stage: 0,         // index into STAGES; null when the dev controls set a custom board
-  board: null,      // generator output: {n, cells, solution, path}
+  board: null,      // generator output: {n, h, cells, solution, path}
   cells: null,      // current cells
   t0: 0, elapsed: 0, timer: 0,
   won: false,
@@ -650,18 +665,19 @@ const keyOf = cells => cells.map(t => (t ? t.v : 0)).join(',');
 // tile count hits the target. Each merge is recorded; replaying them backwards
 // as splits is a guaranteed solution.
 
-function generate(n, target, rand = Math.random) {
+// n columns by h rows; cells run row by row.
+function generate(n, target, rand = Math.random, h = n) {
   let best = null;
   for (let attempt = 0; attempt < 200; attempt++) {
-    const v = new Array(n * n).fill(1);
+    const v = new Array(n * h).fill(1);
     const merges = [];
-    let tiles = n * n;
+    let tiles = n * h;
     while (tiles > target) {
       const pairs = [];
-      for (let i = 0; i < n * n; i++) {
+      for (let i = 0; i < n * h; i++) {
         if (!v[i] || v[i] * 2 > MAX_TILE) continue;
         if (i % n + 1 < n && v[i + 1] === v[i]) pairs.push([i, i + 1]);
-        if (i + n < n * n && v[i + n] === v[i]) pairs.push([i, i + n]);
+        if (i + n < n * h && v[i + n] === v[i]) pairs.push([i, i + n]);
       }
       if (!pairs.length) break;
       let [a, b] = pairs[Math.floor(rand() * pairs.length)];
@@ -678,14 +694,14 @@ function generate(n, target, rand = Math.random) {
   let colour = 0;
   const cells = best.v.map(x => (x ? { v: x, c: colour++ } : null));
   const solution = best.merges.slice().reverse()
-    .map(m => ({ from: m.keep, dir: dirBetween(n, m.keep, m.gone) }));
+    .map(m => ({ from: m.keep, dir: dirBetween(n, m.keep, m.gone, h) }));
 
   // States along the solution, so hints still work after a correct move made in any order.
   const path = [keyOf(cells)];
   let cur = cells;
   for (const s of solution) { cur = applySplit(cur, n, s.from, s.dir); path.push(keyOf(cur)); }
 
-  return { n, cells, solution, path, tiles: best.tiles };
+  return { n, h, cells, solution, path, tiles: best.tiles };
 }
 
 // ===================== STAGE BOARDS =====================
@@ -701,14 +717,14 @@ function seeded(seed) { // mulberry32
   };
 }
 
-// The same key for a layout and its 7 rotations and reflections.
+// The same key for a layout and its rotations and reflections (4 on an oblong board, 8 on a square one).
 function shapeKey(n, cells) {
-  const keys = [];
-  for (let s = 0; s < 8; s++) {
+  const h = cells.length / n, keys = [];
+  for (let s = 0; s < (h === n ? 8 : 4); s++) {
     let k = '';
-    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    for (let r = 0; r < h; r++) for (let c = 0; c < n; c++) {
       let [y, x] = s & 4 ? [c, r] : [r, c];
-      if (s & 1) y = n - 1 - y;
+      if (s & 1) y = h - 1 - y;
       if (s & 2) x = n - 1 - x;
       const t = cells[y * n + x];
       k += t ? t.v.toString(16) : '.';
@@ -722,12 +738,12 @@ const stageBoards = { casual: [], challenge: [] };
 function stageBoard(mode, k) {
   const list = stageBoards[mode], seen = new Set(list.map(b => shapeKey(b.n, b.cells)));
   for (let j = list.length; j <= k; j++) {
-    const [n, normal] = STAGES[Math.min(j, STAGES.length - 1)];
+    const [n, h, normal] = STAGES[Math.min(j, STAGES.length - 1)];
     const target = mode === 'casual' ? CASUAL_TILES[Math.min(j, STAGES.length - 1)] : normal;
     // Take the first new layout that hits the tile target; failing that, the new one closest to it.
     let best = null;
     for (let attempt = 0; attempt < 20; attempt++) {
-      const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt));
+      const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h);
       const key = shapeKey(n, b.cells);
       if (seen.has(key) || (best && b.tiles >= best.b.tiles)) continue;
       best = { b, key };
@@ -741,13 +757,14 @@ function stageBoard(mode, k) {
 
 // ===================== MOVES =====================
 
-function neighbour(n, i, dir) {
+// n columns, h rows.
+function neighbour(n, i, dir, h = n) {
   const r = Math.floor(i / n) + DIRS[dir][0], c = (i % n) + DIRS[dir][1];
-  return r < 0 || c < 0 || r >= n || c >= n ? -1 : r * n + c;
+  return r < 0 || c < 0 || r >= h || c >= n ? -1 : r * n + c;
 }
 
-function dirBetween(n, a, b) {
-  for (const d in DIRS) if (neighbour(n, a, d) === b) return d;
+function dirBetween(n, a, b, h = n) {
+  for (const d in DIRS) if (neighbour(n, a, d, h) === b) return d;
   return null;
 }
 
@@ -755,7 +772,7 @@ function dirBetween(n, a, b) {
 function splitTarget(cells, n, i, dir) {
   const t = cells[i];
   if (!t || t.v < 2) return -1;
-  const j = neighbour(n, i, dir);
+  const j = neighbour(n, i, dir, cells.length / n);
   return j >= 0 && !cells[j] ? j : -1;
 }
 
@@ -771,7 +788,7 @@ function applySplit(cells, n, i, dir) {
 
 // Destination index if tile i can rejoin its twin toward dir, else -1.
 function mergeTarget(cells, n, i, dir) {
-  const t = cells[i], j = neighbour(n, i, dir);
+  const t = cells[i], j = neighbour(n, i, dir, cells.length / n);
   return t && t.tw && j >= 0 && cells[j] && cells[j].tw === t.tw ? j : -1;
 }
 
@@ -960,10 +977,11 @@ if (typeof document !== 'undefined') {
     let free = app.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - parseFloat(cs.rowGap) * (shown.length - 1);
     for (const k of shown) if (k !== stageEl) free -= k.offsetHeight;
     free -= $('brief').offsetHeight + parseFloat(getComputedStyle(stageEl).rowGap); // the brief sits above the board
-    const side = Math.max(0, Math.floor(Math.min(stageEl.clientWidth, free)));
-    boardEl.style.width = boardEl.style.height = side + 'px';
     const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'));
-    boardEl.style.setProperty('--cell', (side - gap * (S.n + 1)) / S.n + 'px');
+    const cell = Math.max(0, Math.min((stageEl.clientWidth - gap * (S.n + 1)) / S.n, (free - gap * (S.h + 1)) / S.h));
+    boardEl.style.width = Math.floor(cell * S.n + gap * (S.n + 1)) + 'px';
+    boardEl.style.height = Math.floor(cell * S.h + gap * (S.h + 1)) + 'px';
+    boardEl.style.setProperty('--cell', cell + 'px');
     app.style.setProperty('--gear-top', app.querySelector('header').offsetTop + 'px'); // gear sits level with the header
   }
 
@@ -973,7 +991,7 @@ if (typeof document !== 'undefined') {
     const blocked = new Set(jammed ? blockedTiles(cells, n) : []);
     const twin = drag ? twinOf(cells, drag.i) : -1;
     const hint = S.showSol && !S.won ? nextHint() : null;
-    const hintDst = hint ? neighbour(n, hint.from, hint.dir) : -1;
+    const hintDst = hint ? neighbour(n, hint.from, hint.dir, S.h) : -1;
     const anim = S.effects || (S.anim && S.anim.boom != null) ? S.anim : null; // the explosion always shows
     const now = performance.now() / 1000;
     const phase = (offset, period) => -((now + offset) % period).toFixed(2) + 's';
@@ -987,7 +1005,7 @@ if (typeof document !== 'undefined') {
     boardEl.classList.toggle('live', !!S.t0 && !S.won && !S.lost);
     const nowMs = Date.now(), F = S.fuseMs / 1000;
     let html = '';
-    for (let i = 0; i < n * n; i++) {
+    for (let i = 0; i < cells.length; i++) {
       let t = cells[i], cls = '', extra = '';
       const blinkPeriod = 3.2 + (i * 1.13) % 2.5;
       let style = `;--d:${phase(i * 0.37, 2.6)};--bp:${blinkPeriod.toFixed(2)}s;--bd:${phase(i * 0.71, blinkPeriod)}`;
@@ -1110,20 +1128,20 @@ if (typeof document !== 'undefined') {
   }
 
   function newBoard() {
-    S.board = S.stage == null ? generate(S.n, S.target) : stageBoard(S.mode, S.stage);
+    S.board = S.stage == null ? generate(S.n, S.target, Math.random, S.h) : stageBoard(S.mode, S.stage);
     layout();
     restart();
   }
 
   function syncSlider() {
-    const { min, max } = SIZES[S.n], slider = $('tiles');
+    const { min, max } = S.n === S.h ? SIZES[S.n] || { min: 2, max: S.n * S.h } : { min: 2, max: S.n * S.h }, slider = $('tiles');
     slider.min = min; slider.max = max; slider.value = S.target;
     $('tilesOut').textContent = S.target;
   }
 
   // Dev controls: a custom board, off the stage ladder.
   function setSize(n) {
-    S.n = n; S.target = SIZES[n].def; S.stage = null;
+    S.n = S.h = n; S.target = SIZES[n].def; S.stage = null;
     syncSlider();
     newBoard();
   }
@@ -1132,7 +1150,7 @@ if (typeof document !== 'undefined') {
     S.stage = k;
     let fuse;
     const last = Math.min(k, STAGES.length - 1);
-    [S.n, S.target, fuse] = STAGES[last];
+    [S.n, S.h, S.target, fuse] = STAGES[last];
     if (S.mode === 'casual') S.target = CASUAL_TILES[last];
     S.fuseMs = S.mode === 'challenge' ? fuse * 1000 : 0;
     $('fuse').value = String(S.fuseMs / 1000);
@@ -1348,7 +1366,7 @@ if (typeof document !== 'undefined') {
     const next = applySplit(S.cells, S.n, i, dir);
     if (!next) return;
     if (!S.t0) startTimer();
-    const now = Date.now(), j = neighbour(S.n, i, dir);
+    const now = Date.now(), j = neighbour(S.n, i, dir, S.h);
     next[i].tw.left = S.fuse[i] ? S.fuse[i] - now : null; // a rejoined fight resumes with this
     S.cells = next;
     // Splitting calms both halves: each remaining fight gets a fresh fuse.
@@ -1357,7 +1375,7 @@ if (typeof document !== 'undefined') {
     S.fuse[j] = S.fuseMs && next[j].v > 1 ? now + S.fuseMs : null;
     const c = next[i].c;
     const region = regionDone(next, c) ? c : null;
-    S.anim = { from: i, to: neighbour(S.n, i, dir), dir, region, win: isWin(next) };
+    S.anim = { from: i, to: neighbour(S.n, i, dir, S.h), dir, region, win: isWin(next) };
     splitSound(v);
     if (region !== null) regionSound();
     if (isWin(next)) {

@@ -102,7 +102,7 @@ async function hintSwipe(page) {
 const OPP = { up: 'down', down: 'up', left: 'right', right: 'left' };
 // Swipe the baby of split h back onto its twin, rejoining them in h.from.
 async function rejoin(page, h, mid) {
-  const j = await page.evaluate(h => neighbour(S.n, h.from, h.dir), h);
+  const j = await page.evaluate(h => neighbour(S.n, h.from, h.dir, S.h), h);
   return mouseSwipe(page, j, OPP[h.dir], 40, mid);
 }
 
@@ -232,6 +232,29 @@ test('Full solve', async () => {
   await context.close();
   check(!errors.length, errors.join(' | '));
   return out.join('; ') + '; one rejoin each; overlay shows time';
+});
+
+test('Oblong boards', async () => {
+  const { context, page, errors } = await open({}, false);
+  const out = [];
+  for (const k of [10, 90]) { // stage 11 is 4x5, stage 91 is 8x9
+    await page.evaluate(k => localStorage.setItem('split.stage.casual', String(k)), k);
+    await page.reload(); await ready(page); await page.click('#playCasual'); await skipHowto(page); await settled(page);
+    const g = await page.evaluate(() => {
+      const b = document.getElementById('board').getBoundingClientRect(), c = document.querySelector('.cell').getBoundingClientRect();
+      return { w: S.n, h: S.h, cells: document.querySelectorAll('.cell').length, fits: b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight,
+        square: Math.abs(c.width - c.height) < 1, cell: Math.round(c.width) };
+    });
+    check(g.cells === g.w * g.h && g.h === g.w + 1 && g.fits && g.square, `stage ${k + 1} board: ${JSON.stringify(g)}`);
+    let moves = 0;
+    while (await hintSwipe(page)) moves++;
+    await page.waitForSelector('#overlay:not([hidden])', { timeout: 3000 });
+    check(await page.evaluate(() => S.won), `${g.w}x${g.h}: not won`);
+    out.push(`${g.w}x${g.h} solved in ${moves} swipes, ${g.cell}px cells`);
+  }
+  await context.close();
+  check(!errors.length, errors.join(' | '));
+  return out.join('; ');
 });
 
 test('Rejoin/Restart/New', async () => {
@@ -526,16 +549,16 @@ test('Start page and stages', async () => {
   await page.click('#playCasual');
   s = await st();
   check(s.stage === 1 && s.fuse === 0, `casual after reload: ${JSON.stringify(s)}`);
-  const ladder = await page.evaluate(() => STAGES.map(([n]) => n).join(''));
-  const casual = await page.evaluate(() => CASUAL_TILES.length === STAGES.length && CASUAL_TILES.every((v, k) => v >= SIZES[STAGES[k][0]].min && v <= SIZES[STAGES[k][0]].max));
-  check(casual, 'Casual tile curve must cover every stage within each size\'s tile range');
+  const ladder = await page.evaluate(() => STAGES.map(([w, h]) => w + 'x' + h).filter((x, k, a) => x !== a[k - 1]).join(' '));
+  const casual = await page.evaluate(() => CASUAL_TILES.length === STAGES.length && CASUAL_TILES.every((v, k) => v >= 2 && v <= STAGES[k][2]));
+  check(casual, 'Casual tile curve must cover every stage with no more tiles than Normal');
   const boards = await page.evaluate(() => ['casual', 'challenge'].map(m => {
     const keys = new Set();
-    for (let k = 0; k < STAGES.length; k++) { const b = stageBoard(m, k); if (b.n === STAGES[k][0] && b.solution.length) keys.add(shapeKey(b.n, b.cells)); }
+    for (let k = 0; k < STAGES.length; k++) { const b = stageBoard(m, k); if (b.n === STAGES[k][0] && b.h === STAGES[k][1] && b.solution.length) keys.add(shapeKey(b.n, b.cells)); }
     return { m, unique: keys.size, stages: STAGES.length };
   }));
   check(boards.every(b => b.stages === 100 && b.unique === 100), `stage boards must be 100 unique per mode: ${JSON.stringify(boards)}`);
-  check(/^4+5+6+$/.test(ladder), `stage ladder not 4x4 -> 5x5 -> 6x6: ${ladder}`);
+  check(ladder === '4x4 4x5 5x5 5x6 6x6 6x7 7x7 7x8 8x8 8x9' && (await page.evaluate(() => STAGES.every(([w, h], k) => STAGES.filter(s => s[0] === w && s[1] === h).length === 10))), `stage ladder should grow every 10 stages from 4x4 to 8x9: ${ladder}`);
   await context.close();
   check(!errors.length, errors.join(' | '));
   return 'start page on boot; Casual has no fuse; win -> Next stage; progress per mode survives reload; Challenge fuse from the stage; 100 unique boards per mode';
