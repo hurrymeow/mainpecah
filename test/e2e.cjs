@@ -232,8 +232,8 @@ test('Undo/Restart/New', async () => {
   check(await undos() === '0' && r.h === 0, 'Restart did not reset undos');
   check(await page.isDisabled('#undo'), 'Undo enabled after Restart');
   let changed = false;
-  for (let t = 0; t < 3 && !changed; t++) { await page.click('#new'); changed = (await key(page)) !== k0; }
-  check(changed, 'New board did not change the board');
+  for (let t = 0; t < 3 && !changed; t++) { await page.click('#sizes .on'); changed = (await key(page)) !== k0; }
+  check(changed, 'Re-picking the size did not deal a new board');
   for (const n of [5, 6]) {
     const b0 = await page.evaluate(() => S.board);
     await page.click(`#sizes button[data-n="${n}"]`);
@@ -439,7 +439,7 @@ test('Show solution', async () => {
       }
       return null;
     });
-    if (!off) await page.click('#new');
+    if (!off) await page.click('#sizes .on');
   }
   check(off, 'no off-path move found');
   await mouseSwipe(page, off.i, off.d);

@@ -12,7 +12,7 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
-/* Layout: one locked portrait column. Header, controls, square board filling the rest, actions. */
+/* Layout: one locked portrait column. Header, brief, square board filling the rest, actions. */
 :root {
   --bg: #0d0f14;
   --panel: #161a22;
@@ -62,16 +62,12 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; letter-spacing: .06em
 .stat b { font-size: var(--fs-lg); font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
 
 /* The play area sits low, next to the thumb; spare height goes above the board. */
-.controls { display: flex; gap: var(--s2); align-items: stretch; height: var(--ctl-h); }
 .seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; flex: none; }
 .seg button { border: 0; background: none; color: var(--muted); padding: 0 var(--s3); font: inherit; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .seg button.on { background: var(--line); color: var(--text); font-weight: 650; }
-#menu { min-height: 0; flex: none; padding: 0 var(--s4); font-size: var(--fs-sm); }
-#stageInfo {
-  flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: var(--s2);
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md);
-  font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
-}
+/* Plain info above the board: where you are, then what to do. Not controls. */
+#brief { display: grid; gap: 2px; text-align: center; flex: none; }
+#stageInfo { font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #stageInfo b { color: var(--text); font-weight: 650; }
 #stageInfo b.hot { color: var(--warn); }
 .debug .seg, .debug .slider { grid-column: 1 / -1; height: var(--ctl-h); }
@@ -86,7 +82,7 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; letter-spacing: .06em
   background: var(--line); border-radius: var(--r-sm); padding: 2px var(--s1);
 }
 
-#stage { flex: 1; min-height: 0; display: flex; align-items: flex-end; justify-content: center; }
+#stage { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--s2); align-items: center; justify-content: center; }
 #board {
   display: grid; gap: var(--gap); padding: var(--gap);
   background: var(--panel); border-radius: 14px; touch-action: none;
@@ -307,7 +303,7 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; letter-spacing: .06em
   color: var(--accent); text-shadow: 0 0 4px #000;
 }
 
-#status { min-height: 20px; text-align: center; font-size: var(--fs-sm); line-height: 20px; color: var(--muted); }
+#status { min-height: 20px; font-size: var(--fs-md); line-height: 20px; color: var(--text); }
 #status.bad { color: var(--bad); font-weight: 700; }
 #status.hint { color: var(--accent); }
 
@@ -402,17 +398,18 @@ button.mode em { grid-column: 2; grid-row: 1 / span 2; font-style: normal; font-
     <button class="btn" id="pwaGo"></button>
   </div>
 
-  <div id="stage"><div id="board"></div></div>
-  <div id="status"></div>
-  <div class="controls">
-    <button class="btn" id="menu">Menu</button>
-    <div id="stageInfo"></div>
+  <div id="stage">
+    <div id="brief">
+      <div id="stageInfo"></div>
+      <div id="status"></div>
+    </div>
+    <div id="board"></div>
   </div>
 
   <div class="actions">
+    <button class="btn" id="menu">Menu</button>
     <button class="btn" id="undo">Undo</button>
     <button class="btn" id="restart">Restart</button>
-    <button class="btn" id="new">New board</button>
   </div>
   <details id="settings">
     <summary>Settings <span id="info"></span></summary>
@@ -718,7 +715,8 @@ if (typeof document !== 'undefined') {
 
   function layout() {
     const r = stageEl.getBoundingClientRect();
-    const side = Math.floor(Math.min(r.width, r.height));
+    const brief = $('brief').offsetHeight + parseFloat(getComputedStyle(stageEl).rowGap); // the brief sits above the board
+    const side = Math.floor(Math.min(r.width, r.height - brief));
     boardEl.style.width = boardEl.style.height = side + 'px';
     const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'));
     boardEl.style.setProperty('--cell', (side - gap * (S.n + 1)) / S.n + 'px');
@@ -1050,7 +1048,6 @@ if (typeof document !== 'undefined') {
   $('tiles').addEventListener('change', e => { S.target = +e.target.value; S.stage = null; newBoard(); });
   $('undo').addEventListener('click', undo);
   $('restart').addEventListener('click', restart);
-  $('new').addEventListener('click', newBoard);
   $('winRestart').addEventListener('click', restart);
   $('winNew').addEventListener('click', () => (S.won && S.stage != null ? goStage(S.stage + 1) : newBoard()));
   $('menu').addEventListener('click', showStart);
