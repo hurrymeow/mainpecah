@@ -874,7 +874,7 @@ if (typeof document !== 'undefined') {
     $('undo').disabled = !S.history.length || S.won || S.lost;
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
-    $('stageTitle').textContent = S.stage == null ? 'Custom' : `Stage ${S.stage + 1} of ${STAGES.length}`;
+    $('stageTitle').textContent = S.stage == null ? 'Custom' : `Stage ${S.stage + 1}`;
     $('menu').innerHTML = `<span>Difficulty:</span> ${S.mode === 'challenge' ? 'Normal' : 'Casual'}`;
     $('menu').classList.toggle('hot', S.mode === 'challenge');
     const pick = $('stagePick'), top = Math.min(savedStage(S.mode), STAGES.length - 1); // unlocked up to the furthest reached
