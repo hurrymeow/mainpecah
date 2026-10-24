@@ -1162,31 +1162,36 @@ if (typeof document !== 'undefined') {
   // A soft looping chiptune, synthesised so it costs no download and works offline.
   // MUSIC_MIX keeps it under the effects: at the default 50% it peaks around a third of a split sound.
   const MUSIC_MIX = 0.6;
-  let musicLoop = null, musicTimer = 0;
+  // Bars are scheduled one at a time, a bar ahead, so no single tap pays for the whole loop.
+  const BEAT8 = 60 / 104 / 2, BAR = 8 * BEAT8; // 104 bpm on an 8th-note grid
+  let musicBus = null, musicTimer = 0, musicBar = 0, musicAt = 0;
   function music() {
     const on = audio && S.musicVol > 0 && !document.hidden;
     if (!on) {
       clearTimeout(musicTimer); musicTimer = 0;
-      if (musicLoop) { musicLoop.disconnect(); musicLoop = null; }
+      if (musicBus) { musicBus.disconnect(); musicBus = null; }
       return;
     }
-    if (!musicLoop) queueLoop(audio.currentTime + 0.1);
+    if (musicBus) return;
+    musicBus = audio.createGain(); musicBus.connect(musicOut);
+    musicBar = 0; musicAt = audio.currentTime + 0.1;
+    musicTick();
   }
-  function queueLoop(t0) {
-    musicLoop = audio.createGain(); musicLoop.connect(musicOut);
-    const len = playLoop(audio, musicLoop, t0), mine = musicLoop;
-    // Schedule the next pass shortly before this one ends; the old chain is dropped once it has finished.
-    musicTimer = setTimeout(() => {
-      if (musicLoop !== mine) return;
-      queueLoop(t0 + len);
-      setTimeout(() => mine.disconnect(), 3000);
-    }, (t0 + len - audio.currentTime - 1) * 1000);
+  function musicTick() {
+    while (musicAt < audio.currentTime + BAR) { playBar(audio, musicBus, musicAt, musicBar); musicBar = (musicBar + 1) % 8; musicAt += BAR; }
+    musicTimer = setTimeout(musicTick, BAR * 500);
   }
-  // 8 bars, C - Am - F - G twice, 104 bpm on an 8th-note grid.
-  function playLoop(ctx, out, t0) {
-    const e = 60 / 104 / 2, hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  // 8 bars, C - Am - F - G twice. Melody as [midi note or 0 for a rest, length in 8ths], 8 per bar.
+  const TUNE = [[[72,1],[76,1],[79,2],[76,1],[79,1],[84,2]], [[81,2],[79,1],[76,1],[72,4]],
+    [[77,1],[81,1],[84,2],[81,1],[77,1],[76,2]], [[74,1],[76,1],[77,1],[79,1],[74,4]],
+    [[79,1],[76,1],[72,2],[76,1],[79,1],[81,2]], [[84,2],[81,1],[79,1],[76,2],[0,2]],
+    [[77,2],[76,1],[74,1],[72,2],[74,1],[76,1]], [[74,2],[71,2],[72,4]]];
+  const ROOTS = [48, 45, 41, 43], CHORDS = [[60,64,67],[57,60,64],[53,57,60],[55,59,62]];
+  let hat = null;
+  function playBar(ctx, out, t0, b) {
+    const hz = m => 440 * Math.pow(2, (m - 69) / 12);
     function note(m, at, len, vol, type) {
-      const t = t0 + at * e, d = len * e, o = ctx.createOscillator(), g = ctx.createGain();
+      const t = t0 + at * BEAT8, d = len * BEAT8, o = ctx.createOscillator(), g = ctx.createGain();
       o.type = type; o.frequency.value = hz(m);
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(vol, t + 0.01);
@@ -1194,26 +1199,21 @@ if (typeof document !== 'undefined') {
       g.gain.exponentialRampToValueAtTime(0.0005, t + d);
       o.connect(g).connect(out); o.start(t); o.stop(t + d + 0.02);
     }
-    // Melody as [midi note or 0 for a rest, length in 8ths], 8 per bar.
-    const tune = [[72,1],[76,1],[79,2],[76,1],[79,1],[84,2], [81,2],[79,1],[76,1],[72,4],
-      [77,1],[81,1],[84,2],[81,1],[77,1],[76,2], [74,1],[76,1],[77,1],[79,1],[74,4],
-      [79,1],[76,1],[72,2],[76,1],[79,1],[81,2], [84,2],[81,1],[79,1],[76,2],[0,2],
-      [77,2],[76,1],[74,1],[72,2],[74,1],[76,1], [74,2],[71,2],[72,4]];
     let at = 0;
-    for (const [m, l] of tune) { if (m) note(m, at, l * 0.9, 0.07, 'square'); at += l; }
-    const roots = [48, 45, 41, 43], chords = [[60,64,67],[57,60,64],[53,57,60],[55,59,62]];
-    for (let b = 0; b < 8; b++) {
-      for (let k = 0; k < 8; k += 2) note(k % 4 ? roots[b % 4] + 7 : roots[b % 4], b * 8 + k, 1.6, 0.16, 'triangle');
-      for (let k = 1; k < 8; k += 2) chords[b % 4].forEach(m => note(m, b * 8 + k, 0.6, 0.025, 'triangle'));
+    for (const [m, l] of TUNE[b]) { if (m) note(m, at, l * 0.9, 0.07, 'square'); at += l; }
+    const r = ROOTS[b % 4];
+    for (let k = 0; k < 8; k += 2) note(k % 4 ? r + 7 : r, k, 1.6, 0.16, 'triangle');
+    for (let k = 1; k < 8; k += 2) CHORDS[b % 4].forEach(m => note(m, k, 0.6, 0.025, 'triangle'));
+    if (!hat) {
+      hat = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.04), ctx.sampleRate);
+      const d = hat.getChannelData(0);
+      for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / d.length);
     }
-    const hat = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.04), ctx.sampleRate), d = hat.getChannelData(0);
-    for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / d.length);
-    for (let k = 1; k < 64; k += 2) {
+    for (let k = 1; k < 8; k += 2) {
       const src = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), g = ctx.createGain();
       src.buffer = hat; hp.type = 'highpass'; hp.frequency.value = 7000; g.gain.value = 0.05;
-      src.connect(hp).connect(g).connect(out); src.start(t0 + k * e);
+      src.connect(hp).connect(g).connect(out); src.start(t0 + k * BEAT8);
     }
-    return 64 * e;
   }
   // Silence everything while the app is in the background.
   document.addEventListener('visibilitychange', () => {
