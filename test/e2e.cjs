@@ -3,7 +3,7 @@
 const path = require('path');
 const { chromium } = require('playwright');
 
-const URL = 'file://' + path.join(__dirname, '..', 'index.html');
+const URL = 'file://' + path.join(__dirname, '..', 'index.html') + '?dev'; // dev controls on
 const VEC = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 const RED = '255, 71, 87';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
