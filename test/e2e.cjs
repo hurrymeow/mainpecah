@@ -278,6 +278,34 @@ test('Locked cells', async () => {
   return 'box drawn; swipe into a box is a no-op; split beside it works; win skips boxes';
 });
 
+test('Cracks, grumpy kittens and cushions', async () => {
+  const { context, page, errors } = await open({}, false);
+  // Casual stage 1 is 4x4 with no fuse. Load a board with a 2 in the corner and one floor cell beside it.
+  const load = floor => page.evaluate(f => {
+    const c = Object.assign(new Array(16).fill(null), { floor: new Array(16).fill(null) });
+    c[0] = { v: 2, c: 0 }; c.floor[1] = f; S.cells = c;
+  }, floor);
+  const press = async i => { const { x, y } = await center(page, i); await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.up(); };
+  // Crack: split into it, then rejoin out of it; the cell breaks.
+  await load('crack'); await press(0);
+  check(await page.evaluate(() => !!document.querySelector('.cell.crack[data-i="1"]')), 'crack not drawn');
+  await mouseSwipe(page, 0, 'right');
+  await mouseSwipe(page, 1, 'left');
+  const crack = await page.evaluate(() => ({ broke: !!(S.cells[1] && S.cells[1].lock), back: S.cells[0] && S.cells[0].v }));
+  check(crack.broke && crack.back === 2, `leaving a crack should break it: ${JSON.stringify(crack)}`);
+  // Cushion: the half slides along the top row to the far wall.
+  await load('cushion'); await press(0);
+  await mouseSwipe(page, 0, 'right');
+  const slide = await page.evaluate(() => S.cells.slice(0, 4).map(t => (t ? t.v : 0)).join(''));
+  check(slide === '1001', `half should slide to the wall: ${slide}`);
+  // Grumpy: two grumpies from different fights side by side don't win; from the same fight they do.
+  const g = await page.evaluate(() => [isWin([{ v: 1, c: 0, g: true }, { v: 1, c: 1, g: true }], 2), isWin([{ v: 1, c: 0, g: true }, { v: 1, c: 0, g: true }], 2)]);
+  check(!g[0] && g[1], `grumpy win rule: ${g}`);
+  await context.close();
+  check(!errors.length, errors.join(' | '));
+  return 'leaving a crack breaks it; a cushion slides the half to the wall; grumpies from different fights block the win';
+});
+
 test('Rejoin/Restart/New', async () => {
   const { context, page, errors } = await open();
   await page.selectOption('#fuse', '0');
@@ -579,11 +607,13 @@ test('Start page and stages', async () => {
     for (let k = 0; k < STAGES.length; k++) {
       const b = stageBoard(m, k);
       if (b.n === STAGES[k][0] && b.h === STAGES[k][1] && b.solution.length) keys.add(shapeKey(b.n, b.cells));
-      if (b.cells.filter(t => t && t.lock).length === STAGES[k][4]) locks++;
+      const e = stageExtras(k), fl = b.cells.floor || [];
+      if (b.cells.filter(t => t && t.lock).length === STAGES[k][4] && fl.filter(f => f === 'crack').length === e.cracks
+        && fl.filter(f => f === 'cushion').length === e.cushions && b.cells.filter(t => t && t.g).length === e.grumpy) locks++;
       // Replay the recorded solution: every stage must be solvable from its starting board.
       let cur = b.cells;
       for (const s of b.solution) { cur = applySplit(cur, b.n, s.from, s.dir); if (!cur) break; }
-      if (cur && isWin(cur)) solved++;
+      if (cur && isWin(cur, b.n)) solved++;
     }
     return { m, unique: keys.size, stages: STAGES.length, solved, locks };
   }));

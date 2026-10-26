@@ -240,6 +240,13 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 .tile { pointer-events: none; } /* touches hit the cell underneath, even mid-hop */
 .box { display: block; width: 92%; height: 92%; background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect x=%223%22 y=%223%22 width=%2258%22 height=%2258%22 rx=%229%22 fill=%22%233a3f4b%22 stroke=%22%2312141a%22 stroke-width=%223%22/%3E%3Crect x=%228%22 y=%228%22 width=%2248%22 height=%2248%22 rx=%225%22 fill=%22%232a2e37%22/%3E%3Cpath d=%22M12 12 52 52M52 12 12 52%22 stroke=%22%2312141a%22 stroke-width=%2211%22 stroke-linecap=%22round%22/%3E%3Cpath d=%22M12 12 52 52M52 12 12 52%22 stroke=%22%238b93a4%22 stroke-width=%226%22 stroke-linecap=%22round%22/%3E%3Cg fill=%22%23c5cbd6%22 stroke=%22%2312141a%22 stroke-width=%221.5%22%3E%3Ccircle cx=%229%22 cy=%229%22 r=%223%22/%3E%3Ccircle cx=%2255%22 cy=%229%22 r=%223%22/%3E%3Ccircle cx=%229%22 cy=%2255%22 r=%223%22/%3E%3Ccircle cx=%2255%22 cy=%2255%22 r=%223%22/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat; }
 .cell.locked { display: grid; place-items: center; }
+/* Floors under a cell's kitten: a crack breaks once a kitten leaves it; a cushion slides a kitten on. */
+.cell.crack, .cot.crack { background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect x=%222%22 y=%222%22 width=%2260%22 height=%2260%22 rx=%229%22 fill=%22%234a505e%22 stroke=%22%232a2e37%22 stroke-width=%223%22/%3E%3Cpath d=%22M6 20l12 4 6-8 8 10 6-4M32 26l2 12-8 6 2 14M34 38l12-2 4 10 8 2M46 36l6-14 6-2%22 fill=%22none%22 stroke=%22%2314161c%22 stroke-width=%223.2%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3Cpath d=%22M6 21.5l12 4 6-8 8 10 6-4M33.5 27l2 12-8 6 2 14M35.5 39.5l12-2 4 10 8 2%22 fill=%22none%22 stroke=%22%237d8597%22 stroke-width=%221%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 opacity=%22.7%22/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+.cell.cushion, .cot.cushion { background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Cpath d=%22M8 14q24-8 48 0 6 18 0 36-24 8-48 0-6-18 0-36z%22 fill=%22%235fb3e6%22 stroke=%22%23245d85%22 stroke-width=%222.5%22/%3E%3Cpath d=%22M14 20q18-5 36 0 4 12 0 24-18 5-36 0-4-12 0-24z%22 fill=%22none%22 stroke=%22%23a8dcfa%22 stroke-width=%222%22 stroke-dasharray=%223 3%22/%3E%3Cpath d=%22M18 24q6-4 14-3%22 fill=%22none%22 stroke=%22%23e6f6ff%22 stroke-width=%223%22 stroke-linecap=%22round%22 opacity=%22.9%22/%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%223.5%22 fill=%22%23245d85%22/%3E%3Cg fill=%22%23f2c94c%22 stroke=%22%238a6a12%22 stroke-width=%221%22%3E%3Ccircle cx=%228%22 cy=%2214%22 r=%223%22/%3E%3Ccircle cx=%2256%22 cy=%2214%22 r=%223%22/%3E%3Ccircle cx=%228%22 cy=%2250%22 r=%223%22/%3E%3Ccircle cx=%2256%22 cy=%2250%22 r=%223%22/%3E%3C/g%3E%3C/svg%3E") center / 92% 92% no-repeat, var(--well); }
+/* Grumpy kittens wear an anger mark and a red glow. */
+.tile.grumpy::before, .cot.grumpy::before { content: ""; position: absolute; z-index: 3; left: 2%; top: 2%; width: 34%; height: 34%; max-width: 22px; max-height: 22px;
+  background: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Ccircle cx=%2216%22 cy=%2216%22 r=%2215%22 fill=%22%232a0d0d%22 stroke=%22%23ff5a4d%22 stroke-width=%222%22/%3E%3Cg fill=%22none%22 stroke=%22%23ff5a4d%22 stroke-width=%223.2%22 stroke-linecap=%22round%22%3E%3Cpath d=%22M9 13q4 0 4-4M23 13q-4 0-4-4M9 19q4 0 4 4M23 19q-4 0-4 4%22/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat; }
+.tile.grumpy img, .cot.grumpy img { filter: drop-shadow(0 0 3px #ff5a4d); }
 .bed {
   position: absolute; left: 20%; right: 20%; bottom: 24%; height: 26%;
   border: 2px dashed var(--dot); border-radius: 50%;
@@ -429,7 +436,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
 /* How to play: one full-screen page, shown on the first entry into each mode and from the link under the board. */
 #howto {
   position: fixed; inset: 0; z-index: 30; background: var(--bg); overflow-y: auto;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: safe center; justify-content: center; /* safe: a tall list scrolls from its top */
   padding: max(var(--s5), env(safe-area-inset-top, 0px)) 16px max(var(--s5), env(safe-area-inset-bottom, 0px));
 }
 .howto { width: min(400px, 100%); display: flex; flex-direction: column; gap: var(--s4); text-align: center; }
@@ -443,6 +450,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
 .pics i { font-style: normal; font-size: 28px; line-height: 1; color: var(--muted); padding: 0 var(--s1); }
 .cot { --cell: 52px; position: relative; flex: none; width: 52px; height: 52px; border-radius: var(--r-sm); background: var(--well); display: grid; place-items: center; }
 .cot img { width: 86%; height: 86%; object-fit: contain; }
+.pics.wide .cot { --cell: 42px; width: 42px; height: 42px; }
 .cot.fused b { position: absolute; left: 14%; right: 14%; bottom: 6%; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
 .cot.fused b::after { content: ""; position: absolute; inset: 0 55% 0 0; background: var(--warn); }
 #howtoGo { background: var(--text); color: var(--bg); border-color: var(--text); }
@@ -562,8 +570,14 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
         <p><b>Big fights</b> split again and again: 4 makes two 2s, and each 2 makes two 1s.</p></li>
       <li><div class="pics"><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span></div>
         <p><b>Win</b> when every kitten sleeps alone in its own cell. Stuck? Swipe a kitten back onto its twin to rejoin them, or restart.</p></li>
-      <li><div class="pics"><span class="cot" data-kit="fight2"></span><i>✕</i><span class="cot"><span class="box"></span></span></div>
+      <li data-from="10"><div class="pics"><span class="cot" data-kit="fight2"></span><i>✕</i><span class="cot"><span class="box"></span></span></div>
         <p><b>Blocked cells</b> are off limits. No kitten can split into one or sleep there, so you never need to fill it.</p></li>
+      <li data-from="20"><div class="pics"><span class="cot crack" data-kit="sleep"></span><i>›</i><span class="cot"><span class="box"></span></span></div>
+        <p><b>Cracked cells</b> hold a kitten fine, but break for good once it leaves, by rejoining its twin or sliding across.</p></li>
+      <li data-from="40"><div class="pics"><span class="cot grumpy" data-kit="sleep"></span><span class="cot grumpy" data-kit="sleep"></span><i>✕</i></div>
+        <p><b>Grumpy kittens</b> from different fights can't sleep side by side.</p></li>
+      <li data-from="60"><div class="pics wide"><span class="cot" data-kit="fight2"></span><span class="cot cushion"></span><span class="cot cushion"></span><i>›</i><span class="cot" data-kit="sleep"></span><span class="cot cushion"></span><span class="cot" data-kit="sleep"></span></div>
+        <p><b>Cushions</b> are slippery. A kitten split onto one slides on until it hits a wall, a blocked cell or another kitten.</p></li>
       <li id="howtoFuse"><div class="pics"><span class="cot fused" data-kit="fight2"><b></b></span><i>›</i><span class="cot" data-kit="boom"></span></div>
         <p><b class="warn">Normal:</b> every fight has a fuse. Split it before the fuse burns down, or it blows up.</p></li>
     </ol>
@@ -661,8 +675,9 @@ const S = {
 // Only twins can merge, and only back into the fight they came from.
 // A locked cell holds LOCK: no kitten can split into it, rejoin through it or sleep in it.
 const LOCK = Object.freeze({ v: 0, lock: true });
-const cloneCells = cells => cells.map(t => t && (t.lock ? t : { v: t.v, c: t.c, tw: t.tw }));
-const keyOf = cells => cells.map(t => (t ? t.v : 0)).join(',');
+// cells.floor (optional, same length) marks fixed floor: 'crack' or 'cushion'. Grumpy tiles carry g: true.
+const cloneCells = cells => Object.assign(cells.map(t => t && (t.lock ? t : { v: t.v, c: t.c, tw: t.tw, g: t.g })), { floor: cells.floor });
+const keyOf = cells => cells.map(t => (t ? (t.lock ? 'x' : t.v) : 0)).join(',');
 
 // ===================== GENERATOR =====================
 // Reverse merge: start all 1s, merge equal orthogonal neighbours until the
@@ -671,7 +686,8 @@ const keyOf = cells => cells.map(t => (t ? t.v : 0)).join(',');
 
 // n columns by h rows; cells run row by row. locks cells are boxed up first and
 // never take part, so the replayed solution still works around them.
-function generate(n, target, rand = Math.random, h = n, locks = 0) {
+// extra = { cracks, grumpy, cushions }: how many of each to add once the board is built.
+function generate(n, target, rand = Math.random, h = n, locks = 0, extra = {}) {
   let best = null;
   for (let attempt = 0; attempt < 200; attempt++) {
     const v = new Array(n * h).fill(1);
@@ -702,6 +718,7 @@ function generate(n, target, rand = Math.random, h = n, locks = 0) {
   const cells = best.v.map((x, i) => (x ? { v: x, c: colour++ } : best.locked.includes(i) ? LOCK : null));
   const solution = best.merges.slice().reverse()
     .map(m => ({ from: m.keep, dir: dirBetween(n, m.keep, m.gone, h) }));
+  addFeatures(cells, n, h, solution, extra, rand);
 
   // States along the solution, so hints still work after a correct move made in any order.
   const path = [keyOf(cells)];
@@ -734,11 +751,22 @@ function shapeKey(n, cells) {
       if (s & 1) y = h - 1 - y;
       if (s & 2) x = n - 1 - x;
       const t = cells[y * n + x];
-      k += t ? (t.lock ? 'x' : t.v.toString(16)) : '.';
+      const f = cells.floor && cells.floor[y * n + x];
+      k += (t ? (t.lock ? 'x' : t.v.toString(16) + (t.g ? 'g' : '')) : '.') + (f ? f[1] : '');
     }
     keys.push(k);
   }
   return keys.sort()[0];
+}
+
+// A new rule every 20 stages, on top of blocked cells: cracks from stage 21,
+// grumpy kittens from 41 and cushions from 61. Each count creeps up within its stretch.
+function stageExtras(k) {
+  return {
+    cracks: k < 20 ? 0 : Math.min(3, 1 + Math.floor((k - 20) / 15)),
+    grumpy: k < 40 ? 0 : Math.min(4, 2 + Math.floor((k - 40) / 20)),
+    cushions: k < 60 ? 0 : Math.min(4, 2 + Math.floor((k - 60) / 15)),
+  };
 }
 
 const stageBoards = { casual: [], challenge: [] };
@@ -750,7 +778,7 @@ function stageBoard(mode, k) {
     // Take the first new layout that hits the tile target; failing that, the new one closest to it.
     let best = null;
     for (let attempt = 0; attempt < 20; attempt++) {
-      const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks);
+      const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks, stageExtras(j));
       const key = shapeKey(n, b.cells);
       if (seen.has(key) || (best && b.tiles >= best.b.tiles)) continue;
       best = { b, key };
@@ -760,6 +788,38 @@ function stageBoard(mode, k) {
     list.push(best.b);
   }
   return list[k];
+}
+
+// Cracks, grumpy kittens and cushions go on after the board is built, only where the recorded
+// solution still works: it never rejoins, and no step of it lands on a cushion with room to slide.
+function addFeatures(cells, n, h, solution, { cracks = 0, grumpy = 0, cushions = 0 }, rand) {
+  if (!cracks && !grumpy && !cushions) return;
+  const floor = cells.floor = new Array(cells.length).fill(null);
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  // Walk the solution once: where each step lands, and whether the cell beyond is already stopped.
+  const stops = [], final = [];
+  let cur = cells;
+  for (const s of solution) {
+    const j = neighbour(n, s.from, s.dir, h), k = neighbour(n, j, s.dir, h);
+    cur = applySplit(cur, n, s.from, s.dir);
+    if (k < 0 || cur[k]) stops.push({ j, open: k >= 0 && !cells[k] }); // a cushion here wouldn't move this half
+  }
+  cur.forEach((t, i) => (final[i] = t && !t.lock ? t.c : null));
+  // Cushions: prefer landings whose stopper isn't there at the start, so the order of splits matters.
+  const pick = shuffle(stops.slice()).sort((a, b) => b.open - a.open).slice(0, cushions);
+  for (const { j } of pick) floor[j] = 'cushion';
+  // Cracks go on cells that start empty, so a kitten has to move in.
+  const empty = shuffle(cells.map((t, i) => (t || floor[i] ? -1 : i)).filter(i => i >= 0));
+  for (const i of empty.slice(0, cracks)) floor[i] = 'crack';
+  // Grumpy fights: never touching each other in the recorded solution, fights first.
+  const near = (a, b) => final.some((c, i) => c === a && ['right', 'down', 'left', 'up'].some(d => { const j = neighbour(n, i, d, h); return j >= 0 && final[j] === b; }));
+  const regions = shuffle(cells.map((t, i) => (t && !t.lock ? i : -1)).filter(i => i >= 0)).sort((a, b) => (cells[b].v > 1) - (cells[a].v > 1));
+  const chosen = [];
+  for (const i of regions) {
+    if (chosen.length >= grumpy) break;
+    if (chosen.every(k => !near(cells[k].c, cells[i].c))) chosen.push(i);
+  }
+  for (const i of chosen) cells[i].g = true;
 }
 
 // count random cells to lock, never leaving an open cell walled in on every side.
@@ -792,19 +852,33 @@ function dirBetween(n, a, b, h = n) {
 
 // Destination index if tile i can split toward dir, else -1.
 function splitTarget(cells, n, i, dir) {
-  const t = cells[i];
-  if (!t || t.v < 2) return -1;
-  const j = neighbour(n, i, dir, cells.length / n);
-  return j >= 0 && !cells[j] ? j : -1;
+  const path = splitPath(cells, n, i, dir);
+  return path ? path[path.length - 1] : -1;
+}
+
+// Cells the moving half crosses, ending where it lands. A half that lands on a cushion
+// slides on until a wall, a blocked cell or a kitten stops it.
+function splitPath(cells, n, i, dir) {
+  const t = cells[i], h = cells.length / n, floor = cells.floor || [];
+  if (!t || t.v < 2) return null;
+  let j = neighbour(n, i, dir, h);
+  if (j < 0 || cells[j]) return null;
+  const path = [j];
+  if (floor[j] === 'cushion') {
+    for (let k = neighbour(n, j, dir, h); k >= 0 && !cells[k]; k = neighbour(n, k, dir, h)) path.push(k);
+  }
+  return path;
 }
 
 function applySplit(cells, n, i, dir) {
-  const j = splitTarget(cells, n, i, dir);
-  if (j < 0) return null;
+  const path = splitPath(cells, n, i, dir);
+  if (!path) return null;
+  const j = path[path.length - 1], floor = cells.floor || [];
   const out = cloneCells(cells), p = out[i];
   const tw = { from: p, left: null };
-  out[i] = { v: p.v / 2, c: p.c, tw };
-  out[j] = { v: p.v / 2, c: p.c, tw };
+  out[i] = { v: p.v / 2, c: p.c, tw, g: p.g };
+  out[j] = { v: p.v / 2, c: p.c, tw, g: p.g };
+  for (const k of path.slice(0, -1)) if (floor[k] === 'crack') out[k] = LOCK; // sliding across a crack breaks it
   return out;
 }
 
@@ -826,7 +900,20 @@ function regionDone(cells, c) {
   return cells.every(t => !t || t.c !== c || t.v === 1);
 }
 
-const isWin = cells => cells.every(t => t && (t.lock || t.v === 1));
+// Grumpy kittens from different fights sleeping side by side.
+function grumpyClash(cells, n) {
+  const h = cells.length / n, out = [];
+  cells.forEach((t, i) => {
+    if (!t || !t.g) return;
+    for (const d of ['right', 'down']) {
+      const j = neighbour(n, i, d, h), u = j >= 0 && cells[j];
+      if (u && u.g && u.c !== t.c) out.push(i, j);
+    }
+  });
+  return out;
+}
+
+const isWin = (cells, n) => cells.every(t => t && (t.lock || t.v === 1)) && !grumpyClash(cells, n).length;
 
 function blockedTiles(cells, n) {
   const out = [];
@@ -863,7 +950,7 @@ function selfTest(perSize = 1000, rand = Math.random) {
       if (b.tiles === target) hitTarget++;
       let cur = b.cells, ok = true;
       for (const s of b.solution) { cur = applySplit(cur, n, s.from, s.dir); if (!cur) { ok = false; break; } }
-      if (ok && isWin(cur)) solved++;
+      if (ok && isWin(cur, n)) solved++;
     }
     results[n] = { boards: perSize, sum, cap, solved, hitTarget };
   }
@@ -1011,6 +1098,8 @@ if (typeof document !== 'undefined') {
     const { n, cells, drag } = S;
     const jammed = !S.won && !S.lost && isJammed(cells, n), stuck = jammed && !canMerge(cells, n);
     const blocked = new Set(jammed ? blockedTiles(cells, n) : []);
+    const full = cells.every(t => t && (t.lock || t.v === 1)), clash = new Set(full && !S.won ? grumpyClash(cells, n) : []);
+    const floor = cells.floor || [];
     const twin = drag ? twinOf(cells, drag.i) : -1;
     const hint = S.showSol && !S.won ? nextHint() : null;
     const hintDst = hint ? neighbour(n, hint.from, hint.dir, S.h) : -1;
@@ -1043,11 +1132,12 @@ if (typeof document !== 'undefined') {
       if (anim && t) {
         // The split pair always plays its own motion; the wave follows once the baby lands.
         if (i === anim.from) cls += ' pop';
-        else if (i === anim.to) { cls += ' slide'; style += `;--sx:${-DIRS[anim.dir][1]};--sy:${-DIRS[anim.dir][0]}`; }
+        else if (i === anim.to) { const k = anim.dist || 1; cls += ' slide'; style += `;--sx:${-DIRS[anim.dir][1] * k};--sy:${-DIRS[anim.dir][0] * k}`; }
         else if (anim.win) { cls += ' cheer'; style += `;--wd:${250 + (Math.floor(i / n) + i % n) * 45}ms`; }
         else if (anim.region === t.c) { cls += ' flash'; style += `;--wd:${200 + wave++ * 50}ms`; }
       }
-      if (blocked.has(i)) cls += ' blocked upset';
+      if (blocked.has(i) || clash.has(i)) cls += ' blocked upset';
+      if (t && t.g) cls += ' grumpy';
       let fuseBar = '';
       if (S.fuseMs && !S.lost && t && cells[i] && cells[i].v > 1 && !(drag && i === drag.dest)) {
         const left = S.fuse[i] ? Math.max(0, S.fuse[i] - nowMs) : S.fuseMs;
@@ -1067,23 +1157,32 @@ if (typeof document !== 'undefined') {
       if (hint && i === hint.from) extra = `<span class="arrow">${ARROWS[hint.dir]}</span>`;
       const tile = t ? `<div class="tile${cls}" style="${tileVars(t.c, t.v)}${style}">${tileInner(t, i, cls.includes(' pop'), anim && t && i === anim.to && t.v === 1 ? anim.dir : null)}${fuseBar}${extra}</div>`
         : S.skin === 'kittens' ? '<span class="bed"></span>' : '<span class="dot">1</span>';
-      html += `<div class="cell${i === hintDst ? ' hint-dst' : ''}" data-i="${i}">${tile}</div>`;
+      html += `<div class="cell${floor[i] ? ' ' + floor[i] : ''}${i === hintDst ? ' hint-dst' : ''}" data-i="${i}">${tile}</div>`;
     }
     boardEl.innerHTML = html;
 
     const status = $('status');
     status.className = '';
     if (stuck) { status.textContent = 'Stuck. Restart to try again.'; status.className = 'bad'; }
+    else if (clash.size) { status.textContent = 'Grumpy kittens can\'t sleep side by side. Rejoin to make room.'; status.className = 'bad'; }
     else if (jammed) { status.textContent = 'No room. Swipe a kitten back onto its twin.'; status.className = 'bad'; }
     else if (hint) { status.textContent = `Hint: split the ${cells[hint.from].v} ${hint.dir}`; status.className = 'hint'; }
     else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Rejoin twins to get hints back.'; status.className = 'hint'; }
     else status.textContent = { kittens: 'Give every kitten its own cell to sleep!', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
 
-    // The first board with locked cells explains them until it's solved.
-    const locks = cells.some(t => t && t.lock);
-    let lockTip = false;
-    try { lockTip = locks && !localStorage.getItem('split.lockTip'); if (lockTip && S.won) localStorage.setItem('split.lockTip', '1'); } catch (err) {}
-    $('quip').textContent = lockTip ? 'Blocked cells are off limits. No kitten can go in one.' : S.skin === 'kittens' ? QUIPS[(S.stage || 0) % QUIPS.length] : '';
+    // The first board with each new rule explains it until that board is solved. Newest rule first.
+    const start = S.board.cells, startFloor = start.floor || [];
+    const tip = [
+      ['cushion', startFloor.includes('cushion'), 'Cushions are slippery. A kitten split onto one slides until it hits something.'],
+      ['grumpy', start.some(t => t && t.g), 'Grumpy kittens from different fights can\'t sleep side by side.'],
+      ['crack', startFloor.includes('crack'), 'Cracked cells break when a kitten leaves them.'],
+      ['lock', start.some(t => t && t.lock), 'Blocked cells are off limits. No kitten can go in one.'],
+    ].find(([key, on]) => {
+      try { if (!on || localStorage.getItem('split.tip.' + key) || (key === 'lock' && localStorage.getItem('split.lockTip'))) return false; } catch (err) { return false; }
+      return true;
+    });
+    if (tip && S.won) try { localStorage.setItem('split.tip.' + tip[0], '1'); } catch (err) {}
+    $('quip').textContent = tip ? tip[2] : S.skin === 'kittens' ? QUIPS[(S.stage || 0) % QUIPS.length] : '';
     $('time').textContent = fmtTime(S.elapsed);
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
@@ -1217,6 +1316,9 @@ if (typeof document !== 'undefined') {
         + (el.dataset.kit.startsWith('fight') ? `<span class="badge">${el.dataset.kit.slice(5)}</span>` : ''));
     }
     $('howtoFuse').hidden = S.mode !== 'challenge';
+    // Rule rows appear once the player has reached the stage that brings them in.
+    const reached = Math.max(S.stage || 0, savedStage(S.mode));
+    for (const li of document.querySelectorAll('#howto li[data-from]')) li.hidden = reached < +li.dataset.from;
     if (S.timer) { stopTimer(); howtoPausedAt = Date.now(); } // the clock and fuses wait while you read
     $('howto').hidden = false;
     $('howtoGo').focus();
@@ -1393,7 +1495,8 @@ if (typeof document !== 'undefined') {
     const next = applySplit(S.cells, S.n, i, dir);
     if (!next) return;
     if (!S.t0) startTimer();
-    const now = Date.now(), j = neighbour(S.n, i, dir, S.h);
+    const now = Date.now(), j = splitTarget(S.cells, S.n, i, dir);
+    const slid = Math.abs(Math.floor(j / S.n) - Math.floor(i / S.n)) + Math.abs((j % S.n) - (i % S.n)); // cells travelled
     next[i].tw.left = S.fuse[i] ? S.fuse[i] - now : null; // a rejoined fight resumes with this
     S.cells = next;
     // Splitting calms both halves: each remaining fight gets a fresh fuse.
@@ -1402,10 +1505,10 @@ if (typeof document !== 'undefined') {
     S.fuse[j] = S.fuseMs && next[j].v > 1 ? now + S.fuseMs : null;
     const c = next[i].c;
     const region = regionDone(next, c) ? c : null;
-    S.anim = { from: i, to: neighbour(S.n, i, dir, S.h), dir, region, win: isWin(next) };
+    S.anim = { from: i, to: j, dir, dist: slid, region, win: isWin(next, S.n) };
     splitSound(v);
     if (region !== null) regionSound();
-    if (isWin(next)) {
+    if (isWin(next, S.n)) {
       S.won = true; S.elapsed = Date.now() - S.t0; stopTimer();
       $('winTime').textContent = fmtTime(S.elapsed);
       $('winTitle').textContent = S.skin === 'kittens' ? 'All asleep' : 'Solved';
@@ -1430,8 +1533,8 @@ if (typeof document !== 'undefined') {
   // The fight resumes with the fuse time it had left when it split, so rejoining can't refill a fuse.
   function merge(i, j, dir) {
     const tw = S.cells[i].tw, now = Date.now();
-    const next = S.cells.slice();
-    next[i] = null;
+    const next = Object.assign(S.cells.slice(), { floor: S.cells.floor });
+    next[i] = (S.cells.floor || [])[i] === 'crack' ? LOCK : null; // a kitten leaving a crack breaks it
     next[j] = { ...tw.from };
     S.cells = next;
     S.fuse = S.fuse.slice();
