@@ -281,6 +281,11 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
   background: var(--good); transform-origin: left center; pointer-events: none;
 }
 .fight:has(.fuse-slot) .blob.kit { top: calc((var(--cell) * .88 - var(--w)) / 2); } /* centred in the space above the fuse */
+.fuse-sec {
+  position: absolute; left: 50%; bottom: calc(5% + var(--fuse-h) + 2px); transform: translateX(-50%);
+  font: 700 11px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--text);
+  text-shadow: 0 1px 2px rgba(0,0,0,.8); pointer-events: none;
+}
 .live .fuse { animation: burn var(--ft) linear var(--fd) forwards; }
 @keyframes burn {
   0% { transform: scaleX(1); background: var(--good); }
@@ -1142,7 +1147,7 @@ if (typeof document !== 'undefined') {
       if (S.fuseMs && !S.lost && t && cells[i] && cells[i].v > 1 && !(drag && i === drag.dest)) {
         const left = S.fuse[i] ? Math.max(0, S.fuse[i] - nowMs) : S.fuseMs;
         if (S.t0 && left < 3000) cls += ' danger';
-        fuseBar = `<span class="fuse-slot"><i class="fuse" style="--ft:${F}s;--fd:${((left - S.fuseMs) / 1000).toFixed(2)}s"></i></span>`;
+        fuseBar = `<span class="fuse-slot"><i class="fuse" style="--ft:${F}s;--fd:${((left - S.fuseMs) / 1000).toFixed(2)}s"></i></span><b class="fuse-sec">${Math.ceil(left / 1000)}</b>`;
       }
       if (anim && anim.boom === i) {
         cls += ' boom';
@@ -1216,6 +1221,8 @@ if (typeof document !== 'undefined') {
     let first = -1;
     S.fuse.forEach((d, i) => { if (d && d <= now && (first < 0 || d < S.fuse[first])) first = i; });
     if (first >= 0) return explode(first);
+    // Each fuse shows whole seconds left; the number only moves here, so it updates every tick.
+    S.fuse.forEach((d, i) => { const el = d && boardEl.querySelector(`.cell[data-i="${i}"] .fuse-sec`); if (el) el.textContent = Math.ceil((d - now) / 1000); });
     const key = S.fuse.map(d => (d && d - now < 3000 ? 1 : 0)).join('');
     if (key !== dangerKey) { dangerKey = key; if (!S.drag) render(); }
   }
