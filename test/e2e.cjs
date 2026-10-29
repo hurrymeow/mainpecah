@@ -608,11 +608,11 @@ test('Start page and stages', async () => {
       const b = stageBoard(m, k);
       if (b.n === STAGES[k][0] && b.h === STAGES[k][1] && b.solution.length) keys.add(shapeKey(b.n, b.cells));
       const e = stageExtras(k), fl = b.cells.floor || [];
-      if (b.cells.filter(t => t && t.lock).length === STAGES[k][4] && fl.filter(f => f === 'crack').length === e.cracks
+      if ((b.teach || b.cells.filter(t => t && t.lock).length === STAGES[k][4]) && fl.filter(f => f === 'crack').length === e.cracks
         && fl.filter(f => f === 'cushion').length === e.cushions && b.cells.filter(t => t && t.g).length === e.grumpy) locks++;
       // Replay the recorded solution: every stage must be solvable from its starting board.
       let cur = b.cells;
-      for (const s of b.solution) { cur = applySplit(cur, b.n, s.from, s.dir); if (!cur) break; }
+      for (const s of b.solution) { cur = applyStep(cur, b.n, s); if (!cur) break; }
       if (cur && isWin(cur, b.n)) solved++;
     }
     return { m, unique: keys.size, stages: STAGES.length, solved, locks };
