@@ -49,7 +49,8 @@ const settled = page => page.evaluate(() => new Promise(done => {
   })();
 }));
 // The first entry into each mode opens How to play; most tests just close it.
-const skipHowto = async page => { if (await page.isVisible('#howto')) await page.click('#howtoGo'); };
+// How to play comes in pages of at most 50 words; Next walks through them and the last one says Got it.
+const skipHowto = async page => { while (await page.isVisible('#howto')) await page.click('#howtoGo'); };
 const ready = page => page.waitForFunction(() => typeof S !== 'undefined' && S.board);
 // The dev controls live in a collapsed panel; open it with a real tap before using them.
 async function openSettings(page) {
@@ -649,13 +650,24 @@ test('How to play', async () => {
   check(await page.evaluate(() => [...document.querySelectorAll('#howto img')].every(i => i.src && i.naturalWidth)), 'tutorial sprites missing');
   const box = await page.evaluate(() => { const r = document.querySelector('.howto').getBoundingClientRect(); return r.bottom <= innerHeight && r.top >= 0; });
   check(box, 'tutorial does not fit one 390x844 screen');
-  await page.click('#howtoGo');
+  let pages = 0;
+  for (;;) {
+    pages++;
+    const w = await page.evaluate(() => [...document.querySelectorAll('#howto li:not([hidden]):not(.offpage)')].reduce((a, li) => a + (li.innerText.match(/\S+/g) || []).filter(t => /[A-Za-z0-9]/.test(t)).length, 0));
+    check(w <= 44, `tutorial page ${pages} has ${w} words in its rows`);
+    const label = await page.textContent('#howtoGo');
+    check(label === 'Next' || label === 'Got it', `page ${pages} button label "${label}"`);
+    await page.click('#howtoGo');
+    if (label === 'Got it') break;
+    check(pages < 10, 'tutorial never reaches Got it');
+  }
+  check(pages > 1, `tutorial should come in pages, got ${pages}`);
   check(!(await shown()), 'Got it did not close the tutorial');
   await page.click('#menu'); await page.click('#playCasual');
   check(!(await shown()), 'tutorial shown again on second Casual entry');
   await page.click('#menu'); await page.click('#playChallenge');
-  check(await shown() && await page.isVisible('#howtoFuse'), 'first Challenge entry has no fuse step');
-  await page.click('#howtoGo');
+  check(await shown(), 'first Challenge entry has no tutorial');
+  await skipHowto(page);
   // Start the clock with a split, then reopen: the clock and fuses wait.
   await hintSwipe(page);
   await page.click('#help');
@@ -663,7 +675,7 @@ test('How to play', async () => {
   const before = await page.evaluate(() => ({ t0: S.t0, fuse: S.fuse.find(Boolean), timer: S.timer }));
   check(!before.timer, 'clock still running behind the tutorial');
   await page.waitForTimeout(600);
-  await page.click('#howtoGo');
+  await skipHowto(page);
   const after = await page.evaluate(() => ({ t0: S.t0, fuse: S.fuse.find(Boolean), timer: S.timer }));
   check(after.timer && after.t0 - before.t0 >= 500 && after.fuse - before.fuse >= 500, `clock and fuses not shifted: ${JSON.stringify([before, after])}`);
   await context.close();
@@ -687,7 +699,7 @@ test('Player text', async () => {
   let text = await words();
   await page.click('#playChallenge'); // first entry: tutorial with the fuse step
   text += ' ' + await words();
-  await page.click('#howtoGo');
+  await skipHowto(page);
   // Win, lose and status copy is set in code, so read it from the script.
   text += ' ' + await page.evaluate(() => document.querySelector('script:not([src])').textContent.match(/textContent = [^;]*'[^']*'/g).join(' '));
   for (const bad of [/\bbeds?\b/i, /\bChallenge\b/, /Kaboom Kittens/, /\bof \d+\b/, /\bUndos?\b/i]) check(!bad.test(text), `stale player text: ${text.match(bad)}`);
