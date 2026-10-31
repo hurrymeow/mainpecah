@@ -122,3 +122,64 @@ First-run How to play: **81** words (Normal, with fuse step).
 [dd-mv]: https://www.dekudeals.com/items/monument-valley-panoramic-edition
 [gd-mario]: https://www.gamedeveloper.com/design/the-secret-to-i-mario-i-level-design
 [gd-braid]: https://gamedeveloper.com/design/puzzles-should-have-clues
+
+## Update 2026-10-31: commute play
+
+Hari: players kill time on a commute, not hours at a stretch. Candy Crush or 2048, but recent games.
+So the core references become recent short-session hits. The games above stay as secondary notes.
+
+### Session length data
+
+- GameAnalytics: "the global median session length is 4.45 minutes" for mobile games, Q1 2024. [GameAnalytics via GameDev Reports][ga24]
+- GameAnalytics 2025: top-tier games average 8–9 min per session, median-tier 5–6 min (summary). [Game Industry Library][ga25]
+- ESA via GameAnalytics: puzzle, trivia and word games are commuters' top pick (38%). Original report not checked. [GameAnalytics][ga-esa]
+
+### Candy Crush (King's 2024 GDC data, recent even though the game is old)
+
+All from King staff at GDC 2024, reported by [Mobilegamer.biz, 2024-03-27][mgb]:
+- Xavier Guardiola: "The longer the level is, the less likely it is to be fun,"
+- Jan Wedekind: "Just because they're hard doesn't mean they're not fun, and inversely you can find easy levels which don't have a lot of churn on them but they're not much fun."
+- Wedekind: "crazy hard levels never pay off, at least in the long term"
+- Wedekind: "designing for averages is not a good idea"
+- Wedekind: "retention always wins"
+- Summary: the longest a level should last depends on how hard it is. Hard levels should be short.
+
+### Royal Match (Dream Games, 2020)
+
+No designer interviews found. Third-party analyses only:
+- Difficulty cycles over about 5 levels, then drops. A bonus or relief level about every 10. [Medium case study][rm-case]
+- Hard levels carry a visible "Hard" label (level 39 onward), so failing reads as designed challenge. [Medium analysis][rm-an]
+- Sequel Royal Kingdom keeps "a Hard and Super Hard level every 10 levels". [Medium][rk]
+- Critic: the level design "inevitably starts to feel like remixing rather than discovery." [Orcz review][rm-orcz]
+
+### Block Blast (Hungry Studio, 2023 onward)
+
+- Hungry Studio: 70m daily and 300m monthly active users, January 2026. Press release. [PocketGamer.biz][bb]
+- Hungry Studio describes a "drag–match–clear" experience. [Business Wire, 2026-03][bb-bw]
+- Hungry Studio VP: it "may look simple, but it is powered by an extensive A/B testing framework". [bb-bw]
+- Takeaway: endless, no timer, one board per session, instant restart. Same shape as 2048.
+
+### NYT Games: Wordle (2021) and Connections (2023)
+
+- Jonathan Knight, head of NYT Games: "We're not trying to get you to spend 24/7 in our app; we're not trying to get you addicted to solving level after level after level," [Axios, 2024-01-29][axios]
+- Knight: "We think it should be time well spent." (Eurogamer, "A world beyond Wordle", as quoted in search results; page not opened.)
+- Takeaway: one daily puzzle, a few minutes, a shareable result. The habit is daily, not long.
+
+### Kaboom Kitty against a commute
+
+- Stage length: Casual stages 61–100 need **25–33** splits minimum. At 5 s/move that is 2–3 min before thinking or retries.
+- Interruptions: only the furthest stage is saved. A board in progress is lost if the app is killed.
+- Normal fuses use absolute deadlines and keep burning while the app is in the background. Only audio pauses (index.html visibilitychange handler).
+- New-rule tips already show once in the quip line on a rule's first board.
+
+[ga24]: https://gamedevreports.substack.com/p/gameanalytics-benchmarks-in-mobile
+[ga25]: https://gameindustrylibrary.com/documents/gameanalytics-mobile-gaming-benchmarks-2025/read?page=12
+[ga-esa]: https://gameanalytics.com/?p=4483
+[mgb]: https://mobilegamer.biz/how-king-defines-a-good-candy-crush-saga-level-and-why-it-constantly-prunes-the-bad-ones/
+[rm-case]: https://medium.com/@abhisekh.nath11/case-study-on-royal-match-by-dream-games-80ebc8b8d877
+[rm-an]: https://medium.com/@ekinmelissezer/game-analysis-for-royal-match-and-toon-blast-9c4bff8ef48b
+[rk]: https://medium.com/@chrisjameswallace/royal-kingdom-the-next-puzzle-hit-from-dream-games-c7395e26b185
+[rm-orcz]: https://orcz.com/royal-match-review-the-puzzle-king-that-refuses-to-be-dethroned/
+[bb]: https://www.pocketgamer.biz/block-blast-reaches-70m-daily-active-users-and-300m-monthly-active-users-worldwide
+[bb-bw]: https://www.businesswire.com/news/home/20260326424167/en
+[axios]: https://www.axios.com/2024/01/29/wordle-nyt-games-news-media-layoffs
