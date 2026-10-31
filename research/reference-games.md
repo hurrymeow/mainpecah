@@ -183,3 +183,11 @@ No designer interviews found. Third-party analyses only:
 [bb]: https://www.pocketgamer.biz/block-blast-reaches-70m-daily-active-users-and-300m-monthly-active-users-worldwide
 [bb-bw]: https://www.businesswire.com/news/home/20260326424167/en
 [axios]: https://www.axios.com/2024/01/29/wordle-nyt-games-news-media-layoffs
+
+### Extra Candy Crush notes (search summaries, pages not opened)
+
+- King's Sour Skull blocker debuted on level 8031 alongside three tutorial levels (Crush & Tell case study). [PocketGamer.biz][pgb-cc]
+- King slide deck (Jeremy Kang): 18 blockers and 6 game modes make about 3,000 levels. [Speaker Deck][sd-kang]
+
+[pgb-cc]: https://www.pocketgamer.biz/crafting-candy-crushs-difficulty-blockers-level-design-ai-and-the-complexity-staircase/
+[sd-kang]: https://speakerdeck.com/wnconf/jeremy-kang-king
