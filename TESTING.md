@@ -31,4 +31,16 @@ No recurring agent loops. Nightly checks run in GitHub Actions, not in an agent 
 
 - Results go to the Actions job summary.
 - One rolling GitHub issue, "Nightly scorecard", is updated only when a row changes state (Pass, Fail or Unknown).
-- Until `nightly.yml`, `npm run scorecard` and `npm run ui-check` exist, this section is the target. See [docs/plans/game-quality-baseline.md](docs/plans/game-quality-baseline.md) task T5.
+- Run locally: `npm run scorecard` (about 1 min) and `npm run ui-check` (about 30 s). Both print a Markdown table.
+- Code: `tools/scorecard/`. Same seed, same output. Default seed is in `lib.cjs`; override with `--seed N`.
+
+## How the scorecard measures
+
+- Time is modeled, never read from the clock: 2 s per swipe, 0.7 s per option, 4 words/s, 2 s per tap.
+- An "option" is a fight that can move, not each (tile, direction) pair. Counting pairs puts a 7x8 stage at 8+ min.
+- **builder** replays the generator's recorded solution (an upper bound on the shortest). Under Normal fuses it reorders by urgency.
+- **rookie** picks a random split that does not leave the board stuck, and rejoins when no split is left. 200 seeds per stage.
+- **hint-follower** is the builder driven through the hint path.
+- Difficulty (S2, M10) is wrong turns on offer per solution swipe: legal splits minus the one the solution takes. It stands in for dead-end branches, which are too costly to search on 7x8.
+- Page rows (M1, M2, S3, S4, S5, M12, M13, M17, M19) and every ui-check row run in Playwright on a fake clock.
+- A row is Unknown when part of its test is not built yet. The row's note says which part.

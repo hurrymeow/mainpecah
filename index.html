@@ -999,7 +999,12 @@ function selfTest(perSize = 1000, rand = Math.random) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { generate, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE };
+  module.exports = {
+    generate, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE,
+    // Read by tools/scorecard (npm run scorecard); exported only, no behaviour change.
+    STAGES, CASUAL_TILES, TEACH, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
+    mergeTarget, applyJoin, applyStep, canMerge, isJammed, regionDone,
+  };
 }
 
 // ===================== RENDER =====================

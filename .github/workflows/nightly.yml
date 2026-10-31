@@ -1,0 +1,27 @@
+name: nightly
+on:
+  schedule:
+    - cron: '0 18 * * *' # 02:00 SGT
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  scorecard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm i --no-save --no-package-lock playwright@1.63.0
+      - run: npx playwright install --with-deps chromium
+      - name: Game scorecard
+        run: npm run scorecard -- --json "$RUNNER_TEMP/scorecard.json" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: UI check
+        run: npm run ui-check -- --json "$RUNNER_TEMP/ui-check.json" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Update the rolling issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node tools/scorecard/nightly.cjs "$RUNNER_TEMP/scorecard.json" "$RUNNER_TEMP/ui-check.json"
