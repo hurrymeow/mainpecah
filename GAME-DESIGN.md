@@ -25,7 +25,7 @@ Most items below follow from one idea. Every second this player spends confused,
 ## How to read it
 
 - Each item: rule, what good looks like, why, test.
-- Time is **modeled wall time**: 2 s per swipe, plus 0.7 s per legal option at that state, plus reading at 4 words/s. Targets are bands. Below the band and above it both fail.
+- Time is **modeled wall time**: 0.8 s per swipe, plus 0.4 s per movable fight at that state, plus reading at 4 words/s (recalibrated 2026-10-31; Hari to check it against his own times on 3 stages). Targets are bands. Below the band and above it both fail.
 - Bots (built in Phase 3 by `npm run scorecard`): **builder** (shortest solution), **cheapskate** (never hints), **hint-follower** (always hints), **rookie** (random split, one-move lookahead, rejoins when stuck), **commuter** (4–5 min sittings, random interruptions), **dawdler** (Normal only, waits 80% of each fuse).
 
 ## Session fit (every band)

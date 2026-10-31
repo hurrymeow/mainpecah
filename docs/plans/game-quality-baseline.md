@@ -17,7 +17,7 @@ All picked by Hari on 2026-10-31 ("ok with your reco").
 |---|---|---|
 | Frame | Player plays 4–5 min sittings on a commute. References are recent short-session hits. | Hari: "no one is going to sit down play puzzle for hours". GameAnalytics median session is 4.45 min. |
 | D1 | Create GAME-DESIGN.md at repo root. | It did not exist. One file holds the baseline. |
-| D2 | Time model: 2 s per swipe, plus 0.7 s per legal option, plus reading at 4 words/s. | Hard boards cost more time than easy ones. A flat rate hides that. |
+| D2 | Time model: 0.8 s per swipe, plus 0.4 s per movable fight, plus reading at 4 words/s. (First picked 2 s and 0.7 s; Hari chose to recalibrate on 2026-10-31 because that pace cleared only 3/100 Normal stages. Hari to validate against his own times on 3 stages.) | Hard boards cost more time than easy ones. A flat rate hides that. |
 | D3 | Shift rule arrivals off new board sizes: blocked **14**, cracked **24**, cushions **44**. | One change at a time, so a failure teaches. |
 | D4 | Stages 42–100 get scheduled first-time combos of existing rules. Each combo counts as a twist. | Novelty without new rules to teach. Keeps M16 (≤ 15 stages without something new). |
 | D5 | Author one intro board per rule, like stage 12 for rejoin. | A generated intro may let the player ignore the rule. |
