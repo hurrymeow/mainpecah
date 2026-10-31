@@ -73,7 +73,7 @@ async function howtoPause(browser) {
   await page.click('#help');
   await page.clock.runFor(40000);
   const lostWhile = await page.evaluate(() => S.lost);
-  await page.click('#howtoGo');
+  while (await page.isVisible('#howto')) await page.click('#howtoGo'); // How to play comes in pages
   const after = Math.min(...await P.fuseLeft(page));
   await context.close();
   return { lostWhile, ate: before - after };
