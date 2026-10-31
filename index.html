@@ -820,7 +820,10 @@ function stageBoard(mode, k) {
   for (let j = list.length; j <= k; j++) {
     if (TEACH[j]) { const b = teachBoard(TEACH[j]); seen.add(shapeKey(b.n, b.cells)); list.push(b); continue; }
     const [n, h, normal, , locks] = STAGES[Math.min(j, STAGES.length - 1)];
-    const target = mode === 'casual' ? CASUAL_TILES[Math.min(j, STAGES.length - 1)] : normal;
+    // From stage 61 every second stage is a short one: about a tenth of the board more tiles, so fewer splits.
+    // Long and short stages then alternate, and the long ones stay under 4 minutes (S1).
+    const shorter = j >= 60 && j % 2 === 1 ? Math.round(n * h * 0.1) : 0;
+    const target = (mode === 'casual' ? CASUAL_TILES[Math.min(j, STAGES.length - 1)] : normal) + shorter;
     // Take the first new layout that hits the tile target; failing that, the new one closest to it.
     let best = null;
     for (let attempt = 0; attempt < 20; attempt++) {
