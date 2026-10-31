@@ -1,0 +1,10 @@
+{
+  "name": "kaboom-kitty",
+  "private": true,
+  "description": "Kaboom Kitty PWA. No build step: index.html is the app. Scripts here only run the checks.",
+  "scripts": {
+    "test": "node test/selftest.cjs && node test/e2e.cjs",
+    "scorecard": "node tools/scorecard/index.cjs",
+    "ui-check": "node tools/scorecard/ui-check.cjs"
+  }
+}
