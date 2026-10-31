@@ -1276,7 +1276,7 @@ if (typeof document !== 'undefined') {
   }
 
   function explode(i) {
-    S.lost = true; S.drag = null; stopTimer();
+    S.lost = true; S.drag = null; stopTimer(); clearSaved();
     S.anim = { boom: i };
     boomSound();
     boardEl.classList.remove('shake'); void boardEl.offsetWidth; boardEl.classList.add('shake');
@@ -1295,6 +1295,7 @@ if (typeof document !== 'undefined') {
 
   function restart() {
     stopTimer();
+    clearSaved();
     Object.assign(S, { cells: cloneCells(S.board.cells), t0: 0, elapsed: 0, won: false, lost: false, drag: null, fuse: [] });
     dangerKey = '';
     boardEl.classList.remove('shake');
@@ -1339,11 +1340,80 @@ if (typeof document !== 'undefined') {
   function savedStage(mode) {
     try { const k = +localStorage.getItem(stageKey(mode)); return Number.isInteger(k) && k > 0 ? k : 0; } catch (err) { return 0; }
   }
+  // ---------- board in progress ----------
+  // An interruption costs nothing: the board, its twins and the fuses left are saved after every swipe
+  // and whenever the app is hidden, and come back when the mode is played again.
+  const boardKey = mode => 'split.board.' + mode;
+  function packCells(cells) {
+    const ids = new Map(), tws = [];
+    const twId = tw => {
+      if (!tw) return -1;
+      if (ids.has(tw)) return ids.get(tw);
+      const id = tws.length; ids.set(tw, id); tws.push(null);
+      tws[id] = { from: pack(tw.from), left: tw.left };
+      return id;
+    };
+    const pack = t => (t ? (t.lock ? 'L' : { v: t.v, c: t.c, g: t.g ? 1 : 0, tw: twId(t.tw) }) : null);
+    const out = cells.map(pack);
+    return { cells: out, tws };
+  }
+  function unpackCells(p, floor) {
+    const tws = p.tws.map(t => ({ from: null, left: t.left }));
+    const tile = x => (x == null ? null : x === 'L' ? LOCK : { v: x.v, c: x.c, tw: x.tw >= 0 ? tws[x.tw] : undefined, g: x.g ? true : undefined });
+    p.tws.forEach((t, i) => { tws[i].from = tile(t.from); });
+    return Object.assign(p.cells.map(tile), { floor });
+  }
+  function clearSaved() { try { localStorage.removeItem(boardKey(S.mode)); } catch (err) {} }
+  function saveBoard() {
+    if (S.stage == null || !S.t0 || S.won || S.lost) return;
+    try {
+      const now = Date.now();
+      localStorage.setItem(boardKey(S.mode), JSON.stringify({
+        stage: S.stage, ...packCells(S.cells), elapsed: now - S.t0,
+        fuse: S.fuse.map(d => (d ? d - now : null)),
+      }));
+    } catch (err) {}
+  }
+  function readSaved(mode) {
+    try { return JSON.parse(localStorage.getItem(boardKey(mode))); } catch (err) { return null; }
+  }
+  function restoreSaved(saved) {
+    if (!saved || saved.stage !== S.stage || !Array.isArray(saved.cells) || saved.cells.length !== S.board.cells.length) return false;
+    try {
+      const cells = unpackCells(saved, S.board.cells.floor);
+      const sum = c => c.reduce((a, t) => a + (t && !t.lock ? t.v : 0), 0);
+      if (sum(cells) !== sum(S.board.cells) || cells.some(t => t && !t.lock && !(t.v >= 1))) return false;
+      const now = Date.now();
+      S.cells = cells;
+      S.t0 = now - saved.elapsed;
+      S.fuse = S.fuseMs ? saved.fuse.map(l => (l == null ? null : now + l)) : [];
+      S.timer = setInterval(tick, 100);
+      return true;
+    } catch (err) { return false; }
+  }
+  // Hidden apps wait: the clock and every fuse stop, then carry on where they were.
+  let hiddenAt = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      saveBoard();
+      if (S.timer) { stopTimer(); hiddenAt = Date.now(); }
+    } else if (hiddenAt) {
+      const gap = Date.now() - hiddenAt;
+      hiddenAt = 0;
+      S.t0 += gap;
+      S.fuse = S.fuse.map(d => d && d + gap);
+      S.timer = setInterval(tick, 100);
+    }
+  });
+  addEventListener('pagehide', saveBoard);
+
   function play(mode) {
     S.mode = mode;
     $('start').hidden = true;
     initAudio();
+    const saved = readSaved(mode);
     goStage(savedStage(mode));
+    if (restoreSaved(saved)) { render(); saveBoard(); }
     // First entry into each mode opens How to play once; Challenge adds the fuse step.
     const seen = 'split.howto.' + mode;
     try { if (!localStorage.getItem(seen)) { localStorage.setItem(seen, '1'); showHowto(); } } catch (err) {}
@@ -1386,6 +1456,7 @@ if (typeof document !== 'undefined') {
   }
 
   function showStart() {
+    saveBoard();
     stopTimer();
     $('overlay').hidden = true;
     const progress = k => (k ? 'Continue from stage ' : 'Start from stage ') + (Math.min(k, STAGES.length - 1) + 1);
@@ -1574,6 +1645,7 @@ if (typeof document !== 'undefined') {
       setTimeout(() => { if (S.won) { $('overlay').hidden = false; celebrate(); } }, S.effects ? 1100 : 0);
     }
     render();
+    if (S.won) clearSaved(); else saveBoard();
     // The leaping kitten lands and curls up once the hop finishes.
     if (S.effects && S.skin === 'kittens') setTimeout(() => { if (!S.drag && !S.lost) render(); }, 420);
   }
@@ -1592,6 +1664,7 @@ if (typeof document !== 'undefined') {
     S.anim = { from: -1, to: j, dir, region: null, win: false };
     splitSound(next[j].v);
     render();
+    saveBoard();
   }
 
   // ===================== INPUT =====================
