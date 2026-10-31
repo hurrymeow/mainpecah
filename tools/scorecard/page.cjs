@@ -51,7 +51,7 @@ async function hintSwipe(page) {
 // Start a mode from the start page and close the first-run How to play.
 async function begin(page, mode) {
   await page.click(mode === 'challenge' ? '#playChallenge' : '#playCasual');
-  if (await page.isVisible('#howto')) await page.click('#howtoGo');
+  while (await page.isVisible('#howto')) await page.click('#howtoGo'); // pages of at most 50 words
 }
 
 // Visible words: text the player can actually see right now (in the viewport, not covered, not hidden).

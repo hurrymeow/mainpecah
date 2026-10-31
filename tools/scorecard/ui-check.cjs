@@ -65,8 +65,10 @@ function snapshot() {
   const controls = [];
   for (const el of document.querySelectorAll('button, summary, select, input, [role=button]')) {
     if (el.closest('.devonly,[hidden]')) continue;
-    const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
-    if (!visible(el) || !uncovered(el, r)) continue;
+    // A checkbox or radio inside a label is tapped through the label, so the label is its hit box.
+    const hit = /^(checkbox|radio)$/.test(el.type) && el.closest('label') ? el.closest('label') : el;
+    const r = hit.getBoundingClientRect(), cs = getComputedStyle(el);
+    if (!visible(hit) || !uncovered(hit, r)) continue;
     const label = el.id || el.getAttribute('aria-label') || el.textContent.trim().slice(0, 20);
     controls.push({ id: el.id || '', label, w: r.width, h: r.height, y: r.y + r.height / 2, bg: cs.backgroundColor, tag: el.tagName });
   }
@@ -79,7 +81,9 @@ function snapshot() {
   return {
     words: [...groups.values()], controls, primaries, scrolls, contrast, vh,
     minCell: cells.length ? Math.min(...cells) : null,
-    fuseNums, titleVisible: !!title && visible(title) && uncovered(title, title.getBoundingClientRect()), titlePx: title ? parseFloat(getComputedStyle(title).fontSize) : 0,
+    fuseNums,
+    // The stage picker is a transparent select laid over the title, so the picker label is what sits on top.
+    titleVisible: !!title && visible(title) && uncovered(title.closest('.pick') || title, title.getBoundingClientRect()),  titlePx: title ? parseFloat(getComputedStyle(title).fontSize) : 0,
     chipVisible: !!chip && visible(chip), chipPx: chip ? parseFloat(getComputedStyle(chip).fontSize) : 0,
     board: (r => [r.x, r.y, r.width, r.height].map(Math.round))(document.getElementById('board').getBoundingClientRect()),
     openSheets: ['settings', 'sound'].filter(id => document.getElementById(id).open),
@@ -96,8 +100,10 @@ async function screens(browser, vp) {
   await snap('Start', page);
   await page.click('#playChallenge');
   await page.waitForSelector('#howto:not([hidden])');
-  await snap('How to play', page);
-  await page.click('#howtoGo');
+  for (let k = 1; await page.isVisible('#howto'); k++) { // every page of How to play
+    await snap(`How to play ${k}`, page);
+    await page.click('#howtoGo');
+  }
   await P.hintSwipe(page);
   await page.clock.runFor(500);
   await snap('Game', page);
@@ -126,6 +132,7 @@ async function screens(browser, vp) {
   await P.begin(g.page, 'casual');
   while (await P.hintSwipe(g.page)) { /* solve stage 1 */ }
   await g.page.clock.runFor(2000);
+  await g.page.waitForTimeout(900); // the card pops in on real time
   await snap('Win', g.page);
   await g.context.close();
   // Lose
@@ -134,6 +141,7 @@ async function screens(browser, vp) {
   await P.hintSwipe(g.page);
   await P.runToBoom(g.page);
   await g.page.clock.runFor(1500);
+  await g.page.waitForTimeout(900);
   await snap('Lose', g.page);
   await g.context.close();
   return out;

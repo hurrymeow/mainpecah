@@ -14,13 +14,18 @@ async function intro(browser, g) {
     const { context, page } = await P.newGame(browser);
     const start = (await P.visibleWords(page)).length;
     await page.click(mode === 'challenge' ? '#playChallenge' : '#playCasual');
-    const howto = await page.isVisible('#howto') ? (await P.visibleWords(page)).length : 0;
+    // How to play comes in pages. Reading all of them, one tap each, is what stands before the first swipe.
+    let howto = 0, taps = 1, mostInView = 0;
+    while (await page.isVisible('#howto')) {
+      const n = (await P.visibleWords(page)).length;
+      howto += n; mostInView = Math.max(mostInView, n);
+      await page.click('#howtoGo'); taps++;
+    }
     await context.close();
     const board = g.stageBoard(mode, 0);
     const first = L.stepCost(L.legalSteps(g, board.cells, board.n));
     const readS = (start + howto) / L.WORDS_PER_S;
-    const taps = (howto ? 2 : 1) * L.TAP_S;
-    out[mode] = { start, howto, introS: readS + taps, toSwipeS: readS + taps + first };
+    out[mode] = { start, howto: mostInView, introS: readS + taps * L.TAP_S, toSwipeS: readS + taps * L.TAP_S + first };
   }
   return out;
 }

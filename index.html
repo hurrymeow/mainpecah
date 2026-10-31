@@ -52,9 +52,9 @@ body { position: fixed; inset: 0; }
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
 /* Header: stage and mode on the left, the settings gear pinned top right; stats in one quiet row. */
-header { display: grid; gap: var(--s3); padding-right: 48px; }
+header { display: grid; gap: var(--s3); padding-right: 56px; }
 /* Stage picker: the title is the label; a transparent native select over it opens the list. */
-.pick { position: relative; justify-self: start; display: flex; align-items: center; gap: var(--s2); }
+.pick { position: relative; justify-self: start; display: flex; align-items: center; gap: var(--s2); min-height: 44px; }
 .pick::after { content: "▾"; font-size: var(--fs-md); color: var(--muted); }
 .pick select { position: absolute; inset: 0; opacity: 0; font-size: 16px; cursor: pointer; }
 h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
@@ -283,7 +283,7 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 .fight:has(.fuse-slot) .blob.kit { top: calc((var(--cell) * .88 - var(--w)) / 2); } /* centred in the space above the fuse */
 .fuse-sec {
   position: absolute; left: 50%; bottom: calc(5% + var(--fuse-h) + 2px); transform: translateX(-50%);
-  font: 700 11px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--text);
+  font: 700 12px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--text);
   text-shadow: 0 1px 2px rgba(0,0,0,.8); pointer-events: none;
 }
 .live .fuse { animation: burn var(--ft) linear var(--fd) forwards; }
@@ -335,7 +335,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Dev settings: collapsed under the actions. */
 /* Difficulty chip: shows Casual or Normal (internally 'challenge'); tapping it goes back to pick the other. */
 #menu {
-  display: flex; align-items: center; gap: var(--s1); min-height: 32px; padding: 0 var(--s3);
+  display: flex; align-items: center; gap: var(--s1); min-height: 44px; padding: 0 var(--s3);
   font: inherit; font-size: var(--fs-sm); font-weight: 650; color: var(--text);
   background: var(--panel); border: 1px solid var(--line); border-radius: 99px;
 }
@@ -345,7 +345,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #menu:active { background: var(--line); }
 /* How to play: a quiet text link under the main buttons. */
 #help {
-  align-self: center; border: 0; background: none; padding: var(--s1) var(--s3); min-height: 32px;
+  align-self: center; border: 0; background: none; padding: var(--s1) var(--s3); min-height: 44px;
   font: inherit; font-size: var(--fs-sm); color: var(--muted); text-decoration: underline; text-underline-offset: 3px;
 }
 #help:active { color: var(--text); }
@@ -354,7 +354,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #settings { font-size: var(--fs-sm); color: var(--muted); margin-top: calc(var(--s3) * -1); }
 #settings summary {
   position: absolute; top: var(--gear-top, 12px); right: max(16px, env(safe-area-inset-right, 0px)); /* layout() aligns it with the header */
-  width: 40px; height: 40px; display: grid; place-items: center; z-index: 21;
+  width: 44px; height: 44px; display: grid; place-items: center; z-index: 21;
   border: 1px solid var(--line); border-radius: 50%; background: var(--panel); color: var(--text);
   cursor: pointer; list-style: none;
 }
@@ -364,8 +364,8 @@ body:has(#start:not([hidden])) #settings summary, body:has(#start:not([hidden]))
 /* Volume: its own button just left of the settings button, same look; opens a small sheet. */
 #sound { font-size: var(--fs-sm); color: var(--muted); }
 #sound summary {
-  position: absolute; top: var(--gear-top, 12px); right: calc(max(16px, env(safe-area-inset-right, 0px)) + 48px);
-  width: 40px; height: 40px; display: grid; place-items: center; z-index: 21;
+  position: absolute; top: var(--gear-top, 12px); right: calc(max(16px, env(safe-area-inset-right, 0px)) + 52px);
+  width: 44px; height: 44px; display: grid; place-items: center; z-index: 21;
   border: 1px solid var(--line); border-radius: 50%; background: var(--panel); color: var(--text);
   cursor: pointer; list-style: none;
 }
@@ -450,6 +450,8 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
 .steps li { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); }
 .steps p { margin: 0; font-size: var(--fs-sm); color: var(--muted); line-height: 1.4; }
 .steps p b { color: var(--text); }
+.steps li.offpage { display: none; }
+#howtoPager { color: var(--muted); font-size: var(--fs-sm); }
 .steps p b.warn { color: var(--warn); }
 .pics { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .pics i { font-style: normal; font-size: 28px; line-height: 1; color: var(--muted); padding: 0 var(--s1); }
@@ -494,6 +496,11 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
   70% { opacity: 1; }
   100% { transform: translate(calc(-50% + var(--fx)), calc(-50% + var(--fy))) rotate(var(--fr)) scale(1); opacity: 0; }
 }
+/* Narrow phones: tighter gutters keep a 7-column board at 44 px cells. */
+@media (max-width: 380px) { #app { padding-left: 8px; padding-right: 8px; } :root { --gap: 4px; } }
+/* Short phones: drop the one-liner and tighten the gaps so a 7x8 board keeps 44 px cells. */
+@media (max-height: 700px) { #quip { display: none; } #app { gap: 4px; padding-block: 4px; } header { gap: 4px; } }
+body:not(.dev) .debug .app button { min-height: 44px; }
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .card.won, .card.won h2, #winKit { animation: none !important; } #burst { display: none; } }
 @media (prefers-reduced-motion: reduce) { .tile, .tile.slide, .tile.pop, .tile.flash, .blob, .eye, .z, .zap, .puff { transition: none; animation: none !important; } }
@@ -574,19 +581,22 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
       <li><div class="pics"><span class="cot" data-kit="fight4"></span><span class="cot"><span class="bed"></span></span><i>›</i><span class="cot" data-kit="fight2"></span><span class="cot" data-kit="fight2"></span></div>
         <p><b>Big fights</b> split again and again: 4 makes two 2s, and each 2 makes two 1s.</p></li>
       <li><div class="pics"><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span></div>
-        <p><b>Win</b> when every kitten sleeps alone in its own cell. Stuck? Swipe a kitten back onto its twin to rejoin them, or restart.</p></li>
+        <p><b>Win</b> when every kitten sleeps alone in its own cell.</p></li>
+      <li><div class="pics"><span class="cot" data-kit="fight2"></span><span class="cot" data-kit="fight2"></span><i>›</i><span class="cot" data-kit="fight4"></span></div>
+        <p><b>Stuck?</b> Swipe a kitten back onto its twin to rejoin them, or restart.</p></li>
       <li data-from="13"><div class="pics"><span class="cot" data-kit="fight2"></span><i>✕</i><span class="cot"><span class="box"></span></span></div>
-        <p><b>Blocked cells</b> are off limits. No kitten can split into one or sleep there, so you never need to fill it.</p></li>
+        <p><b>Blocked cells</b> are off limits. No kitten can split into one or sleep there.</p></li>
       <li data-from="23"><div class="pics"><span class="cot crack" data-kit="sleep"></span><i>›</i><span class="cot"><span class="box"></span></span></div>
         <p><b>Cracked cells</b> hold a kitten fine, but break for good once it leaves, by rejoining its twin or sliding across.</p></li>
       <li data-from="25"><div class="pics"><span class="cot grumpy" data-kit="sleep"></span><span class="cot grumpy" data-kit="sleep"></span><i>✕</i></div>
         <p><b>Grumpy kittens</b> from different fights can't sleep side by side.</p></li>
       <li data-from="43"><div class="pics wide"><span class="cot" data-kit="fight2"></span><span class="cot cushion"></span><span class="cot cushion"></span><i>›</i><span class="cot" data-kit="sleep"></span><span class="cot cushion"></span><span class="cot" data-kit="sleep"></span></div>
-        <p><b>Cushions</b> are slippery. A kitten split onto one slides on until it hits a wall, a blocked cell or another kitten.</p></li>
+        <p><b>Cushions</b> are slippery. A split kitten slides on until a wall, a blocked cell or another kitten stops it.</p></li>
       <li id="howtoFuse"><div class="pics"><span class="cot fused" data-kit="fight2"><b></b></span><i>›</i><span class="cot" data-kit="boom"></span></div>
         <p><b class="warn">Normal:</b> every fight has a fuse. Split it before the fuse burns down, or it blows up.</p></li>
     </ol>
-    <button class="btn" id="howtoGo">Got it</button>
+    <div id="howtoPager" aria-hidden="true"></div>
+    <button class="btn" id="howtoGo">Next</button>
   </div>
 </div>
 
@@ -1450,7 +1460,28 @@ if (typeof document !== 'undefined') {
     for (const li of document.querySelectorAll('#howto li[data-from]')) li.hidden = reached < +li.dataset.from;
     if (S.timer) { stopTimer(); howtoPausedAt = Date.now(); } // the clock and fuses wait while you read
     $('howto').hidden = false;
+    // Pages of at most 50 words in view, counting the title, the pager and the button (6 words).
+    const words = el => (el.innerText.match(/\S+/g) || []).filter(t => /[A-Za-z0-9]/.test(t)).length;
+    howtoPages = [[]];
+    let used = 0;
+    for (const li of document.querySelectorAll('#howto li:not([hidden])')) {
+      const n = words(li);
+      if (used + n > 44 && howtoPages[howtoPages.length - 1].length) { howtoPages.push([]); used = 0; }
+      howtoPages[howtoPages.length - 1].push(li); used += n;
+    }
+    showHowtoPage(0);
     $('howtoGo').focus();
+  }
+  let howtoPages = [], howtoAt = 0;
+  function showHowtoPage(i) {
+    howtoAt = i;
+    howtoPages.forEach((rows, k) => rows.forEach(li => li.classList.toggle('offpage', k !== i)));
+    const last = i === howtoPages.length - 1;
+    $('howtoGo').textContent = last ? 'Got it' : 'Next';
+    $('howtoPager').textContent = howtoPages.length > 1 ? `${i + 1}/${howtoPages.length}` : '';
+  }
+  function howtoNext() {
+    if (howtoAt < howtoPages.length - 1) showHowtoPage(howtoAt + 1); else hideHowto();
   }
   // Installed apps hide the address bar, so this is the only way to find the link.
   async function shareApp() {
@@ -1729,7 +1760,7 @@ if (typeof document !== 'undefined') {
   $('stagePick').addEventListener('change', e => goStage(+e.target.value));
   $('help').addEventListener('click', showHowto);
   $('shareBtn').addEventListener('click', shareApp);
-  $('howtoGo').addEventListener('click', hideHowto);
+  $('howtoGo').addEventListener('click', howtoNext);
   // The settings sheet closes on a tap outside it (dev mode keeps it inline and open).
   document.addEventListener('pointerdown', e => {
     const sound = $('sound'), set = $('settings');
