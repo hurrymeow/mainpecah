@@ -36,7 +36,7 @@ Most items below follow from one idea. Every second this player spends confused,
 - Quote: "The longer the level is, the less likely it is to be fun," (Xavier Guardiola, King, GDC 2024).
 - Why: a finished stage is the unit of reward. If the stop arrives mid-stage, the sitting ends with nothing banked. Two short wins beat one long win in a 5 min window.
 - Why the band: 0.5 min is the floor because shorter stages feel like busywork. 3 min leaves room for one retry inside a sitting.
-- Test: builder's modeled time is **0.5–3 min** for every stage up to 60. After 60, long stages (up to **4 min**) alternate with short ones: no two stages over 3 min in a row. Today Casual 61–100 all need 25–33 splits.
+- Test: builder's modeled time is **0.5–3 min** for every stage up to 60. After 60, long stages (up to **4 min**) alternate with short ones: no two stages over 3 min in a row. Since PR 8, every second stage from 61 has about a tenth of the board more tiles.
 
 **S2. Hard stages are short.**
 
