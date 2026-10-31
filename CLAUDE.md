@@ -1,5 +1,7 @@
 # Split (mainpecah)
 
+See [AGENTS.md](AGENTS.md) for the design baseline, UI checklist and testing rules.
+
 ## Shipping
 - Commit and push straight to `main` for every change, app code included. No branch, no PR.
 - Don't ask before pushing, visual changes included. Push, then show the screenshot with the result.

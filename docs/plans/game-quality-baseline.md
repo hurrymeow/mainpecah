@@ -37,7 +37,11 @@ All picked by Hari on 2026-10-31 ("ok with your reco").
 - T1. Research notes. Files: `research/reference-games.md`. Done: on main.
 - T2. Mechanics checklist. Files: `GAME-DESIGN.md`. Done: on main, decisions applied.
 
-### Phase 2: UI and testing checklists (planning thread, docs only)
+### Phase 2: UI and testing checklists (done)
+
+Hari took all recommended picks (P1–P7) on 2026-10-31.
+P1: files at repo root, CLAUDE.md points to AGENTS.md. P2: density rule covers How to play. P3: the board is the Game screen's primary target.
+P4: one rolling issue, updated only on a state change. P5: nightly at 02:00 SGT. P6: settings and volume exempt from thumb reach (S5, U6). P7: ui-check ships in the T5 PR.
 
 - T3. UI review checklist with quoted "what good looks like". Includes the density rule: max ~50 words in view, 20 per block, 1 primary button, 2 levels deep. Files: `UI.md`. Done: Hari approves draft, pushed to main.
 - T4. What agents test, and when. Nightly CI is fine. No recurring agent loops. Files: `TESTING.md`, `AGENTS.md` (new, links TESTING.md). Done: Hari approves, pushed to main.
@@ -51,6 +55,7 @@ All picked by Hari on 2026-10-31 ("ok with your reco").
   - Time comes only from the D2 model, never from the real clock.
   - Output: one row per checklist item (S1–S5, M1–M21 without M11). Columns: id, result (Pass / Fail / Unknown), measured value, target band.
   - Unknown is allowed where a measure is too costly, for example an exhaustive solve on 7x8. Say why in the row.
+  - Also in this PR (P7): `npm run ui-check` with one row per UI.md item (U1–U14), and `.github/workflows/nightly.yml`. The workflow runs both at 18:00 UTC and updates one rolling "Nightly scorecard" issue only when a row changes state.
   - Done: two runs with the same seed print identical output. Run takes **≤ 5 min** locally. `node test/selftest.cjs` and `node test/e2e.cjs` still pass. PR opened, not pushed to main.
   - Don't touch: game rules, stage table, copy, styles. Don't change any test threshold to make a row pass.
 
@@ -64,7 +69,7 @@ Fix causes, never loosen tests. Each PR flips its rows to Pass and keeps the res
 | T7 | M8 | Authored intro boards per rule (D5), using the `TEACH` pattern. | Sonnet |
 | T8 | S3, M12 | Save board in progress, pause fuses while hidden (D12). | Sonnet |
 | T9 | M17 | Two-step hint (D6). Screenshot before shipping. | Sonnet |
-| T10 | M2 | In-board cues on stages 1–3 (D7). Screenshot before shipping. | Sonnet |
+| T10 | M2, U1 | In-board cues on stages 1–3 (D7). How to play in pages of ≤ 50 words (P2). Screenshot before shipping. | Sonnet |
 | T11 | S1, S2 | Alternate long and short stages after 60 (D11). | Sonnet |
 | T12 | M16 | Combo schedule for 42–100 (D4). Needs the open question below answered first. | Planning first |
 | T13 | M19 | Daily board (D8). Needs the open question below answered first. | Planning first |

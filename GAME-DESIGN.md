@@ -63,7 +63,7 @@ Most items below follow from one idea. Every second this player spends confused,
 
 - Looks like: Block Blast, Royal Match and Wordle play in portrait with every control in thumb reach (observed).
 - Why: the commuter holds a rail with the other hand. A missed tap on a small cell is a wasted move they didn't choose.
-- Test: every control is in the bottom two thirds in portrait. Smallest cell on a 390 px phone is **≥ 44 px** (Apple's minimum touch target).
+- Test: every control used each stage (Restart, Hint, Next stage, Try again) is in the bottom two thirds in portrait. Settings and volume are exempt. Smallest cell on a 390 px phone is **≥ 44 px** (Apple's minimum touch target).
 
 ## Band 1: First sitting (first 5 min)
 
