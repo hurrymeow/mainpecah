@@ -87,7 +87,7 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
   background: var(--panel); border-radius: 14px; touch-action: none;
 }
 .cell { position: relative; border-radius: 10px; background: var(--well); }
-.cell.hint-dst { box-shadow: inset 0 0 0 3px var(--accent); }
+.cell.hint-dst, .cell.hint-from { box-shadow: inset 0 0 0 3px var(--accent); }
 .tile {
   position: absolute; inset: 0; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
@@ -675,6 +675,7 @@ const S = {
   fuseMs: 0,        // fight timer length; 0 = off. Challenge sets it, Casual clears it.
   fuse: [],         // per cell: absolute deadline (ms) for a fight, else null
   showSol: false,
+  hintMoreFor: '',  // board key the hint's direction is shown for
   effects: true,    // split motion, region pulse
   sfxVol: 1,        // 0..1, 0 = effects muted
   musicVol: 0.5,    // 0..1, 0 = music off
@@ -1155,7 +1156,9 @@ if (typeof document !== 'undefined') {
     const floor = cells.floor || [];
     const twin = drag ? twinOf(cells, drag.i) : -1;
     const hint = S.showSol && !S.won ? nextHint() : null;
-    const hintDst = hint ? neighbour(n, hint.from, hint.dir, S.h) : -1;
+    // A hint comes in two taps: the first lights the fight to move, a tap on it then shows the direction.
+    const more = !!hint && S.hintMoreFor === keyOf(cells);
+    const hintDst = more ? neighbour(n, hint.from, hint.dir, S.h) : -1;
     const anim = S.effects || (S.anim && S.anim.boom != null) ? S.anim : null; // the explosion always shows
     const now = performance.now() / 1000;
     const phase = (offset, period) => -((now + offset) % period).toFixed(2) + 's';
@@ -1207,10 +1210,10 @@ if (typeof document !== 'undefined') {
         cls += ' kitten';
         if (t && t.v > 1) { cls += ' fight'; style += `;--sh:${(0.5 - Math.log2(t.v) * 0.07).toFixed(2)}s`; }
       }
-      if (hint && i === hint.from) extra = `<span class="arrow">${ARROWS[hint.dir]}</span>`;
+      if (more && i === hint.from) extra = `<span class="arrow">${ARROWS[hint.dir]}</span>`;
       const tile = t ? `<div class="tile${cls}" style="${tileVars(t.c, t.v)}${style}">${tileInner(t, i, cls.includes(' pop'), anim && t && i === anim.to && t.v === 1 ? anim.dir : null)}${fuseBar}${extra}</div>`
         : S.skin === 'kittens' ? '<span class="bed"></span>' : '<span class="dot">1</span>';
-      html += `<div class="cell${floor[i] ? ' ' + floor[i] : ''}${i === hintDst ? ' hint-dst' : ''}" data-i="${i}">${tile}</div>`;
+      html += `<div class="cell${floor[i] ? ' ' + floor[i] : ''}${i === hintDst ? ' hint-dst' : hint && !more && i === hint.from ? ' hint-from' : ''}" data-i="${i}">${tile}</div>`;
     }
     boardEl.innerHTML = html;
 
@@ -1219,7 +1222,7 @@ if (typeof document !== 'undefined') {
     if (stuck) { status.textContent = 'Stuck. Restart to try again.'; status.className = 'bad'; }
     else if (clash.size) { status.textContent = 'Grumpy kittens can\'t sleep side by side. Rejoin to make room.'; status.className = 'bad'; }
     else if (jammed) { status.textContent = 'No room. Swipe a kitten back onto its twin.'; status.className = 'bad'; }
-    else if (hint) { status.textContent = `Hint: ${hint.join ? 'rejoin' : 'split'} the ${cells[hint.from].v} ${hint.dir}`; status.className = 'hint'; }
+    else if (hint) { status.textContent = more ? `Hint: ${hint.join ? 'rejoin' : 'split'} the ${cells[hint.from].v} ${hint.dir}` : 'Hint: tap the lit fight for more.'; status.className = 'hint'; }
     else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Rejoin twins to get hints back.'; status.className = 'hint'; }
     else status.textContent = { kittens: 'Give every kitten its own cell to sleep!', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
 
@@ -1707,7 +1710,11 @@ if (typeof document !== 'undefined') {
     S.drag = null;
     if (commit && d.dest >= 0) move(d.i, d.dir);
     else if (commit && d.join >= 0) merge(d.i, d.join, d.dir);
-    else render();
+    else {
+      const h = commit && S.showSol && d.dir == null && !S.won && !S.lost ? nextHint() : null;
+      if (h && h.from === d.i) S.hintMoreFor = keyOf(S.cells); // second step of the hint
+      render();
+    }
   }
   boardEl.addEventListener('pointerup', e => endDrag(e, true));
   boardEl.addEventListener('pointercancel', e => endDrag(e, false));
