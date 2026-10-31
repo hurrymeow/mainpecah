@@ -686,6 +686,45 @@ test('Player text', async () => {
   return 'no bed / Challenge / Kaboom Kittens / "of N" / Undo in visible or scripted copy; tutorial shows empty-cell ovals';
 });
 
+test('Interruptions', async () => {
+  // Normal stage 1: one swipe, then kill the app (reload) and come back; then hide it for a while.
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(URL.replace('?dev', ''));
+  await ready(page);
+  await page.click('#playChallenge');
+  await skipHowto(page);
+  await hintSwipe(page);
+  await hintSwipe(page);
+  const before = await key(page);
+  await page.reload();
+  await ready(page);
+  await page.click('#playChallenge');
+  check((await key(page)) === before, 'board was not restored after the app was killed');
+  const left0 = Math.min(...(await fuseLeft(page)).filter(x => x != null));
+  check(left0 > 0 && left0 < 30000, `fuse after restore ${left0}`);
+  // Hidden for 1.5 s: no fuse burns.
+  const burned = await page.evaluate(async () => {
+    const min = () => Math.min(...S.fuse.filter(Boolean).map(d => d - Date.now()));
+    const a = min();
+    const set = h => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => h }); document.dispatchEvent(new Event('visibilitychange')); };
+    set(true);
+    await new Promise(r => setTimeout(r, 1500));
+    set(false);
+    return a - min();
+  });
+  check(burned < 400, `fuse burned ${burned} ms while hidden`);
+  // A won stage leaves nothing to restore.
+  while (await hintSwipe(page));
+  await page.waitForSelector('#overlay:not([hidden])', { timeout: 3000 });
+  check(await page.evaluate(() => localStorage.getItem('split.board.challenge') === null), 'a won stage still has a saved board');
+  check(!errors.length, errors.join(' | '));
+  await context.close();
+  return 'board and fuses survive a kill; hidden apps burn no fuse; a win clears the save';
+});
+
 test('Install offer', async () => {
   const { context, page, errors } = await open({}, false);
   check(!(await page.isVisible('#startInstall')) && !(await page.isVisible('#installRow')), 'install shown before the browser offered it');
