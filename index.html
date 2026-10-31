@@ -539,7 +539,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
       <h2 class="sheet-title">Settings</h2>
       <label class="devonly">Skin <select id="skin"><option value="kittens">Kittens</option><option value="slimes">Slimes</option><option value="numbers">Numbers</option></select></label>
       <label class="check"><input type="checkbox" id="effects" checked> Animations</label>
-      <label class="devonly">Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="10">10s</option><option value="12" selected>12s</option><option value="15">15s</option><option value="20">20s</option><option value="25">25s</option><option value="30">30s</option><option value="35">35s</option><option value="40">40s</option></select></label>
+      <label class="devonly">Fuse <select id="fuse"><option value="0">Off</option><option value="8">8s</option><option value="10">10s</option><option value="12" selected>12s</option><option value="15">15s</option><option value="20">20s</option><option value="25">25s</option><option value="30">30s</option><option value="35">35s</option><option value="40">40s</option><option value="45">45s</option><option value="50">50s</option><option value="55">55s</option><option value="60">60s</option></select></label>
       <label class="check"><input type="checkbox" id="showSol"> Hints</label>
       <div class="seg devonly" id="sizes">
         <button data-n="4">4×4</button><button data-n="5">5×5</button><button data-n="6">6×6</button>
@@ -633,7 +633,12 @@ function ramp(w, h, count, [t0, t1], [f0, f1] = [0, 0], [l0, l1] = [0, 0]) {
     return [w, h, Math.round(at(t0, t1)), FUSES.reduce((x, y) => (Math.abs(y - f) < Math.abs(x - f) ? y : x)), Math.round(at(l0, l1))];
   });
 }
-const STAGES = [
+// Normal fuse per stage, in seconds. A board with many fights lights them all on the first swipe, so the fuse has to
+// leave time to reach each one. Each value is the shortest fuse a bot at the modeled pace clears the stage with,
+// plus 25 percent, rounded up to 5 s, never below the ladder ramp and never above 60 s.
+// Made by tools/scorecard/fuse-table.cjs. Rerun it after any change to the stage boards.
+const FUSE_SECONDS = [30, 30, 30, 25, 25, 25, 20, 20, 30, 25, 35, 35, 30, 30, 20, 30, 25, 30, 30, 35, 40, 40, 35, 30, 45, 35, 30, 45, 45, 30, 45, 50, 60, 55, 55, 55, 55, 40, 50, 60, 60, 60, 55, 60, 60, 60, 60, 60, 55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60];
+const LADDER = [ // the ramps, with the old fuse column
   [4, 4, 10, 30, 0], [4, 4, 9, 30, 0], [4, 4, 8, 30, 0], ...ramp(4, 4, 7, [7, 5], [25, 15]),
   ...ramp(4, 5, 10, [9, 6], [20, 15], [1, 2]).map((st, i) => (i < 3 ? [...st.slice(0, 4), 0] : st)), // blocked cells arrive at stage 14, on a board size the player already knows
   ...ramp(5, 5, 10, [11, 7], [20, 15], [2, 3]),
@@ -643,6 +648,7 @@ const STAGES = [
   ...ramp(7, 7, 10, [19, 14], [25, 20], [5, 7]),
   ...ramp(7, 8, 30, [22, 15], [25, 20], [6, 9]),
 ];
+const STAGES = LADDER.map((st, i) => [st[0], st[1], st[2], FUSE_SECONDS[i], st[4]]);
 // Casual has no fuse, so it gets fewer starting tiles per stage, on the same boards.
 const CASUAL_TILES = [
   10, 8, 7, ...ramp(4, 4, 7, [6, 4]),
@@ -1003,7 +1009,7 @@ if (typeof module !== 'undefined') {
   module.exports = {
     generate, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE,
     // Read by tools/scorecard (npm run scorecard); exported only, no behaviour change.
-    STAGES, CASUAL_TILES, TEACH, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
+    STAGES, LADDER, CASUAL_TILES, TEACH, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
     mergeTarget, applyJoin, applyStep, canMerge, isJammed, regionDone,
   };
 }

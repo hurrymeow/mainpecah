@@ -127,14 +127,20 @@ function urgentBuilder(g, board) {
 }
 
 // Rookie: random split with a one-move lookahead (avoids moves that leave the board stuck),
-// rejoins when no split is left.
+// rejoins when no split is left. Under fuses it takes the fight with the least time left.
 function rookie(g, rand) {
-  return ({ cells, options, n }) => {
+  return ({ cells, options, n, fuse }) => {
     const splits = options.filter(s => !s.join), joins = options.filter(s => s.join);
     const pick = a => a[Math.floor(rand() * a.length)];
     if (splits.length) {
       const safe = splits.filter(s => !g.isStuck(g.applySplit(cells, n, s.from, s.dir), n));
-      return pick(safe.length ? safe : splits);
+      let pool = safe.length ? safe : splits;
+      // Under fuses a rookie still sees the bars: it goes for the fight with the least time left.
+      if (fuse && fuse.some(d => d != null)) {
+        const soonest = Math.min(...pool.map(s => (fuse[s.from] == null ? Infinity : fuse[s.from])));
+        pool = pool.filter(s => (fuse[s.from] == null ? Infinity : fuse[s.from]) === soonest);
+      }
+      return pick(pool);
     }
     return joins.length ? pick(joins) : null;
   };
