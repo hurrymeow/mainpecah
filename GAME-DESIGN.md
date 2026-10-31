@@ -110,13 +110,13 @@ Most items below follow from one idea. Every second this player spends confused,
 - Quote: "First, you have to learn how to use that gameplay mechanic" (Koichi Hayashida, Nintendo).
 - Why: by sitting three the core move is automatic. Without something new, stage 15 feels like stage 5 and the player concludes they have seen the game.
 - Why the band: before 8 min the core move isn't settled, so a new rule muddies it. After 15 min, the "seen it all" verdict may already be in.
-- Test: first new rule appears at **8–15 min**. Today blocked cells arrive at stage 11, about 8–10 min.
+- Test: first new rule appears at **8–15 min**. Blocked cells arrive at stage 14.
 
 **M7. One new thing at a time.**
 
 - Looks like: Candy Crush gives a new blocker its own tutorial levels (case study above). Braid "changes one major rule in every single world" (blogger Adam Bishop).
 - Why: when two things change at once and the player fails, they can't tell which one beat them. They blame the game. One change at a time makes every failure teach.
-- Test: a rule's first stage keeps the previous board size. Target arrivals: blocked **14**, cracked **24**, cushions **44**. Today they land on new sizes at 11, 21, 41.
+- Test: a rule's first stage keeps the previous board size. Target arrivals: blocked **14**, cracked **24**, cushions **44**. Arrivals are now 14, 24 and 44, each on a board size already met. Rejoining moved from stage 12 to 15, after blocked cells.
 
 **M8. The new rule matters on its first stage.**
 
