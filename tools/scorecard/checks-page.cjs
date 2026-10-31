@@ -116,14 +116,20 @@ async function stuckMessages(browser) {
   return { stuck, jam };
 }
 
-async function hintFirstTap(browser) {
+async function hintSteps(browser) {
   const { context, page } = await P.newGame(browser);
   await P.begin(page, 'casual');
   await page.click('#settings summary');
   await page.click('#showSol');
-  const r = await page.evaluate(() => ({ arrows: document.querySelectorAll('.arrow').length, text: document.getElementById('status').textContent }));
+  await page.click('#settings summary'); // close the sheet
+  const read = () => page.evaluate(() => ({ arrows: document.querySelectorAll('.arrow').length, lit: document.querySelectorAll('.cell.hint-from').length, text: document.getElementById('status').textContent }));
+  const first = await read();
+  const from = await page.evaluate(() => nextHint().from);
+  const at = await P.cellCenter(page, from);
+  await page.mouse.move(at.x, at.y); await page.mouse.down(); await page.mouse.up();
+  const second = await read();
   await context.close();
-  return r;
+  return { first, second };
 }
 
 async function run(browser, g, model, I) {
@@ -160,12 +166,13 @@ async function run(browser, g, model, I) {
     `stuck: "${M.stuck.text}"; jammed: "${M.jam.text}"; dead boards with moves left: ${d.dead}/${d.checked} sampled (${d.unknown} too big to settle)`,
     'message within 1 move of no win being reachable', 'Sampled by bounded search on stages 1-4 only.'));
 
-  const Hn = await hintFirstTap(browser);
-  const direct = Hn.arrows > 0 || /(up|down|left|right)\b/.test(Hn.text);
-  rows.push(row('M17', "Hints help, they don't play", direct ? false : null,
-    `first tap: "${Hn.text}"${Hn.arrows ? ' + arrow' : ''}; hint-follower clears ${model.hintFollowerWins}/200 stages`,
+  const Hn = await hintSteps(browser);
+  const direct = Hn.first.arrows > 0 || /\b(up|down|left|right)\b/.test(Hn.first.text);
+  const second = Hn.second.arrows > 0;
+  rows.push(row('M17', "Hints help, they don't play", direct || !second ? false : null,
+    `first step: ${direct ? 'shows the direction' : Hn.first.lit ? 'lights the fight only' : 'nothing lit'}; second step (tap the fight): ${second ? 'shows the direction' : 'no direction'}; hint-follower clears ${model.hintFollowerWins}/200 stages`,
     'first tap highlights the fight only; second tap shows the direction; cheapskate and hint-follower finish',
-    direct ? 'The first tap shows the exact move.' : 'Second tap and cheapskate are not measured yet.'));
+    direct || !second ? 'The two steps are not both in place.' : 'Cheapskate is not measured: it needs a calibrated human-like solver.'));
 
   const html = fs.readFileSync(path.join(L.ROOT, 'index.html'), 'utf8');
   const hasDaily = /daily/i.test(html.replace(/<style[\s\S]*?<\/style>/g, ''));
