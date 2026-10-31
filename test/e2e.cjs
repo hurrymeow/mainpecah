@@ -533,6 +533,17 @@ test('Show solution', async () => {
   const { context, page, errors } = await open();
   await page.selectOption('#fuse', '0');
   await page.click('#showSol');
+  // Step one: the fight to move is lit, with no direction.
+  const one = await page.evaluate(() => {
+    const h = nextHint();
+    return { h, arrows: document.querySelectorAll('.arrow').length, dst: document.querySelectorAll('.cell.hint-dst').length,
+      from: [...document.querySelectorAll('.cell.hint-from')].map(c => +c.dataset.i), status: document.getElementById('status').textContent };
+  });
+  check(!one.arrows && !one.dst && one.from.length === 1 && one.from[0] === one.h.from, `first step shows only the fight: ${JSON.stringify(one)}`);
+  check(/^Hint:/.test(one.status) && !/\b(up|down|left|right)\b/.test(one.status), `first step status "${one.status}"`);
+  // Step two: tapping the lit fight shows the direction.
+  const { x, y } = await center(page, one.h.from);
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.up();
   const h = await page.evaluate(() => {
     const h = nextHint(), dst = neighbour(S.n, h.from, h.dir);
     const arrow = document.querySelector(`.cell[data-i="${h.from}"] .arrow`);
