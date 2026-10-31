@@ -575,13 +575,13 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
         <p><b>Big fights</b> split again and again: 4 makes two 2s, and each 2 makes two 1s.</p></li>
       <li><div class="pics"><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span><span class="cot" data-kit="sleep"></span></div>
         <p><b>Win</b> when every kitten sleeps alone in its own cell. Stuck? Swipe a kitten back onto its twin to rejoin them, or restart.</p></li>
-      <li data-from="10"><div class="pics"><span class="cot" data-kit="fight2"></span><i>✕</i><span class="cot"><span class="box"></span></span></div>
+      <li data-from="13"><div class="pics"><span class="cot" data-kit="fight2"></span><i>✕</i><span class="cot"><span class="box"></span></span></div>
         <p><b>Blocked cells</b> are off limits. No kitten can split into one or sleep there, so you never need to fill it.</p></li>
-      <li data-from="20"><div class="pics"><span class="cot crack" data-kit="sleep"></span><i>›</i><span class="cot"><span class="box"></span></span></div>
+      <li data-from="23"><div class="pics"><span class="cot crack" data-kit="sleep"></span><i>›</i><span class="cot"><span class="box"></span></span></div>
         <p><b>Cracked cells</b> hold a kitten fine, but break for good once it leaves, by rejoining its twin or sliding across.</p></li>
       <li data-from="25"><div class="pics"><span class="cot grumpy" data-kit="sleep"></span><span class="cot grumpy" data-kit="sleep"></span><i>✕</i></div>
         <p><b>Grumpy kittens</b> from different fights can't sleep side by side.</p></li>
-      <li data-from="40"><div class="pics wide"><span class="cot" data-kit="fight2"></span><span class="cot cushion"></span><span class="cot cushion"></span><i>›</i><span class="cot" data-kit="sleep"></span><span class="cot cushion"></span><span class="cot" data-kit="sleep"></span></div>
+      <li data-from="43"><div class="pics wide"><span class="cot" data-kit="fight2"></span><span class="cot cushion"></span><span class="cot cushion"></span><i>›</i><span class="cot" data-kit="sleep"></span><span class="cot cushion"></span><span class="cot" data-kit="sleep"></span></div>
         <p><b>Cushions</b> are slippery. A kitten split onto one slides on until it hits a wall, a blocked cell or another kitten.</p></li>
       <li id="howtoFuse"><div class="pics"><span class="cot fused" data-kit="fight2"><b></b></span><i>›</i><span class="cot" data-kit="boom"></span></div>
         <p><b class="warn">Normal:</b> every fight has a fuse. Split it before the fuse burns down, or it blows up.</p></li>
@@ -621,7 +621,8 @@ const SIZES = { 4: { min: 2, max: 10, def: 5 }, 5: { min: 3, max: 15, def: 8 }, 
 // easier than the last one ended and ramps up. Stages 1-3 are easy in both modes.
 // A band's last tile count is about the fewest the generator reaches on that board.
 // Bigger boards hold more fights burning at once, so a new band opens 5s above where the last one ended, not at a full reset.
-// Locked cells start at stage 11 with one, rising to about 15% of the board on 7x8.
+// Locked cells start at stage 14 with one, rising to about 15% of the board on 7x8.
+// Each new rule arrives on a board size the player has already met: blocked cells at 14, rejoining at 15, cracks at 24, grumpy at 26, cushions at 44.
 // Past the last stage, play continues at its settings.
 const FUSES = [40, 35, 30, 25, 20, 15, 12, 10];
 // count stages of w x h, tiles, fuse and locks stepping evenly from the first value to the second.
@@ -634,7 +635,7 @@ function ramp(w, h, count, [t0, t1], [f0, f1] = [0, 0], [l0, l1] = [0, 0]) {
 }
 const STAGES = [
   [4, 4, 10, 30, 0], [4, 4, 9, 30, 0], [4, 4, 8, 30, 0], ...ramp(4, 4, 7, [7, 5], [25, 15]),
-  ...ramp(4, 5, 10, [9, 6], [20, 15], [1, 2]),
+  ...ramp(4, 5, 10, [9, 6], [20, 15], [1, 2]).map((st, i) => (i < 3 ? [...st.slice(0, 4), 0] : st)), // blocked cells arrive at stage 14, on a board size the player already knows
   ...ramp(5, 5, 10, [11, 7], [20, 15], [2, 3]),
   ...ramp(5, 6, 10, [13, 9], [20, 20], [2, 4]),
   ...ramp(6, 6, 10, [15, 10], [25, 20], [3, 5]),
@@ -764,21 +765,21 @@ function shapeKey(n, cells) {
   return keys.sort()[0];
 }
 
-// A new rule every 15 stages or so, on top of blocked cells: cracks from stage 21,
-// grumpy kittens from 26 and cushions from 41. Each count creeps up within its stretch.
+// A new rule every 15 stages or so, on top of blocked cells: cracks from stage 24,
+// grumpy kittens from 26 and cushions from 44. Each count creeps up within its stretch.
 function stageExtras(k) {
   return {
-    cracks: k < 20 ? 0 : Math.min(3, 1 + Math.floor((k - 20) / 15)),
+    cracks: k < 23 ? 0 : Math.min(3, 1 + Math.floor((k - 23) / 15)),
     grumpy: k < 25 ? 0 : Math.min(4, 2 + Math.floor((k - 25) / 20)),
-    cushions: k < 40 ? 0 : Math.min(4, 2 + Math.floor((k - 40) / 15)),
+    cushions: k < 43 ? 0 : Math.min(4, 2 + Math.floor((k - 43) / 15)),
   };
 }
 
-// Stage 12 teaches rejoining. Every route that only splits dead-ends; the one way through
+// Stage 15 teaches rejoining, the stage after blocked cells arrive. Every route that only splits dead-ends; the one way through
 // splits the 4 up, then swipes the new 2 back onto its twin so the fight moves to a free cell.
 // 0 = empty, -1 = blocked, else a starting tile's value.
 const TEACH = {
-  11: {
+  14: {
     n: 4, h: 5,
     layout: [2, 0, 2, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 4, 8, 0, -1, 0, 0, -1],
     solution: [
