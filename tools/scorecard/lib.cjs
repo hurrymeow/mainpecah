@@ -5,8 +5,8 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..', '..');
 const SEED = 20261031; // default seed for every bot. Override with SCORECARD_SEED.
 
-// Time model (decision D2): 2 s per swipe, 0.7 s per legal option at that state, reading at 4 words/s.
-const SWIPE_S = 2, OPTION_S = 0.7, WORDS_PER_S = 4;
+// Time model (decision D2, recalibrated): 0.8 s per swipe, 0.4 s per movable fight at that state, reading at 4 words/s.
+const SWIPE_S = 0.8, OPTION_S = 0.4, WORDS_PER_S = 4;
 const TAP_S = 2; // one tap on a button (Next stage, Got it, Play)
 
 function loadGame() {

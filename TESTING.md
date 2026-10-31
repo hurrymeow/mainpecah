@@ -36,7 +36,7 @@ No recurring agent loops. Nightly checks run in GitHub Actions, not in an agent 
 
 ## How the scorecard measures
 
-- Time is modeled, never read from the clock: 2 s per swipe, 0.7 s per option, 4 words/s, 2 s per tap.
+- Time is modeled, never read from the clock: 0.8 s per swipe, 0.4 s per option, 4 words/s, 2 s per tap.
 - An "option" is a fight that can move, not each (tile, direction) pair. Counting pairs puts a 7x8 stage at 8+ min.
 - **builder** replays the generator's recorded solution (an upper bound on the shortest). Under Normal fuses it reorders by urgency.
 - **rookie** picks a random split that does not leave the board stuck, and rejoins when no split is left. 200 seeds per stage.
