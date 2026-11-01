@@ -670,17 +670,9 @@ const LADDER = [ // the ramps, with the old fuse column
   ...ramp(7, 8, 30, [22, 15], [25, 20], [6, 9]),
 ];
 const STAGES = LADDER.map((st, i) => [st[0], st[1], st[2], FUSE_SECONDS[i], st[4]]);
-// Casual has no fuse, so it gets fewer starting tiles per stage, on the same boards.
-const CASUAL_TILES = [
-  10, 8, 7, ...ramp(4, 4, 7, [6, 4]),
-  ...ramp(4, 5, 10, [7, 5]),
-  ...ramp(5, 5, 10, [9, 7]),
-  ...ramp(5, 6, 10, [11, 8]),
-  ...ramp(6, 6, 10, [12, 10]),
-  ...ramp(6, 7, 10, [14, 12]),
-  ...ramp(7, 7, 10, [16, 14]),
-  ...ramp(7, 8, 30, [19, 14]),
-].map(x => (Array.isArray(x) ? x[2] : x));
+// Casual has no fuse. Its starting tiles are a table made by tools/scorecard/tile-table.cjs: from stage 11 it has
+// about 1/1.3 of the splits a Normal stage has, so Normal runs 1.2-1.6x as long (M20). Rerun it after any change to the Normal tiles.
+const CASUAL_TILES = [10, 8, 7, 6, 6, 5, 5, 5, 4, 4, 11, 11, 10, 10, 8, 9, 9, 9, 8, 8, 13, 13, 13, 13, 12, 12, 11, 11, 10, 10, 16, 16, 16, 15, 15, 15, 14, 14, 13, 13, 19, 18, 18, 17, 17, 17, 17, 16, 16, 15, 22, 21, 21, 20, 20, 19, 19, 18, 18, 18, 25, 23, 24, 22, 23, 21, 22, 20, 21, 19, 28, 27, 28, 26, 28, 26, 27, 25, 27, 25, 27, 25, 26, 25, 26, 17, 25, 24, 25, 23, 24, 23, 24, 22, 23, 22, 23, 21, 22, 21];
 const DIRS = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
 const ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
 
