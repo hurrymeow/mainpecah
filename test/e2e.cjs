@@ -710,7 +710,7 @@ test('Player text', async () => {
 });
 
 test('Daily board', async () => {
-  // Hidden until stage 100 is cleared; then one fixed board per date, solvable, done once won; an interruption keeps it.
+  // Hidden until stage 10 is cleared; then one fixed board per date, solvable, done once won; an interruption keeps it.
   const open = async saved => {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
     const page = await context.newPage();
@@ -722,17 +722,18 @@ test('Daily board', async () => {
     return { context, page, errors: (page.on('pageerror', e => this_errors.push(e.message)), []) };
   };
   const this_errors = [];
-  let g = await open({ 'split.stage.casual': '40' });
-  check(!(await g.page.evaluate(() => [...document.querySelectorAll('#stagePick option')].some(o => o.value === 'daily'))), 'daily board must stay hidden before stage 100 is cleared');
+  let g = await open({ 'split.stage.casual': '9' });
+  check(!(await g.page.evaluate(() => [...document.querySelectorAll('#stagePick option')].some(o => o.value === 'daily'))), 'daily board must stay hidden before stage 10 is cleared');
   await g.context.close();
-  g = await open({ 'split.stage.casual': '100' });
+  g = await open({ 'split.stage.casual': '10' });
   const page = g.page;
-  check(await page.evaluate(() => [...document.querySelectorAll('#stagePick option')].some(o => o.value === 'daily')), 'daily board must be offered after stage 100');
+  check(await page.evaluate(() => [...document.querySelectorAll('#stagePick option')].some(o => o.value === 'daily')), 'daily board must be offered after stage 10');
   const same = await page.evaluate(() => { const d = dailyDate(); return keyOf(dailyBoard(d).cells) === keyOf(dailyBoard(d).cells) && keyOf(dailyBoard(d).cells) !== keyOf(dailyBoard('2030-01-01').cells); });
   check(same, 'a date must always give the same board, and another date another board');
   await page.selectOption('#stagePick', 'daily');
   check((await page.textContent('#stageTitle')) === 'Daily board' && !(await page.evaluate(() => S.fuseMs)), 'daily board has a title and no fuse');
   await hintSwipe(page); await hintSwipe(page);
+  await page.waitForTimeout(400); // let the swipe animation settle before the app is killed
   const before = await key(page);
   await page.reload(); await ready(page);
   await page.click('#playCasual');
@@ -746,7 +747,47 @@ test('Daily board', async () => {
   check((await page.textContent('#stageTitle')).startsWith('Stage'), 'Back to stages must leave the daily board');
   await g.context.close();
   check(!this_errors.length, this_errors.join(' | '));
-  return 'hidden before stage 100; one board per date; no fuse; survives a reload; done once won; Back to stages';
+  return 'hidden before stage 10; one board per date; no fuse; survives a reload; done once won; Back to stages';
+});
+
+test('Focus', async () => {
+  // Normal from stage 22: only fights near the last swipe burn; the rest wait with their fuse frozen.
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.addInitScript(() => { try { localStorage.setItem('split.stage.challenge', '21'); } catch (e) {} });
+  await page.goto(URL.replace('?dev', ''));
+  await ready(page);
+  await page.click('#playChallenge');
+  await skipHowto(page);
+  check(/only fights near your last swipe/.test(await page.textContent('#quip')), `focus tip missing: ${await page.textContent('#quip')}`);
+  await hintSwipe(page);
+  const a = await page.evaluate(() => ({ held: S.fuse.map((d, i) => d && heldAt(S.n, S.focus, i) ? i : -1).filter(i => i >= 0), armed: S.fuse.map((d, i) => d && !heldAt(S.n, S.focus, i) ? i : -1).filter(i => i >= 0) }));
+  check(a.held.length > 0 && a.armed.length > 0, `after the first swipe some fights must be held and some armed: ${JSON.stringify(a)}`);
+  const L0 = await fuseLeft(page);
+  const dim = await page.evaluate(() => document.querySelectorAll('.tile.held').length);
+  check(dim === a.held.length, `held fights must be dimmed: ${dim} vs ${a.held.length}`);
+  await page.waitForTimeout(1300);
+  const L1 = await fuseLeft(page);
+  const heldMoved = Math.max(...a.held.map(i => Math.abs(L0[i] - L1[i])));
+  const armedMoved = Math.min(...a.armed.map(i => L0[i] - L1[i]));
+  check(heldMoved < 250, `a held fuse moved by ${heldMoved} ms`);
+  check(armedMoved > 900, `an armed fuse moved by only ${armedMoved} ms`);
+  // Before stage 22 every fight burns.
+  await context.close();
+  const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const p2 = await ctx2.newPage();
+  await p2.addInitScript(() => { try { localStorage.setItem('split.stage.challenge', '20'); } catch (e) {} });
+  await p2.goto(URL.replace('?dev', ''));
+  await ready(p2);
+  await p2.click('#playChallenge');
+  await skipHowto(p2);
+  await hintSwipe(p2);
+  check(await p2.evaluate(() => S.stage === 20 && !S.focus && document.querySelectorAll('.tile.held').length === 0), 'stage 21 must not hold any fuse');
+  await ctx2.close();
+  check(!errors.length, errors.join(' | '));
+  return 'Normal 22+: fights out of reach of the last swipe are dimmed and their fuse frozen; near ones burn; stage 21 unchanged';
 });
 
 test('Interruptions', async () => {

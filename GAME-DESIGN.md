@@ -191,13 +191,15 @@ Most items below follow from one idea. Every second this player spends confused,
 - Looks like: Wordle and Connections give one puzzle a day, the same for everyone, in a few minutes (observed).
 - Quote: "We're not trying to get you to spend 24/7 in our app" (Jonathan Knight, NYT Games).
 - Why: after stage 100 nothing pulls the player back. A daily board is a small, fixed-size reason that fits one sitting and ends cleanly.
-- Test: a new daily board is available each day for players past stage 100, solvable in **1–3 min**. Same board for everyone on a date. Built: stage picker lists "Daily board" once stage 100 is cleared; 6x7, about 2 min, no fuse.
+- Test: a new daily board is available each day once stage 10 is cleared (Hari, 2026-11-01, was stage 100), solvable in **1–3 min**. Same board for everyone on a date. Built: stage picker lists "Daily board" once stage 10 is cleared; 6x7, about 2 min, no fuse.
 
 **M20. Normal is the NG+.**
 
 - Quote: Threes players "haven't had time to understand all we've done with our game's system" (Vollmer and Wohlwend).
 - Why: replaying known boards with fuses tests speed on puzzles the player already understands. That is a new skill on old content, which is what NG+ means.
 - Test: Normal modeled time is **1.2–1.6x** Casual on the same stage. Dawdler loses **10–30%** of Normal stages 41–100.
+- Fuse sizing (2026-11-01): from stage 22 Normal uses the focus rule (Hari). Only fights within 2 cells of the last swipe burn; the rest wait with a dim bar. Each fuse is the shortest a player at 1/1.5 of the modeled pace clears, rounded up to 5 s, capped at **60 s**. The dawdler then loses only where the cap binds.
+- Known exploit: a player can freeze a fight by keeping their swipes more than 2 cells away from it. Rejoining still cannot refill a fuse, and every fight must be reached to win, so the freeze only defers the pressure.
 
 **M21. Past 100 stays sound.**
 

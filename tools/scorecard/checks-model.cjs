@@ -220,7 +220,7 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
     const seen = new Set(), twists = [];
     for (let k = 0; k < 100; k++) { const m = mix(k); if (!seen.has(m) && g.TWISTS[k]) twists.push(k); seen.add(m); }
     const unnew = Object.keys(g.TWISTS).map(Number).filter(k => !twists.includes(k));
-    const marks = [...Object.values(rules), ...twists].sort((a, b) => a - b);
+    const marks = [...Object.values(rules), g.FOCUS_FROM, ...twists].sort((a, b) => a - b);
     let gap = 0, from = 0;
     [-1, ...marks, 100].forEach((k, i, a) => { if (i) { const run = k - a[i - 1] - 1; if (run > gap) { gap = run; from = a[i - 1] + 2; } } });
     rows.push(row('M16', 'Something new every so often', gap <= 15 && !unnew.length,
@@ -244,7 +244,7 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
     rows.push(row('M20', 'Normal is the NG+', inBand(med, [1.2, 1.6]) && pct >= 10 && pct <= 30,
       `median Normal/Casual time ${med.toFixed(2)}x; dawdler (${L.DAWDLER_SLOW}x slower) loses ${pct}% of Normal 41-100; builder at modeled pace clears ${survive}/100 Normal fuses`,
       '1.2-1.6x; dawdler loses 10-30% of Normal 41-100',
-      'The dawdler is the urgent builder at 1/1.5 of the modeled pace. Both Normal fuse lines use the same model.'));
+      'The dawdler is the urgent builder at 1/1.5 of the modeled pace. Both use the focus rule (only fights near the last swipe burn, from stage 22).'));
   }
   // M21
   {
