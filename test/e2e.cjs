@@ -611,8 +611,8 @@ test('Start page and stages', async () => {
   s = await st();
   check(s.stage === 1 && s.fuse === 0, `casual after reload: ${JSON.stringify(s)}`);
   const ladder = await page.evaluate(() => STAGES.map(([w, h]) => w + 'x' + h).filter((x, k, a) => x !== a[k - 1]).join(' '));
-  const casual = await page.evaluate(() => CASUAL_TILES.length === STAGES.length && CASUAL_TILES.every((v, k) => v >= 2 && v <= STAGES[k][2]));
-  check(casual, 'Casual tile curve must cover every stage with no more tiles than Normal');
+  const casual = await page.evaluate(() => CASUAL_TILES.length === STAGES.length && CASUAL_TILES.every((v, k) => v >= 2 && v <= STAGES[k][0] * STAGES[k][1] - STAGES[k][4]));
+  check(casual, 'Casual tile table must cover every stage and fit its board (Casual has more tiles than Normal from stage 11, so Normal runs longer: M20)');
   const boards = await page.evaluate(() => ['casual', 'challenge'].map(m => {
     const keys = new Set();
     let solved = 0, locks = 0;

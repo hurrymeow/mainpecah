@@ -198,6 +198,7 @@ Most items below follow from one idea. Every second this player spends confused,
 - Quote: Threes players "haven't had time to understand all we've done with our game's system" (Vollmer and Wohlwend).
 - Why: replaying known boards with fuses tests speed on puzzles the player already understands. That is a new skill on old content, which is what NG+ means.
 - Test: Normal modeled time is **1.2–1.6x** Casual on the same stage. Dawdler loses **10–30%** of Normal stages 41–100.
+- Tile sizing (2026-11-01, Hari go): Normal keeps its tiles. From stage 11 Casual starts with more tiles, about 1/1.3 of Normal's splits, so Normal runs about **1.4x** Casual. Making Normal longer instead pushed the dawdler loss to 38–48%, because the generator cannot go lower on late boards. Cost: Casual stages 11–30 run about 0.4–0.5 min, under the S1 floor. Table: `tools/scorecard/tile-table.cjs`.
 - Fuse sizing (2026-11-01): from stage 22 Normal uses the focus rule (Hari). Only fights within 2 cells of the last swipe burn; the rest wait with a dim bar. Each fuse is the shortest a player at 1/1.5 of the modeled pace clears, rounded up to 5 s, capped at **60 s**. The dawdler then loses only where the cap binds.
 - Known exploit: a player can freeze a fight by keeping their swipes more than 2 cells away from it. Rejoining still cannot refill a fuse, and every fight must be reached to win, so the freeze only defers the pressure.
 
