@@ -185,10 +185,12 @@ async function run(browser, g, model, I) {
   const Hn = await hintSteps(browser);
   const direct = Hn.first.arrows > 0 || /\b(up|down|left|right)\b/.test(Hn.first.text);
   const second = Hn.second.arrows > 0;
-  rows.push(row('M17', "Hints help, they don't play", direct || !second ? false : null,
-    `first step: ${direct ? 'shows the direction' : Hn.first.lit ? 'lights the fight only' : 'nothing lit'}; second step (tap the fight): ${second ? 'shows the direction' : 'no direction'}; hint-follower clears ${model.hintFollowerWins}/200 stages`,
-    'first tap highlights the fight only; second tap shows the direction; cheapskate and hint-follower finish',
-    direct || !second ? 'The two steps are not both in place.' : 'Cheapskate is not measured: it needs a calibrated human-like solver.'));
+  const choice = Math.min(...model.hint.map(h => h.choice)), narrow = Math.min(...model.hint.map(h => h.narrow));
+  const hintOk = !direct && second && model.hintFollowerWins === 200 && choice >= 0.4 && narrow >= 3;
+  rows.push(row('M17', "Hints help, they don't play", hintOk,
+    `first step: ${direct ? 'shows the direction' : Hn.first.lit ? 'lights the fight only' : 'nothing lit'}; second step (tap the fight): ${second ? 'shows the direction' : 'no direction'}; hint-follower clears ${model.hintFollowerWins}/200 stages; first tap narrows ${narrow.toFixed(1)} fights to 1 and still leaves the direction to the player on ${(choice * 100).toFixed(0)}% of steps (worst mode)`,
+    'first tap lights the fight only; second tap shows the direction; hint-follower clears 200/200; first tap narrows >=3 fights to 1 and leaves a direction choice on >=40% of steps',
+    'Cheapskate is replaced by the direction-choice share: a human-like solver cannot be calibrated (the rookie wins no stage past 3), so "the hint does not play" is measured on what the first tap leaves open.'));
 
   // M19: the daily board. 60 consecutive dates, plus the gate on the real page.
   const days = Array.from({ length: 60 }, (_, d) => g.dailyDate(new Date(2026, 10, 1 + d)));

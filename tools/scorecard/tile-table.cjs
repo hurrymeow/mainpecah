@@ -12,8 +12,8 @@ for (let k = 0; k < 100; k++) {
   const bn = g.stageBoard('challenge', k), stepsN = bn.solution.length;
   const cost = L.play(g, bn, { chooser: L.builder(bn) }).t / stepsN; // modeled seconds per step on this board
   // Aim at stepsN / RATIO, but a Casual stage should not drop under 0.5 min (S1) while Normal can still be 1.2x as long.
-  let stepsC = Math.round(stepsN / RATIO);
-  if (stepsC * cost < 31) stepsC = Math.min(Math.floor(stepsN / 1.2), Math.ceil(31 / cost));
+  let stepsC = k < 8 ? stepsN : Math.round(stepsN / RATIO); // the first sitting (M5) needs full-length stages in Casual too
+  if (k >= 8 && stepsC * cost < 31) stepsC = Math.min(Math.floor(stepsN / 1.2), Math.ceil(31 / cost));
   out.push(Math.max(2, w * h - locks - stepsC));
 }
 console.log(JSON.stringify(out).replace(/,/g, ', '));

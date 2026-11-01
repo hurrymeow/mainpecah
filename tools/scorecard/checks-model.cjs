@@ -279,7 +279,24 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
   // hint-follower and dead-state sampling feed page rows
   const hintFollowerWins = MODES.reduce((a, m) => a + stages[m].slice(0, 100).filter(s => s.won).length, 0);
   const dead = silentDeadStates(g, seed);
-  return { rows, hintFollowerWins, dead, rules, cum, stages };
+  // The first hint tap lights one fight. It helps when it narrows the pick from several fights to one, and it does not play
+  // when the player still has to choose the direction on a real share of steps (a fight that can split two or more ways).
+  const hint = MODES.map(m => {
+    let steps = 0, choice = 0, fights = 0;
+    for (let k = 0; k < 100; k++) {
+      const b = stages[m][k].board; let cur = b.cells;
+      for (const st of b.solution) {
+        if (!st.join) {
+          steps++;
+          if (Object.keys(g.DIRS).filter(d => g.splitTarget(cur, b.n, st.from, d) >= 0).length >= 2) choice++;
+          fights += new Set(L.legalSteps(g, cur, b.n).filter(x => !x.join).map(x => x.from)).size;
+        }
+        cur = g.applyStep(cur, b.n, st);
+      }
+    }
+    return { choice: choice / steps, narrow: fights / steps };
+  });
+  return { rows, hintFollowerWins, hint, dead, rules, cum, stages };
 }
 
 module.exports = { run, build, MODES, NAME, row };
