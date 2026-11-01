@@ -1299,7 +1299,7 @@ if (typeof document !== 'undefined') {
     const tip = [
       ['focus', focusOn() && S.stage === FOCUS_FROM, 'New on Normal: only fights near your last swipe burn. The dim ones wait.'],
       ['rejoin', S.board.teach, 'Stuck? Swipe a split kitten back onto its twin to rejoin them. This board needs it once.'],
-      ['cushion', startFloor.includes('cushion'), 'Cushions are slippery. A kitten split onto one slides until it hits something.'],
+      ['cushion', startFloor.includes('cushion'), 'Cushions are slippery. Kittens slide on.'],
       ['grumpy', start.some(t => t && t.g), 'Grumpy kittens from different fights can\'t sleep side by side.'],
       ['crack', startFloor.includes('crack'), 'Cracked cells break when a kitten leaves them.'],
       ['lock', start.some(t => t && t.lock), 'Blocked cells are off limits. No kitten can go in one.'],
