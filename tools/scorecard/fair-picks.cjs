@@ -1,7 +1,7 @@
 // Picks the generator attempt for stages 4-100 (M10, M20), per mode. Prints the pick object for index.html (EARLY_PICK[mode], stages 1-3 excluded).
 // Among the attempts that hit the stage's tile target and are new, it keeps the one whose difficulty per split is closest to the usual
 // ratio (so the band shape of M10 is not drowned by noise). On Normal stages 22+ it also prefers layouts a slow player clears with a short fuse (M20);
-// every fourth stage skips that, so a slow player still loses some (10-30%).
+// every other stage skips that, so a slow player still loses some (10-30%).
 // Run order after a board change: early-picks, MODE=challenge fair-picks, tile-table, MODE=casual fair-picks, fuse-table.
 // Usage: MODE=challenge node tools/scorecard/fair-picks.cjs
 const L = require('./lib.cjs');
@@ -23,7 +23,7 @@ for (let k = 3; k < 100; k++) {
   if (g.TEACH[k]) continue;
   const [n, h, normal, , ladderLocks] = g.STAGES[k], locks = g.stageExtras(k).locks ?? ladderLocks;
   const target = mode === 'casual' ? g.CASUAL_TILES[k] : normal;
-  const fair = mode === 'challenge' && k >= g.FOCUS_FROM && k % 4 !== 3;
+  const fair = mode === 'challenge' && k >= g.FOCUS_FROM && k % 2 === 0;
   const seen = new Set();
   for (let j = 0; j < k; j++) { const b = g.stageBoard(mode, j); seen.add(g.shapeKey(b.n, b.cells)); }
   let best = null;
