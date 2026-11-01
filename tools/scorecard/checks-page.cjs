@@ -145,7 +145,7 @@ async function dailyGate(browser) {
     await context.close();
     return r;
   };
-  return { hiddenBefore: !(await has({ 'split.stage.casual': '40' })), shownAfter: await has({ 'split.stage.casual': '100' }) };
+  return { hiddenBefore: !(await has({ 'split.stage.casual': '9' })), shownAfter: await has({ 'split.stage.casual': '10' }) };
 }
 
 async function run(browser, g, model, I) {
@@ -200,8 +200,8 @@ async function run(browser, g, model, I) {
   const inBand = mins.every(r => r.t >= 60 && r.t <= 180);
   const gate = await dailyGate(browser);
   rows.push(row('M19', 'A reason to open it tomorrow', fixed && solvable && inBand && distinct === days.length && gate.hiddenBefore && gate.shownAfter,
-    `${days.length} dates: ${solvable ? 'all solvable' : 'some unsolvable'}, ${distinct} distinct, ${fixed ? 'same board per date' : 'board changes within a date'}, ${(Math.min(...mins.map(r => r.t)) / 60).toFixed(1)}-${(Math.max(...mins.map(r => r.t)) / 60).toFixed(1)} min; hidden before stage 100: ${gate.hiddenBefore}; offered after: ${gate.shownAfter}`,
-    'a new daily board each day past stage 100, 1-3 min, same for everyone', 'Date is the local calendar date. Reachable from the stage picker; no fuse.'));
+    `${days.length} dates: ${solvable ? 'all solvable' : 'some unsolvable'}, ${distinct} distinct, ${fixed ? 'same board per date' : 'board changes within a date'}, ${(Math.min(...mins.map(r => r.t)) / 60).toFixed(1)}-${(Math.max(...mins.map(r => r.t)) / 60).toFixed(1)} min; hidden before stage 10: ${gate.hiddenBefore}; offered after: ${gate.shownAfter}`,
+    'a new daily board each day once stage 10 is cleared (Hari, 2026-11-01), 1-3 min, same for everyone', 'Date is the local calendar date. Reachable from the stage picker; no fuse.'));
   return rows;
 }
 

@@ -53,19 +53,21 @@ const fuseSecondsFor = (g, mode, k) => (mode === 'challenge' ? g.STAGES[Math.min
 // Play one board. chooser(state) returns a step {from, dir, join} or null to give up.
 // Fuses follow the game: they arm at the first swipe, a split gives both halves a fresh fuse,
 // a rejoin resumes the fuse the fight had when it split. A fuse that runs out before the swipe lands blows up.
-function play(g, board, { fuseS = 0, chooser, maxSteps = 400, fuseOff = false, slow = 1 }) {
+function play(g, board, { fuseS = 0, chooser, maxSteps = 400, fuseOff = false, slow = 1, focus = false }) {
   const n = board.n;
   let cells = g.stageBoard ? board.cells : board.cells, t = 0, steps = 0, started = false;
-  let fuse = [];
+  let fuse = [], at = null; // at: the cells the last swipe touched (focus rule)
+  const held = i => focus && g.heldAt(n, at, i);
   const F = fuseOff ? 0 : fuseS;
-  const state = () => ({ cells, steps, t, fuse });
   while (steps < maxSteps) {
     if (g.isWin(cells, n)) return { won: true, lost: false, t, steps, cells };
     const options = legalSteps(g, cells, n);
     if (!options.length) return { won: false, lost: false, stuck: true, t, steps, cells };
-    const step = chooser({ cells, options, steps, t, fuse, n });
+    const step = chooser({ cells, options, steps, t, fuse, n, at, held });
     if (!step) return { won: false, lost: false, gaveUp: true, t, steps, cells };
     const tm = t + stepCost(options) * slow; // slow > 1: a player who plays at 1/slow of the modeled pace (the dawdler)
+    // Focus rule: a fight out of reach of the last swipe waits, so its fuse does not move while held.
+    if (focus && started) fuse = fuse.map((d, i) => (d != null && held(i) ? d + (tm - t) : d));
     if (F && started && fuse.some(d => d != null && d <= tm)) return { won: false, lost: true, t: tm, steps, cells };
     if (F && !started) fuse = cells.map(c => (c && c.v > 1 ? tm + F : null));
     started = true;
@@ -73,12 +75,14 @@ function play(g, board, { fuseS = 0, chooser, maxSteps = 400, fuseOff = false, s
     if (step.join) {
       const j = g.neighbour(n, step.from, step.dir, cells.length / n);
       next = g.applyJoin(cells, n, step.from, step.dir);
+      at = [j];
       const left = cells[step.from].tw.left;
       fuse = fuse.slice(); fuse[step.from] = null;
       if (next) fuse[j] = F ? tm + (left != null ? left : F) : null;
     } else {
       const j = g.splitTarget(cells, n, step.from, step.dir);
       next = g.applySplit(cells, n, step.from, step.dir);
+      at = [step.from, j];
       if (next) {
         next[step.from].tw.left = fuse[step.from] ? fuse[step.from] - tm : null;
         fuse = fuse.slice();
@@ -121,11 +125,12 @@ function urgentBuilder(g, board) {
     for (let a = 0; a < steps.length && cur; a++) if (!done.has(a) && a !== take) cur = g.applyStep(cur, n, steps[a]);
     return !!cur && g.isWin(cur, n);
   };
-  return ({ fuse, cells }) => {
+  return ({ fuse, cells, at, held }) => {
     const ready = [];
     for (let b = 0; b < steps.length; b++) {
       if (done.has(b) || !deps[b].every(a => done.has(a))) continue;
-      ready.push({ b, at: fuse[steps[b].from] == null ? Infinity : fuse[steps[b].from] });
+      const f = steps[b].from, near = at && held && held(f) ? 1e6 + Math.min(...at.map(x => Math.max(Math.abs(Math.floor(x / n) - Math.floor(f / n)), Math.abs((x % n) - (f % n))))) : 0;
+      ready.push({ b, at: near || (fuse[f] == null ? Infinity : fuse[f]) });
     }
     ready.sort((x, y) => x.at - y.at || x.b - y.b);
     const pick = ready.find(r => finishes(cells, null, r.b));
@@ -160,8 +165,9 @@ function builderStage(g, mode, k) {
   const board = g.stageBoard(mode, k);
   const fs_ = fuseSecondsFor(g, mode, k);
   const free = play(g, board, { chooser: builder(board) });
-  const fused = fs_ ? play(g, board, { fuseS: fs_, chooser: urgentBuilder(g, board) }) : null;
-  const dawdled = fs_ ? play(g, board, { fuseS: fs_, chooser: urgentBuilder(g, board), slow: DAWDLER_SLOW }) : null;
+  const focus = mode === 'challenge' && k >= g.FOCUS_FROM;
+  const fused = fs_ ? play(g, board, { fuseS: fs_, chooser: urgentBuilder(g, board), focus }) : null;
+  const dawdled = fs_ ? play(g, board, { fuseS: fs_, chooser: urgentBuilder(g, board), slow: DAWDLER_SLOW, focus }) : null;
   const run = free; // progress time ignores fuse deaths; survival is reported on its own
   // Difficulty: average legal options per solution swipe, minus the one the solution takes
   // (wrong turns on offer per move). Cheap on 7x8; a stand-in for dead-end branches.

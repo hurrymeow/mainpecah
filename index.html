@@ -460,6 +460,8 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
 .pics.wide .cot { --cell: 42px; width: 42px; height: 42px; }
 .cot.fused b { position: absolute; left: 14%; right: 14%; bottom: 6%; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
 .cot.fused b::after { content: ""; position: absolute; inset: 0 55% 0 0; background: var(--warn); }
+.tile.held .fuse { animation-play-state: paused; opacity: .45; }
+.tile.held .fuse-sec { opacity: .55; }
 #howtoGo { background: var(--text); color: var(--bg); border-color: var(--text); }
 
 #overlay {
@@ -594,6 +596,8 @@ body:not(.dev) .debug .app button { min-height: 44px; }
         <p><b>Cushions</b> are slippery. A split kitten slides on until a wall, a blocked cell or another kitten stops it.</p></li>
       <li id="howtoFuse"><div class="pics"><span class="cot fused" data-kit="fight2"><b></b></span><i>›</i><span class="cot" data-kit="boom"></span></div>
         <p><b class="warn">Normal:</b> every fight has a fuse. Split it before the fuse burns down, or it blows up.</p></li>
+      <li id="howtoFocus" data-from="21"><div class="pics"><span class="cot fused" data-kit="fight2"><b></b></span><span class="cot" data-kit="fight2"></span></div>
+        <p><b class="warn">Big boards:</b> only fights near your last swipe burn. The rest wait.</p></li>
     </ol>
     <div id="howtoPager" aria-hidden="true"></div>
     <button class="btn" id="howtoGo">Next</button>
@@ -635,6 +639,13 @@ const SIZES = { 4: { min: 2, max: 10, def: 5 }, 5: { min: 3, max: 15, def: 8 }, 
 // Each new rule arrives on a board size the player has already met: blocked cells at 14, rejoining at 15, cracks at 24, grumpy at 26, cushions at 44.
 // Past the last stage, play continues at its settings.
 const FUSES = [40, 35, 30, 25, 20, 15, 12, 10];
+// Focus (Normal, from stage 22): only the fights within FOCUS_R cells of your last swipe burn. The rest wait, their fuse frozen.
+// On a big board every fight used to burn at once while you could only reach one per swipe.
+const FOCUS_FROM = 21, FOCUS_R = 2;
+// Is cell i out of reach of the last swipe? focus is the cells that swipe touched, or null before the first swipe.
+function heldAt(n, focus, i) {
+  return !!focus && !focus.some(f => Math.max(Math.abs(Math.floor(f / n) - Math.floor(i / n)), Math.abs((f % n) - (i % n))) <= FOCUS_R);
+}
 // count stages of w x h, tiles, fuse and locks stepping evenly from the first value to the second.
 function ramp(w, h, count, [t0, t1], [f0, f1] = [0, 0], [l0, l1] = [0, 0]) {
   return Array.from({ length: count }, (_, i) => {
@@ -644,10 +655,10 @@ function ramp(w, h, count, [t0, t1], [f0, f1] = [0, 0], [l0, l1] = [0, 0]) {
   });
 }
 // Normal fuse per stage, in seconds. A board with many fights lights them all on the first swipe, so the fuse has to
-// leave time to reach each one. Each value is the shortest fuse a bot at the modeled pace clears the stage with,
-// plus 25 percent, rounded up to 5 s, never below the ladder ramp and never above 60 s.
+// leave time to reach each one. Each value is the shortest fuse a player at 1/1.5 of the modeled pace clears the stage with,
+// rounded up to 5 s, never below the ladder ramp and never above 60 s.
 // Made by tools/scorecard/fuse-table.cjs. Rerun it after any change to the stage boards.
-const FUSE_SECONDS = [30, 30, 30, 25, 25, 25, 20, 20, 30, 25, 35, 35, 30, 30, 20, 30, 25, 30, 30, 35, 40, 40, 35, 30, 45, 35, 30, 45, 45, 30, 45, 50, 60, 55, 55, 55, 55, 40, 50, 60, 60, 60, 55, 60, 60, 60, 60, 60, 55, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60, 60];
+const FUSE_SECONDS = [30, 30, 30, 25, 25, 30, 25, 25, 35, 30, 40, 40, 35, 35, 20, 35, 30, 35, 35, 40, 50, 35, 20, 25, 25, 30, 25, 35, 30, 25, 25, 30, 45, 35, 50, 30, 40, 35, 35, 40, 45, 45, 35, 30, 45, 35, 35, 55, 40, 60, 35, 40, 45, 50, 35, 55, 60, 50, 50, 60, 60, 50, 60, 60, 55, 50, 50, 45, 35, 60, 60, 50, 60, 60, 60, 40, 60, 60, 55, 60, 60, 60, 50, 40, 60, 45, 50, 50, 50, 40, 60, 55, 60, 60, 50, 50, 60, 60, 60, 60];
 const LADDER = [ // the ramps, with the old fuse column
   [4, 4, 10, 30, 0], [4, 4, 9, 30, 0], [4, 4, 8, 30, 0], ...ramp(4, 4, 7, [7, 5], [25, 15]),
   ...ramp(4, 5, 10, [9, 6], [20, 15], [1, 2]).map((st, i) => (i < 3 ? [...st.slice(0, 4), 0] : st)), // blocked cells arrive at stage 14, on a board size the player already knows
@@ -685,6 +696,7 @@ const S = {
   lost: false,
   fuseMs: 0,        // fight timer length; 0 = off. Challenge sets it, Casual clears it.
   fuse: [],         // per cell: absolute deadline (ms) for a fight, else null
+  focus: null,      // cells touched by the last swipe, while the focus rule is on (Normal, stage 22 on); else null
   showSol: false,
   hintMoreFor: '',  // board key the hint's direction is shown for
   effects: true,    // split motion, region pulse
@@ -850,7 +862,8 @@ function stageBoard(mode, k) {
   return list[k];
 }
 
-// The daily board: one fixed board per calendar date, the same for everyone, for players who have cleared stage 100.
+// The daily board: one fixed board per calendar date, the same for everyone, for players who have cleared stage 10.
+const DAILY_FROM = 10;
 // A 6x7 board with a bit of every rule, about 2 minutes at the modeled pace. No fuse.
 const DAILY = { n: 6, h: 7, tiles: 13, locks: 3, extras: { cracks: 2, grumpy: 2, cushions: 2 } };
 function dailyDate(now = new Date()) {
@@ -1053,7 +1066,7 @@ if (typeof module !== 'undefined') {
   module.exports = {
     generate, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE,
     // Read by tools/scorecard (npm run scorecard); exported only, no behaviour change.
-    STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, DAILY, dailyDate, dailyBoard, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
+    STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, DAILY, DAILY_FROM, FOCUS_FROM, FOCUS_R, heldAt, dailyDate, dailyBoard, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
     mergeTarget, applyJoin, applyStep, canMerge, isJammed, regionDone,
   };
 }
@@ -1240,7 +1253,9 @@ if (typeof document !== 'undefined') {
       let fuseBar = '';
       if (S.fuseMs && !S.lost && t && cells[i] && cells[i].v > 1 && !(drag && i === drag.dest)) {
         const left = S.fuse[i] ? Math.max(0, S.fuse[i] - nowMs) : S.fuseMs;
-        if (S.t0 && left < 3000) cls += ' danger';
+        const held = isHeld(i);
+        if (held) cls += ' held';
+        else if (S.t0 && left < 3000) cls += ' danger';
         fuseBar = `<span class="fuse-slot"><i class="fuse" style="--ft:${F}s;--fd:${((left - S.fuseMs) / 1000).toFixed(2)}s"></i></span><b class="fuse-sec">${Math.ceil(left / 1000)}</b>`;
       }
       if (anim && anim.boom === i) {
@@ -1272,6 +1287,7 @@ if (typeof document !== 'undefined') {
     // The first board with each new rule explains it until that board is solved. Newest rule first.
     const start = S.board.cells, startFloor = start.floor || [];
     const tip = [
+      ['focus', focusOn() && S.stage === FOCUS_FROM, 'New on Normal: only fights near your last swipe burn. The dim ones wait.'],
       ['rejoin', S.board.teach, 'Stuck? Swipe a split kitten back onto its twin to rejoin them. This board needs it once.'],
       ['cushion', startFloor.includes('cushion'), 'Cushions are slippery. A kitten split onto one slides until it hits something.'],
       ['grumpy', start.some(t => t && t.g), 'Grumpy kittens from different fights can\'t sleep side by side.'],
@@ -1307,9 +1323,14 @@ if (typeof document !== 'undefined') {
     S.fuse = S.cells.map((t, i) => (S.fuseMs && t && t.v > 1 ? S.fuse[i] || now + S.fuseMs : null));
   }
 
-  let dangerKey = '';
+  // The focus rule is on for Normal from stage 22. A held fight's fuse waits: it is pushed back by every tick it is held.
+  const focusOn = () => S.fuseMs > 0 && S.stage != null && S.stage >= FOCUS_FROM;
+  const isHeld = i => focusOn() && heldAt(S.n, S.focus, i);
+  let dangerKey = '', lastTick = 0;
   function tick() {
-    const now = Date.now();
+    const now = Date.now(), dt = Math.min(now - (lastTick || now), 250);
+    lastTick = now;
+    if (S.focus && !S.won && !S.lost) S.fuse = S.fuse.map((d, i) => (d && isHeld(i) ? d + dt : d));
     S.elapsed = now - S.t0;
     $('time').textContent = fmtTime(S.elapsed);
     if (S.won || S.lost) return;
@@ -1318,7 +1339,7 @@ if (typeof document !== 'undefined') {
     if (first >= 0) return explode(first);
     // Each fuse shows whole seconds left; the number only moves here, so it updates every tick.
     S.fuse.forEach((d, i) => { const el = d && boardEl.querySelector(`.cell[data-i="${i}"] .fuse-sec`); if (el) el.textContent = Math.ceil((d - now) / 1000); });
-    const key = S.fuse.map(d => (d && d - now < 3000 ? 1 : 0)).join('');
+    const key = S.fuse.map((d, i) => (d && d - now < 3000 && !isHeld(i) ? 1 : 0)).join('');
     if (key !== dangerKey) { dangerKey = key; if (!S.drag) render(); }
   }
 
@@ -1349,7 +1370,7 @@ if (typeof document !== 'undefined') {
   function restart() {
     stopTimer();
     clearSaved();
-    Object.assign(S, { cells: cloneCells(S.board.cells), t0: 0, elapsed: 0, won: false, lost: false, drag: null, fuse: [] });
+    Object.assign(S, { cells: cloneCells(S.board.cells), t0: 0, elapsed: 0, won: false, lost: false, drag: null, fuse: [], focus: null });
     dangerKey = '';
     boardEl.classList.remove('shake');
     $('overlay').hidden = true;
@@ -1388,8 +1409,8 @@ if (typeof document !== 'undefined') {
     newBoard();
   }
 
-  // The daily board opens once stage 100 is cleared in either mode.
-  function dailyOpen() { return Math.max(savedStage('casual'), savedStage('challenge')) >= 100; }
+  // The daily board opens once stage 10 is cleared in either mode.
+  function dailyOpen() { return Math.max(savedStage('casual'), savedStage('challenge')) >= DAILY_FROM; }
   const dailyDoneKey = 'split.daily';
   function dailyDone() { try { return localStorage.getItem(dailyDoneKey) === dailyDate(); } catch (err) { return false; } }
   function goDaily() {
@@ -1439,7 +1460,7 @@ if (typeof document !== 'undefined') {
       const now = Date.now();
       localStorage.setItem(slotKey(), JSON.stringify({
         stage: S.daily ? 'daily:' + S.daily : S.stage, ...packCells(S.cells), elapsed: now - S.t0,
-        fuse: S.fuse.map(d => (d ? d - now : null)),
+        fuse: S.fuse.map(d => (d ? d - now : null)), focus: S.focus,
       }));
     } catch (err) {}
   }
@@ -1456,6 +1477,7 @@ if (typeof document !== 'undefined') {
       S.cells = cells;
       S.t0 = now - saved.elapsed;
       S.fuse = S.fuseMs ? saved.fuse.map(l => (l == null ? null : now + l)) : [];
+      S.focus = S.fuseMs && Array.isArray(saved.focus) ? saved.focus : null;
       S.timer = setInterval(tick, 100);
       return true;
     } catch (err) { return false; }
@@ -1507,6 +1529,7 @@ if (typeof document !== 'undefined') {
     // Rule rows appear once the player has reached the stage that brings them in.
     const reached = Math.max(S.stage || 0, savedStage(S.mode));
     for (const li of document.querySelectorAll('#howto li[data-from]')) li.hidden = reached < +li.dataset.from;
+    if (S.mode !== 'challenge') $('howtoFocus').hidden = true;
     if (S.timer) { stopTimer(); howtoPausedAt = Date.now(); } // the clock and fuses wait while you read
     $('howto').hidden = false;
     // Pages of at most 50 words in view, counting the title, the pager and the button (6 words).
@@ -1713,6 +1736,7 @@ if (typeof document !== 'undefined') {
     S.fuse = S.fuse.slice();
     S.fuse[i] = S.fuseMs && next[i].v > 1 ? now + S.fuseMs : null;
     S.fuse[j] = S.fuseMs && next[j].v > 1 ? now + S.fuseMs : null;
+    if (focusOn()) S.focus = [i, j];
     const c = next[i].c;
     const region = regionDone(next, c) ? c : null;
     S.anim = { from: i, to: j, dir, dist: slid, region, win: isWin(next, S.n) };
@@ -1752,6 +1776,7 @@ if (typeof document !== 'undefined') {
     S.fuse = S.fuse.slice();
     S.fuse[i] = null;
     S.fuse[j] = S.fuseMs ? now + (tw.left != null ? tw.left : S.fuseMs) : null;
+    if (focusOn()) S.focus = [j];
     S.anim = { from: -1, to: j, dir, region: null, win: false };
     splitSound(next[j].v);
     render();
