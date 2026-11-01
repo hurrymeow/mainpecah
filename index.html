@@ -828,6 +828,8 @@ function teachBoard({ n, h, layout, solution }) {
   return { n, h, cells, solution, path, tiles: colour, teach: true };
 }
 
+// Which generator attempt each early stage uses (0-based stage -> attempt), per mode. Made by tools/scorecard/early-picks.cjs.
+const EARLY_PICK = { casual: { 0: 1, 1: 2, 2: 1 }, challenge: { 0: 2 } };
 const stageBoards = { casual: [], challenge: [] };
 function stageBoard(mode, k) {
   const list = stageBoards[mode], seen = new Set(list.map(b => shapeKey(b.n, b.cells)));
@@ -841,7 +843,16 @@ function stageBoard(mode, k) {
     const target = (mode === 'casual' ? CASUAL_TILES[Math.min(j, STAGES.length - 1)] : normal) + shorter;
     // Take the first new layout that hits the tile target; failing that, the new one closest to it.
     let best = null;
-    for (let attempt = 0; attempt < 20; attempt++) {
+    // The first stages can use a layout picked ahead of time (tools/scorecard/early-picks.cjs): one a first-time player wins easily.
+    const picked = EARLY_PICK[mode][j];
+    for (let attempt = picked != null ? picked : 0; attempt < (picked != null ? picked + 1 : 20); attempt++) {
+      const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks, stageExtras(j));
+      const key = shapeKey(n, b.cells);
+      if (seen.has(key) || (best && b.tiles >= best.b.tiles)) continue;
+      best = { b, key };
+      if (b.tiles <= target) break;
+    }
+    if (!best) for (let attempt = 0; attempt < 20; attempt++) { // a pick that repeats an earlier layout falls back to the normal search
       const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks, stageExtras(j));
       const key = shapeKey(n, b.cells);
       if (seen.has(key) || (best && b.tiles >= best.b.tiles)) continue;
@@ -1058,7 +1069,7 @@ if (typeof module !== 'undefined') {
   module.exports = {
     generate, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE,
     // Read by tools/scorecard (npm run scorecard); exported only, no behaviour change.
-    STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, DAILY, DAILY_FROM, FOCUS_FROM, FOCUS_R, heldAt, dailyDate, dailyBoard, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
+    STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, EARLY_PICK, DAILY, DAILY_FROM, FOCUS_FROM, FOCUS_R, heldAt, dailyDate, dailyBoard, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
     mergeTarget, applyJoin, applyStep, canMerge, isJammed, regionDone,
   };
 }
