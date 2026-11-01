@@ -65,6 +65,9 @@ function play(g, board, { fuseS = 0, chooser, maxSteps = 400, fuseOff = false, s
     if (!options.length) return { won: false, lost: false, stuck: true, t, steps, cells };
     const step = chooser({ cells, options, steps, t, fuse, n, at, held });
     if (!step) return { won: false, lost: false, gaveUp: true, t, steps, cells };
+    if (step.restart) { // the player taps Restart: the board goes back to its start, the fuses re-arm on the first swipe
+      cells = board.cells; fuse = []; at = null; started = false; t += TAP_S; steps++; continue;
+    }
     const tm = t + stepCost(options) * slow; // slow > 1: a player who plays at 1/slow of the modeled pace (the dawdler)
     // Focus rule: a fight out of reach of the last swipe waits, so its fuse does not move while held.
     if (focus && started) fuse = fuse.map((d, i) => (d != null && held(i) ? d + (tm - t) : d));
@@ -140,23 +143,22 @@ function urgentBuilder(g, board) {
   };
 }
 
-// Rookie: random split with a one-move lookahead (avoids moves that leave the board stuck),
-// rejoins when no split is left. Under fuses it takes the fight with the least time left.
+// Rookie: random split with a one-move lookahead (avoids moves that leave the board stuck), taps Restart when none is safe.
+// Under fuses it takes a fight whose bar is nearly out.
 function rookie(g, rand) {
-  return ({ cells, options, n, fuse }) => {
-    const splits = options.filter(s => !s.join), joins = options.filter(s => s.join);
+  return ({ cells, options, n, fuse, t }) => {
+    const splits = options.filter(s => !s.join);
     const pick = a => a[Math.floor(rand() * a.length)];
-    if (splits.length) {
-      const safe = splits.filter(s => !g.isStuck(g.applySplit(cells, n, s.from, s.dir), n));
-      let pool = safe.length ? safe : splits;
-      // Under fuses a rookie still sees the bars: it goes for the fight with the least time left.
-      if (fuse && fuse.some(d => d != null)) {
-        const soonest = Math.min(...pool.map(s => (fuse[s.from] == null ? Infinity : fuse[s.from])));
-        pool = pool.filter(s => (fuse[s.from] == null ? Infinity : fuse[s.from]) === soonest);
-      }
-      return pick(pool);
+    // A rookie looks one move ahead: it avoids a split that leaves the board stuck. With none left it taps Restart, as the game says to.
+    const safe = splits.filter(s => !g.isStuck(g.applySplit(cells, n, s.from, s.dir), n));
+    if (!safe.length) return { restart: true };
+    let pool = safe;
+    // Under fuses it reacts to a bar that is nearly out (under 8 s): it goes for that fight. Until then it plays as it likes.
+    if (fuse && fuse.some(d => d != null)) {
+      const soonest = Math.min(...pool.map(s => (fuse[s.from] == null ? Infinity : fuse[s.from])));
+      if (soonest - t < 8) pool = pool.filter(s => (fuse[s.from] == null ? Infinity : fuse[s.from]) === soonest);
     }
-    return joins.length ? pick(joins) : null;
+    return pick(pool);
   };
 }
 
