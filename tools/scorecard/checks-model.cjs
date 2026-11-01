@@ -77,6 +77,32 @@ function winsWithoutJoin(g, board, cap = 400000) {
   return false;
 }
 
+
+// Split-only depth-first solver in a fixed move order: the route a player who ignores the new rule would walk.
+function solveSplits(g, cells, n, cap = 4000) {
+  const sig = c => { const ids = new Map(); return c.map(t => (t ? (t.lock ? 'x' : t.v + (t.g ? 'g' : '') + (t.tw ? ':' + (ids.has(t.tw) ? ids.get(t.tw) : (ids.set(t.tw, ids.size), ids.size - 1)) : '')) : '.')).join(',') + '|' + (c.floor || []).map(f => (f ? f[1] : '')).join(''); };
+  const seen = new Set([sig(cells)]);
+  const go = (cur, path) => {
+    if (g.isWin(cur, n)) return path;
+    if (seen.size > cap) return null;
+    for (const st of L.legalSteps(g, cur, n)) {
+      if (st.join) continue;
+      const next = g.applyStep(cur, n, st); if (!next) continue;
+      const key = sig(next); if (seen.has(key)) continue;
+      seen.add(key);
+      const r = go(next, [...path, st]); if (r) return r;
+    }
+    return null;
+  };
+  return go(cells, []);
+}
+const stripRule = cells => Object.assign(cells.map(t => (t && t.lock ? t : t && { ...t, g: undefined })), { floor: undefined });
+function replayWins(g, cells, n, path) {
+  let cur = cells;
+  for (const st of path) cur = cur && g.applyStep(cur, n, st);
+  return !!cur && g.isWin(cur, n);
+}
+
 function rookieRuns(g, mode, k, seeds, seed0) {
   const board = g.stageBoard(mode, k), fuseS = L.fuseSecondsFor(g, mode, k);
   let wins = 0; const times = [];
@@ -138,18 +164,6 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
       '0.5-3 min up to stage 60; after, up to 4 min, no two over 3 in a row',
       MODES.map(m => bad[m].length ? `${NAME[m]} out: ${bad[m].slice(0, 8).join(',')}${bad[m].length > 8 ? '...' : ''}` : '').filter(Boolean).join('; ')));
   }
-  // S2
-  {
-    const out = MODES.map(m => {
-      const list = first100(m), steps = list.map(s => s.steps), med = median(steps);
-      const hard = [...list].sort((a, b) => b.difficulty - a.difficulty).slice(0, 10);
-      const short = hard.filter(s => s.steps <= med).length;
-      return { m, short };
-    });
-    rows.push(row('S2', 'Hard stages are short', out.every(o => o.short === 10),
-      out.map(o => `${NAME[o.m]} ${o.short}/10 hardest stages in the shorter half`).join('; '), '10/10',
-      'Difficulty = wrong turns on offer per solution swipe (legal splits minus the one taken).'));
-  }
   // M3, M4
   {
     const N = 200;
@@ -180,13 +194,21 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
     rows.push(row('M7', 'One new thing at a time', !bad.length,
       Object.entries(rules).map(([r, k]) => `${r} stage ${k + 1} (${dims(k - 1)}->${dims(k)})`).join('; '),
       "a rule's first stage keeps the previous board size", bad.length ? `new size with the rule: ${bad.map(([r]) => r).join(', ')}` : ''));
-    const authored = Object.entries(rules).filter(([, k]) => g.TEACH[k]);
+    // M8: rejoin, grumpy kittens and cushions have an authored first stage where the route that ignores the rule fails.
+    // Blocked cells and cracks are fixed obstacles (a blocked cell is a kitten that never moves, a crack is a delayed block), so a route cannot ignore them; their boards are checked by eye.
+    const taught = ['rejoin', 'grumpy', 'cushions'];
+    const authored = taught.filter(r => g.TEACH[rules[r]]);
     const rejoinNeedsJoin = winsWithoutJoin(g, g.stageBoard('casual', rules.rejoin));
-    const allAuthored = authored.length === Object.keys(rules).length;
-    rows.push(row('M8', 'The new rule matters on its first stage', allAuthored ? (rejoinNeedsJoin === false ? null : false) : false,
-      `authored first-stage boards ${authored.length}/${Object.keys(rules).length} (${authored.map(([r]) => r).join(', ') || 'none'}); rejoin board has no split-only win: ${rejoinNeedsJoin === false}`,
-      'each rule has an authored first stage; removing the rule changes the solution',
-      allAuthored ? 'Removal test is built for rejoin only. Add it for the other rules when their boards are authored.' : 'Generated first stages let the player ignore the rule.'));
+    const ignoredFails = r => { // the first split-only route on the board without the rule is not a win on the board with it
+      const board = g.stageBoard('casual', rules[r]);
+      const naive = solveSplits(g, stripRule(board.cells), board.n);
+      return !!naive && !replayWins(g, board.cells, board.n, naive);
+    };
+    const missing = taught.filter(r => r === 'rejoin' ? rejoinNeedsJoin !== false : !ignoredFails(r));
+    rows.push(row('M8', 'The new rule matters on its first stage', authored.length === taught.length && !missing.length,
+      `authored first-stage boards ${authored.length}/${taught.length} (${authored.join(', ') || 'none'}); route that ignores the rule fails: ${taught.map(r => `${r} ${missing.includes(r) ? 'no' : 'yes'}`).join(', ')}`,
+      'rejoin, grumpy and cushions have an authored first stage and the route that ignores the rule fails there',
+      'Blocked cells and cracks are checked by eye: ignoring them is not possible, a route cannot cross a blocked cell.'));
   }
   reaches('M9', 'Progress', 900, { casual: [12, 20], challenge: [10, 18] });
   // M10

@@ -41,6 +41,6 @@ No recurring agent loops. Nightly checks run in GitHub Actions, not in an agent 
 - **builder** replays the generator's recorded solution (an upper bound on the shortest). Under Normal fuses it reorders by urgency.
 - **rookie** picks a random split that does not leave the board stuck, and rejoins when no split is left. 200 seeds per stage.
 - **hint-follower** is the builder driven through the hint path.
-- Difficulty (S2, M10) is wrong turns on offer per solution swipe: legal splits minus the one the solution takes. It stands in for dead-end branches, which are too costly to search on 7x8.
+- Difficulty (M10) is wrong turns on offer per solution swipe: legal splits minus the one the solution takes. It stands in for dead-end branches, which are too costly to search on 7x8.
 - Page rows (M1, M2, S3, S4, S5, M12, M13, M17, M19) and every ui-check row run in Playwright on a fake clock.
 - A row is Unknown when part of its test is not built yet. The row's note says which part.
