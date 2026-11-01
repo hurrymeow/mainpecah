@@ -38,12 +38,9 @@ Most items below follow from one idea. Every second this player spends confused,
 - Why the band: 0.5 min is the floor because shorter stages feel like busywork. 3 min leaves room for one retry inside a sitting.
 - Test: builder's modeled time is **0.5–3 min** for every stage up to 60. After 60, long stages (up to **4 min**) alternate with short ones: no two stages over 3 min in a row. The old short-stage rule is gone: long Normal stages stay under 3.5 min, so the alternation is not needed.
 
-**S2. Hard stages are short.**
+**S2. Hard stages are short. (Retired 2026-11-01, Hari go.)**
 
-- Looks like: King caps how long a level should run by how hard it is (King GDC 2024, summary).
-- Quote: "Just because they're hard doesn't mean they're not fun" (Jan Wedekind, King).
-- Why: a hard stage gets failed and retried. Retry cost is length times failure count. A long hard stage burns a whole sitting on one board. A short hard stage feels like a sharp puzzle.
-- Test: the hardest 10% of stages by solver difficulty sit in the shortest half by moves.
+- Why retired: in this game a harder stage is a longer one. Difficulty (wrong turns on offer per swipe) grows with the number of swipes, so the hardest stages can never be the short ones. The rookie bot loses every stage from 4 on, so loss rate carries no signal either. No measure we can build separates the two. Length is bounded by S1 instead.
 
 **S3. An interruption costs nothing.**
 
@@ -123,7 +120,7 @@ Most items below follow from one idea. Every second this player spends confused,
 - Looks like: a Candy Crush tutorial level for a blocker can't be won without dealing with that blocker (observed pattern).
 - Quote: "We only added a level if we had something new to say" (Ken Wong, Monument Valley).
 - Why: if a rule can be ignored on its first stage, the player learns to ignore it. They meet it for real ten stages later, with no memory of how it works.
-- Test: each rule's first stage is an authored board, like stage 12 for rejoin. Removing the rule changes the solver's solution.
+- Test: rejoin, grumpy kittens and cushions each have an authored first stage (stages 15, 26, 44), and the route that ignores the rule fails there. The scorecard solves the board without the rule, split-only in a fixed move order, and replays that route on the real board. Blocked cells and cracks are checked by eye: a route cannot cross a blocked cell, and a crack is a delayed block, so neither can be ignored.
 
 **M9. Progress.**
 
@@ -202,7 +199,7 @@ Most items below follow from one idea. Every second this player spends confused,
 - Board growth (2026-11-01, M5/M6/M9/M14/M15): boards grow faster so the game fits the time bands. 4x4 stages 1-3, 4x5 stages 4-7, 5x5 8-15, 5x6 16-18, 6x6 19-30, 6x7 31-38, 7x7 39-46, 7x8 from 47. A 4x4 board holds at most 13 splits, so only the picked first three stages stay under 0.5 min (S1). The rejoin teach board (stage 15) is the 4x5 puzzle behind a wall of blocked cells in a 5x5 board.
 - Band shape (2026-11-01, M10): Normal tiles from stage 4 follow a sawtooth. Inside each 10-stage band the splits climb to a peak, and the next band starts about a quarter lower (a bit more when the board just grew). Casual follows at about 1/1.2 of the splits.
 - Layout picks (2026-11-01): `tools/scorecard/fair-picks.cjs` picks the generator attempt for stages 4-100 per mode. It keeps the layout whose difficulty per split is closest to the usual ratio, so noise does not hide the band shape. On Normal stages 22+, except every fourth, it also prefers the layout a slow player clears with the shortest fuse, so the dawdler still loses 10-30%. Order to rerun after a board change: early-picks, `MODE=challenge` fair-picks, tile-table, `MODE=casual` fair-picks, fuse-table.
-- S2 finding (2026-11-01): S2 cannot pass with this difficulty measure. Wrong turns per swipe rises with board length, so the hardest stages are always long. The rookie bot loses on every stage from 4 on, so loss rate carries no signal either. S2 needs a different definition, see the thread.
+- S2 finding (2026-11-01), now retired: S2 could not pass with this difficulty measure. Wrong turns per swipe rises with board length, so the hardest stages are always long. The rookie bot loses on every stage from 4 on, so loss rate carries no signal either. S2 needs a different definition, see the thread.
 - Fuse sizing (2026-11-01): from stage 22 Normal uses the focus rule (Hari). Only fights within 2 cells of the last swipe burn; the rest wait with a dim bar. Each fuse is the shortest a player at 1/1.5 of the modeled pace clears, rounded up to 5 s, capped at **60 s**. The dawdler then loses only where the cap binds.
 - Known exploit: a player can freeze a fight by keeping their swipes more than 2 cells away from it. Rejoining still cannot refill a fuse, and every fight must be reached to win, so the freeze only defers the pressure.
 

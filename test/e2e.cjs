@@ -620,8 +620,9 @@ test('Start page and stages', async () => {
       const b = stageBoard(m, k);
       if (b.n === STAGES[k][0] && b.h === STAGES[k][1] && b.solution.length) keys.add(shapeKey(b.n, b.cells));
       const e = stageExtras(k), fl = b.cells.floor || [];
-      if ((b.teach || b.cells.filter(t => t && t.lock).length === (e.locks ?? STAGES[k][4])) && fl.filter(f => f === 'crack').length === e.cracks
-        && fl.filter(f => f === 'cushion').length === e.cushions && b.cells.filter(t => t && t.g).length === e.grumpy) locks++;
+      // An authored first stage (rejoin, grumpy, cushions) sets its own blocked cells and floors.
+      if (b.teach || (b.cells.filter(t => t && t.lock).length === (e.locks ?? STAGES[k][4]) && fl.filter(f => f === 'crack').length === e.cracks
+        && fl.filter(f => f === 'cushion').length === e.cushions && b.cells.filter(t => t && t.g).length === e.grumpy)) locks++;
       // Replay the recorded solution: every stage must be solvable from its starting board.
       let cur = b.cells;
       for (const s of b.solution) { cur = applyStep(cur, b.n, s); if (!cur) break; }

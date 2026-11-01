@@ -8,7 +8,7 @@ const Page = require('./checks-page.cjs');
 const { table } = require('./report.cjs');
 
 const arg = name => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : null; };
-const ORDER = ['S1', 'S2', 'S3', 'S4', 'S5', ...Array.from({ length: 21 }, (_, i) => 'M' + (i + 1)).filter(x => x !== 'M11')];
+const ORDER = ['S1', 'S3', 'S4', 'S5', ...Array.from({ length: 21 }, (_, i) => 'M' + (i + 1)).filter(x => x !== 'M11')];
 
 (async () => {
   const seed = +(arg('--seed') || process.env.SCORECARD_SEED || L.SEED);
