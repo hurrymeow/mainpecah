@@ -266,7 +266,7 @@ test('Locked cells', async () => {
   const { x, y } = await center(page, 0);
   await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.up();
   // A raw # ends a data: URL early and the box draws nothing, so the SVG must be fully encoded.
-  const box = await page.evaluate(() => { const b = document.querySelector('.cell.locked[data-i="1"] .box'); return !!b && /^url\("data:image\/svg\+xml,[^#]+"\)$/.test(getComputedStyle(b).backgroundImage); });
+  const box = await page.evaluate(() => { const b = document.querySelector('.cell.locked[data-i="1"] .box'); return !!b && /^url\("data:image\/(svg\+xml|webp)[,;][^#]+"\)$/.test(getComputedStyle(b).backgroundImage); });
   const before = await key(page);
   await mouseSwipe(page, 0, 'right');
   const r1 = await page.evaluate(() => ({ lock: !!(S.cells[1] && S.cells[1].lock), v: S.cells[0] && S.cells[0].v }));
