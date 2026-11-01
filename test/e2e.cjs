@@ -620,7 +620,7 @@ test('Start page and stages', async () => {
       const b = stageBoard(m, k);
       if (b.n === STAGES[k][0] && b.h === STAGES[k][1] && b.solution.length) keys.add(shapeKey(b.n, b.cells));
       const e = stageExtras(k), fl = b.cells.floor || [];
-      if ((b.teach || b.cells.filter(t => t && t.lock).length === STAGES[k][4]) && fl.filter(f => f === 'crack').length === e.cracks
+      if ((b.teach || b.cells.filter(t => t && t.lock).length === (e.locks ?? STAGES[k][4])) && fl.filter(f => f === 'crack').length === e.cracks
         && fl.filter(f => f === 'cushion').length === e.cushions && b.cells.filter(t => t && t.g).length === e.grumpy) locks++;
       // Replay the recorded solution: every stage must be solvable from its starting board.
       let cur = b.cells;
@@ -707,6 +707,46 @@ test('Player text', async () => {
   check(await page.evaluate(() => document.querySelectorAll('#howto .cot:not([data-kit]) .bed').length === 2), 'tutorial empty cells lack the dotted oval');
   await context.close();
   return 'no bed / Challenge / Kaboom Kittens / "of N" / Undo in visible or scripted copy; tutorial shows empty-cell ovals';
+});
+
+test('Daily board', async () => {
+  // Hidden until stage 100 is cleared; then one fixed board per date, solvable, done once won; an interruption keeps it.
+  const open = async saved => {
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+    const page = await context.newPage();
+    await page.addInitScript(v => { try { for (const k in v) localStorage.setItem(k, v[k]); } catch (e) {} }, saved);
+    await page.goto(URL.replace('?dev', ''));
+    await ready(page);
+    await page.click('#playCasual');
+    await skipHowto(page);
+    return { context, page, errors: (page.on('pageerror', e => this_errors.push(e.message)), []) };
+  };
+  const this_errors = [];
+  let g = await open({ 'split.stage.casual': '40' });
+  check(!(await g.page.evaluate(() => [...document.querySelectorAll('#stagePick option')].some(o => o.value === 'daily'))), 'daily board must stay hidden before stage 100 is cleared');
+  await g.context.close();
+  g = await open({ 'split.stage.casual': '100' });
+  const page = g.page;
+  check(await page.evaluate(() => [...document.querySelectorAll('#stagePick option')].some(o => o.value === 'daily')), 'daily board must be offered after stage 100');
+  const same = await page.evaluate(() => { const d = dailyDate(); return keyOf(dailyBoard(d).cells) === keyOf(dailyBoard(d).cells) && keyOf(dailyBoard(d).cells) !== keyOf(dailyBoard('2030-01-01').cells); });
+  check(same, 'a date must always give the same board, and another date another board');
+  await page.selectOption('#stagePick', 'daily');
+  check((await page.textContent('#stageTitle')) === 'Daily board' && !(await page.evaluate(() => S.fuseMs)), 'daily board has a title and no fuse');
+  await hintSwipe(page); await hintSwipe(page);
+  const before = await key(page);
+  await page.reload(); await ready(page);
+  await page.click('#playCasual');
+  await skipHowto(page);
+  await page.selectOption('#stagePick', 'daily');
+  check((await key(page)) === before, 'daily board in progress must survive a reload');
+  while (await hintSwipe(page)) { /* solve it */ }
+  await page.waitForTimeout(1500);
+  check((await page.textContent('#winNew')) === 'Back to stages' && await page.evaluate(() => localStorage.getItem('split.daily') === dailyDate()), 'winning the daily board must mark it done and offer Back to stages');
+  await page.click('#winNew');
+  check((await page.textContent('#stageTitle')).startsWith('Stage'), 'Back to stages must leave the daily board');
+  await g.context.close();
+  check(!this_errors.length, this_errors.join(' | '));
+  return 'hidden before stage 100; one board per date; no fuse; survives a reload; done once won; Back to stages';
 });
 
 test('Interruptions', async () => {

@@ -137,6 +137,17 @@ async function hintSteps(browser) {
   return { first, second };
 }
 
+async function dailyGate(browser) {
+  const has = async saved => {
+    const { context, page } = await P.newGame(browser, { saved });
+    await P.begin(page, 'casual');
+    const r = await page.evaluate(() => [...document.querySelectorAll('#stagePick option')].some(o => o.value === 'daily'));
+    await context.close();
+    return r;
+  };
+  return { hiddenBefore: !(await has({ 'split.stage.casual': '40' })), shownAfter: await has({ 'split.stage.casual': '100' }) };
+}
+
 async function run(browser, g, model, I) {
   const rows = [];
   const words = Math.max(I.casual.start, I.casual.howto, I.challenge.start, I.challenge.howto);
@@ -179,11 +190,18 @@ async function run(browser, g, model, I) {
     'first tap highlights the fight only; second tap shows the direction; cheapskate and hint-follower finish',
     direct || !second ? 'The two steps are not both in place.' : 'Cheapskate is not measured: it needs a calibrated human-like solver.'));
 
-  const html = fs.readFileSync(path.join(L.ROOT, 'index.html'), 'utf8');
-  const hasDaily = /daily/i.test(html.replace(/<style[\s\S]*?<\/style>/g, ''));
-  rows.push(row('M19', 'A reason to open it tomorrow', hasDaily ? null : false,
-    hasDaily ? 'daily board code found' : 'no daily board in the game', 'a new daily board each day past stage 100, 1-3 min, same for everyone',
-    hasDaily ? 'Present, but not yet testable. Add a date-keyed check.' : ''));
+  // M19: the daily board. 60 consecutive dates, plus the gate on the real page.
+  const days = Array.from({ length: 60 }, (_, d) => g.dailyDate(new Date(2026, 10, 1 + d)));
+  const boards = days.map(ds => g.dailyBoard(ds));
+  const mins = boards.map(b => L.play(g, b, { chooser: L.builder(b) }));
+  const fixed = days.every((ds, i) => g.keyOf(boards[i].cells) === g.keyOf(g.dailyBoard(ds).cells));
+  const distinct = new Set(boards.map(b => g.shapeKey(b.n, b.cells))).size;
+  const solvable = mins.every(r => r.won);
+  const inBand = mins.every(r => r.t >= 60 && r.t <= 180);
+  const gate = await dailyGate(browser);
+  rows.push(row('M19', 'A reason to open it tomorrow', fixed && solvable && inBand && distinct === days.length && gate.hiddenBefore && gate.shownAfter,
+    `${days.length} dates: ${solvable ? 'all solvable' : 'some unsolvable'}, ${distinct} distinct, ${fixed ? 'same board per date' : 'board changes within a date'}, ${(Math.min(...mins.map(r => r.t)) / 60).toFixed(1)}-${(Math.max(...mins.map(r => r.t)) / 60).toFixed(1)} min; hidden before stage 100: ${gate.hiddenBefore}; offered after: ${gate.shownAfter}`,
+    'a new daily board each day past stage 100, 1-3 min, same for everyone', 'Date is the local calendar date. Reachable from the stage picker; no fuse.'));
   return rows;
 }
 

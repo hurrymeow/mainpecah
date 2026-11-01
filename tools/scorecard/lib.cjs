@@ -8,6 +8,7 @@ const SEED = 20261031; // default seed for every bot. Override with SCORECARD_SE
 // Time model (decision D2, recalibrated): 0.8 s per swipe, 0.4 s per movable fight at that state, reading at 4 words/s.
 const SWIPE_S = 0.8, OPTION_S = 0.4, WORDS_PER_S = 4;
 const TAP_S = 2; // one tap on a button (Next stage, Got it, Play)
+const DAWDLER_SLOW = 1.5; // the dawdler (M20) plays at 1/1.5 of the modeled pace: every swipe and every look takes half as long again
 
 function loadGame() {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
@@ -52,7 +53,7 @@ const fuseSecondsFor = (g, mode, k) => (mode === 'challenge' ? g.STAGES[Math.min
 // Play one board. chooser(state) returns a step {from, dir, join} or null to give up.
 // Fuses follow the game: they arm at the first swipe, a split gives both halves a fresh fuse,
 // a rejoin resumes the fuse the fight had when it split. A fuse that runs out before the swipe lands blows up.
-function play(g, board, { fuseS = 0, chooser, maxSteps = 400, fuseOff = false }) {
+function play(g, board, { fuseS = 0, chooser, maxSteps = 400, fuseOff = false, slow = 1 }) {
   const n = board.n;
   let cells = g.stageBoard ? board.cells : board.cells, t = 0, steps = 0, started = false;
   let fuse = [];
@@ -64,7 +65,7 @@ function play(g, board, { fuseS = 0, chooser, maxSteps = 400, fuseOff = false })
     if (!options.length) return { won: false, lost: false, stuck: true, t, steps, cells };
     const step = chooser({ cells, options, steps, t, fuse, n });
     if (!step) return { won: false, lost: false, gaveUp: true, t, steps, cells };
-    const tm = t + stepCost(options);
+    const tm = t + stepCost(options) * slow; // slow > 1: a player who plays at 1/slow of the modeled pace (the dawdler)
     if (F && started && fuse.some(d => d != null && d <= tm)) return { won: false, lost: true, t: tm, steps, cells };
     if (F && !started) fuse = cells.map(c => (c && c.v > 1 ? tm + F : null));
     started = true;
@@ -113,16 +114,24 @@ function urgentBuilder(g, board) {
   }
   const deps = steps.map((_, b) => { const d = []; for (let a = 0; a < b; a++) if ([...touched[b]].some(c => touched[a].has(c))) d.push(a); return d; });
   const done = new Set();
-  return ({ fuse }) => {
-    let best = -1, bestAt = Infinity;
+  // Steps that touch no common cell usually commute, but floor tiles (cushions, cracks) can break that.
+  // So a step is only taken if the rest of the recorded solution, replayed after it, still reaches the solved board.
+  const finishes = (cells, skip, take) => {
+    let cur = g.applyStep(cells, n, steps[take]);
+    for (let a = 0; a < steps.length && cur; a++) if (!done.has(a) && a !== take) cur = g.applyStep(cur, n, steps[a]);
+    return !!cur && g.isWin(cur, n);
+  };
+  return ({ fuse, cells }) => {
+    const ready = [];
     for (let b = 0; b < steps.length; b++) {
       if (done.has(b) || !deps[b].every(a => done.has(a))) continue;
-      const at = fuse[steps[b].from] == null ? Infinity : fuse[steps[b].from];
-      if (best < 0 || at < bestAt) { best = b; bestAt = at; }
+      ready.push({ b, at: fuse[steps[b].from] == null ? Infinity : fuse[steps[b].from] });
     }
-    if (best < 0) return null;
-    done.add(best);
-    return steps[best];
+    ready.sort((x, y) => x.at - y.at || x.b - y.b);
+    const pick = ready.find(r => finishes(cells, null, r.b));
+    if (!pick) return null;
+    done.add(pick.b);
+    return steps[pick.b];
   };
 }
 
@@ -152,6 +161,7 @@ function builderStage(g, mode, k) {
   const fs_ = fuseSecondsFor(g, mode, k);
   const free = play(g, board, { chooser: builder(board) });
   const fused = fs_ ? play(g, board, { fuseS: fs_, chooser: urgentBuilder(g, board) }) : null;
+  const dawdled = fs_ ? play(g, board, { fuseS: fs_, chooser: urgentBuilder(g, board), slow: DAWDLER_SLOW }) : null;
   const run = free; // progress time ignores fuse deaths; survival is reported on its own
   // Difficulty: average legal options per solution swipe, minus the one the solution takes
   // (wrong turns on offer per move). Cheap on 7x8; a stand-in for dead-end branches.
@@ -163,6 +173,7 @@ function builderStage(g, mode, k) {
   return {
     k, mode, board, steps: run.steps, seconds: run.t, won: free.won,
     survives: fused ? fused.won : true,
+    dawdlerSurvives: dawdled ? dawdled.won : true,
     difficulty: board.solution.length ? wrong / board.solution.length : 0,
   };
 }
@@ -170,4 +181,4 @@ function builderStage(g, mode, k) {
 // Words in a string, as the player would read them.
 const wordCount = s => (s.match(/[A-Za-z0-9'’%.:×›-]+/g) || []).filter(w => /[A-Za-z0-9]/.test(w)).length;
 
-module.exports = { urgentBuilder, ROOT, SEED, SWIPE_S, OPTION_S, WORDS_PER_S, TAP_S, loadGame, rng, legalSteps, optionCount, stepCost, fuseSecondsFor, play, builder, rookie, builderStage, wordCount };
+module.exports = { DAWDLER_SLOW, urgentBuilder, ROOT, SEED, SWIPE_S, OPTION_S, WORDS_PER_S, TAP_S, loadGame, rng, legalSteps, optionCount, stepCost, fuseSecondsFor, play, builder, rookie, builderStage, wordCount };
