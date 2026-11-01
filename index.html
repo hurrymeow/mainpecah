@@ -1247,7 +1247,7 @@ if (typeof document !== 'undefined') {
     else if (jammed) { status.textContent = 'No room. Swipe a kitten back onto its twin.'; status.className = 'bad'; }
     else if (hint) { status.textContent = more ? `Hint: ${hint.join ? 'rejoin' : 'split'} the ${cells[hint.from].v} ${hint.dir}` : 'Hint: tap the lit fight for more.'; status.className = 'hint'; }
     else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Rejoin twins to get hints back.'; status.className = 'hint'; }
-    else status.textContent = { kittens: 'Give every kitten its own cell to sleep!', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
+    else status.textContent = S.stage != null && TWISTS[S.stage] ? `Twist: ${TWISTS[S.stage].name}` : { kittens: 'Give every kitten its own cell to sleep!', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
 
     // The first board with each new rule explains it until that board is solved. Newest rule first.
     const start = S.board.cells, startFloor = start.floor || [];
@@ -1264,8 +1264,7 @@ if (typeof document !== 'undefined') {
     if (tip && S.won) try { localStorage.setItem('split.tip.' + tip[0], '1'); } catch (err) {}
     $('quip').textContent = tip ? tip[2] : S.skin === 'kittens' ? QUIPS[(S.stage || 0) % QUIPS.length] : '';
     $('time').textContent = fmtTime(S.elapsed);
-    const twist = S.stage != null && TWISTS[S.stage] ? ` · Twist: ${TWISTS[S.stage].name}` : '';
-    $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.filter(s => !s.join).length} splits${twist}`;
+    $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.filter(s => !s.join).length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
     $('stageTitle').textContent = S.stage == null ? 'Custom' : `Stage ${S.stage + 1}`;
     $('menu').innerHTML = `<span>Difficulty:</span> ${S.mode === 'challenge' ? 'Normal' : 'Casual'}`;
