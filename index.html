@@ -658,7 +658,7 @@ function ramp(w, h, count, [t0, t1], [f0, f1] = [0, 0], [l0, l1] = [0, 0]) {
 // leave time to reach each one. Each value is the shortest fuse a player at 1/1.5 of the modeled pace clears the stage with,
 // rounded up to 5 s, never below the ladder ramp and never above 60 s.
 // Made by tools/scorecard/fuse-table.cjs. Rerun it after any change to the stage boards.
-const FUSE_SECONDS = [30, 30, 30, 40, 50, 50, 35, 55, 60, 60, 60, 60, 60, 60, 20, 40, 60, 60, 60, 60, 60, 30, 25, 30, 45, 30, 30, 30, 30, 40, 30, 30, 25, 30, 35, 30, 30, 35, 40, 50, 30, 30, 35, 40, 55, 30, 45, 40, 40, 45, 40, 50, 45, 45, 55, 45, 40, 45, 45, 60, 40, 40, 45, 45, 60, 40, 45, 35, 45, 45, 35, 45, 40, 45, 60, 45, 40, 50, 35, 60, 45, 45, 45, 40, 60, 50, 45, 45, 45, 60, 50, 40, 40, 45, 60, 40, 40, 40, 45, 35];
+const FUSE_SECONDS = [30, 30, 30, 45, 40, 50, 50, 60, 60, 60, 50, 60, 40, 60, 20, 60, 60, 60, 60, 60, 60, 45, 40, 25, 45, 40, 45, 35, 45, 45, 35, 40, 50, 35, 40, 45, 35, 45, 45, 60, 35, 45, 40, 50, 40, 45, 45, 55, 35, 45, 45, 40, 35, 45, 45, 60, 45, 45, 50, 60, 40, 50, 50, 60, 45, 45, 50, 60, 45, 50, 45, 45, 45, 50, 45, 60, 45, 45, 45, 60, 50, 45, 45, 60, 40, 60, 45, 60, 40, 50, 35, 60, 45, 40, 30, 45, 40, 45, 55, 60];
 const LADDER = [ // the ramps, with the old fuse column
   [4, 4, 10, 30, 0], [4, 4, 9, 30, 0], [4, 4, 8, 30, 0],
   ...ramp(4, 5, 4, [5, 4], [25, 20]), // 4x5 from stage 4: a 4x4 board cannot hold more than 13 splits (S1, M5)
@@ -669,10 +669,20 @@ const LADDER = [ // the ramps, with the old fuse column
   ...ramp(7, 7, 8, [19, 14], [25, 20], [5, 7]),
   ...ramp(7, 8, 54, [22, 17], [25, 20], [6, 9]),
 ];
+// Normal tiles from stage 4 (M10): inside each 10-stage band the splits climb to a peak, and the next band starts about a quarter lower.
+// The peak itself grows with the stage, up to what the board holds. Fewer tiles means more splits.
+const MIN_TILES = { '4x5': 4, '5x5': 7, '5x6': 8, '6x6': 10, '6x7': 12, '7x7': 14, '7x8': 16 };
+const PEAK_STEPS = k => Math.min(30, Math.round(15 + 0.36 * k));
+LADDER.forEach((st, k) => {
+  if (k < 3) return;
+  const grew = k % 10 === 0 && (LADDER[k - 1][0] !== st[0] || LADDER[k - 1][1] !== st[1]); // a bigger board offers more moves for the same splits, so start it lower
+  const steps = Math.round(PEAK_STEPS(k) * (0.76 + 0.24 * (k % 10) / 9) * (grew ? 0.85 : 1));
+  st[2] = Math.max(MIN_TILES[st[0] + 'x' + st[1]], st[0] * st[1] - st[4] - steps);
+});
 const STAGES = LADDER.map((st, i) => [st[0], st[1], st[2], FUSE_SECONDS[i], st[4]]);
 // Casual has no fuse. Its starting tiles are a table made by tools/scorecard/tile-table.cjs: from stage 11 it has
 // about 1/1.3 of the splits a Normal stage has, so Normal runs 1.2-1.6x as long (M20). Rerun it after any change to the Normal tiles.
-const CASUAL_TILES = [10, 8, 7, 7, 7, 7, 7, 12, 12, 11, 11, 11, 11, 10, 12, 13, 12, 11, 16, 16, 15, 15, 15, 15, 14, 14, 14, 14, 13, 13, 20, 20, 19, 19, 18, 17, 17, 16, 23, 22, 22, 21, 20, 20, 19, 19, 27, 27, 27, 27, 27, 27, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 23, 24, 23, 23, 23, 23, 23, 23, 23, 23, 22, 22, 22, 22, 22, 22];
+const CASUAL_TILES = [10, 8, 7, 10, 8, 7, 7, 11, 10, 10, 13, 12, 12, 10, 12, 13, 11, 11, 16, 15, 19, 17, 16, 16, 14, 14, 14, 13, 13, 13, 24, 21, 19, 18, 18, 16, 16, 16, 21, 20, 25, 23, 23, 22, 20, 19, 27, 27, 26, 25, 31, 30, 30, 29, 28, 26, 26, 26, 25, 24, 30, 29, 29, 28, 27, 26, 26, 26, 25, 24, 30, 29, 29, 27, 26, 25, 25, 25, 24, 23, 29, 28, 28, 27, 26, 27, 25, 25, 24, 23, 29, 27, 27, 26, 25, 24, 24, 24, 23, 22];
 const DIRS = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
 const ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
 
@@ -828,8 +838,8 @@ function teachBoard({ n, h, layout, solution }) {
 }
 
 // Which generator attempt a stage uses (0-based stage -> attempt), per mode. Stages 1-3 come from tools/scorecard/early-picks.cjs (first-time player wins).
-// Normal stages 22-100 (not the peaks at every fifth) come from tools/scorecard/fair-picks.cjs (the fuse a slow player needs stays short).
-const EARLY_PICK = { casual: { 0: 1, 1: 2, 2: 1 }, challenge: { 0: 2, 21: 10, 22: 2, 23: 1, 25: 1, 26: 0, 27: 3, 28: 0, 30: 14, 31: 3, 32: 8, 33: 3, 35: 14, 36: 6, 37: 15, 38: 3, 40: 12, 41: 9, 42: 12, 43: 19, 45: 2, 46: 10, 47: 9, 48: 5, 50: 18, 51: 19, 52: 18, 53: 15, 55: 10, 56: 13, 57: 10, 58: 5, 60: 14, 61: 14, 62: 7, 63: 14, 65: 9, 66: 5, 67: 18, 68: 6, 70: 1, 71: 6, 72: 14, 73: 15, 75: 0, 76: 11, 77: 18, 78: 1, 80: 15, 81: 6, 82: 16, 83: 6, 85: 9, 86: 12, 87: 17, 88: 8, 90: 0, 91: 8, 92: 11, 93: 18, 95: 12, 96: 9, 97: 9, 98: 6 } };
+// Normal stages 22-100 (not every fourth) come from tools/scorecard/fair-picks.cjs (the fuse a slow player needs stays short).
+const EARLY_PICK = { casual: { 0: 1, 1: 2, 2: 1, 3: 5, 4: 17, 5: 16, 6: 10, 7: 2, 8: 6, 9: 1, 10: 19, 11: 8, 12: 10, 13: 14, 15: 0, 16: 11, 17: 10, 18: 4, 19: 14, 20: 18, 21: 8, 22: 1, 23: 2, 24: 19, 25: 4, 26: 5, 27: 2, 28: 6, 29: 6, 30: 14, 31: 0, 32: 0, 33: 10, 34: 18, 35: 5, 36: 17, 37: 4, 38: 4, 39: 16, 40: 8, 41: 17, 42: 16, 43: 16, 44: 17, 45: 15, 46: 12, 47: 9, 48: 9, 49: 0, 50: 5, 51: 8, 52: 11, 53: 17, 54: 12, 55: 4, 56: 8, 57: 12, 58: 2, 59: 15, 60: 0, 61: 6, 62: 3, 63: 11, 64: 8, 65: 8, 66: 8, 67: 1, 68: 10, 69: 14, 70: 19, 71: 10, 72: 11, 73: 16, 74: 3, 75: 8, 76: 17, 77: 7, 78: 18, 79: 6, 80: 0, 81: 18, 82: 7, 83: 15, 84: 4, 85: 5, 86: 1, 87: 11, 88: 12, 89: 6, 90: 8, 91: 0, 92: 5, 93: 4, 94: 1, 95: 0, 96: 18, 97: 2, 98: 0, 99: 3 }, challenge: { 0: 2, 3: 8, 4: 16, 5: 4, 6: 12, 7: 19, 8: 8, 9: 4, 10: 12, 11: 16, 12: 7, 13: 15, 15: 11, 16: 18, 17: 3, 18: 5, 19: 13, 20: 6, 21: 4, 22: 11, 23: 0, 24: 6, 25: 0, 26: 13, 27: 10, 28: 6, 29: 18, 30: 2, 31: 10, 32: 8, 33: 13, 34: 3, 35: 19, 36: 0, 37: 19, 38: 6, 39: 7, 40: 6, 41: 5, 42: 12, 43: 0, 44: 18, 45: 13, 46: 16, 47: 0, 48: 11, 49: 2, 50: 3, 51: 19, 52: 16, 53: 3, 54: 11, 55: 0, 56: 16, 57: 10, 58: 8, 59: 2, 60: 19, 61: 4, 62: 17, 63: 1, 64: 7, 65: 1, 66: 17, 67: 9, 68: 6, 69: 10, 70: 14, 71: 14, 72: 9, 73: 10, 74: 4, 75: 13, 76: 8, 77: 14, 78: 17, 79: 8, 80: 6, 81: 10, 82: 5, 83: 0, 84: 19, 85: 0, 86: 1, 87: 1, 88: 7, 89: 1, 90: 18, 91: 12, 92: 16, 93: 14, 94: 19, 95: 10, 96: 2, 97: 15, 98: 12, 99: 10 } };
 const stageBoards = { casual: [], challenge: [] };
 function stageBoard(mode, k) {
   const list = stageBoards[mode], seen = new Set(list.map(b => shapeKey(b.n, b.cells)));
