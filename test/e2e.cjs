@@ -238,7 +238,7 @@ test('Full solve', async () => {
 test('Oblong boards', async () => {
   const { context, page, errors } = await open({}, false);
   const out = [];
-  for (const k of [10, 99]) { // stage 11 is 4x5, stage 100 is 7x8
+  for (const k of [3, 99]) { // stage 4 is 4x5, stage 100 is 7x8
     await page.evaluate(k => localStorage.setItem('split.stage.casual', String(k)), k);
     await page.reload(); await ready(page); await page.click('#playCasual'); await skipHowto(page); await settled(page);
     const g = await page.evaluate(() => {
@@ -630,7 +630,7 @@ test('Start page and stages', async () => {
     return { m, unique: keys.size, stages: STAGES.length, solved, locks };
   }));
   check(boards.every(b => b.stages === 100 && b.unique === 100 && b.solved === 100 && b.locks === 100), `stage boards must be 100 unique, solvable, with the right locks per mode: ${JSON.stringify(boards)}`);
-  check(ladder === '4x4 4x5 5x5 5x6 6x6 6x7 7x7 7x8' && (await page.evaluate(() => STAGES.every(([w, h], k) => STAGES.filter(s => s[0] === w && s[1] === h).length === (k < 70 ? 10 : 30)))), `stage ladder should grow every 10 stages from 4x4, then stay 7x8 from stage 71: ${ladder}`);
+  check(ladder === '4x4 4x5 5x5 5x6 6x6 6x7 7x7 7x8' && (await page.evaluate(() => JSON.stringify(['4x4', '4x5', '5x5', '5x6', '6x6', '6x7', '7x7', '7x8'].map(d => STAGES.filter(s => s[0] + 'x' + s[1] === d).length)))) === '[3,4,8,3,12,8,8,54]', `stage ladder should grow 4x4 (3 stages), 4x5 (4), 5x5 (8), 5x6 (3), 6x6 (12), 6x7 (8), 7x7 (8), then stay 7x8: ${ladder}`);
   await context.close();
   check(!errors.length, errors.join(' | '));
   return 'start page on boot; Casual has no fuse; win -> Next stage; progress per mode survives reload; Challenge fuse from the stage; 100 unique solvable boards per mode';

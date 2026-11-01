@@ -658,21 +658,21 @@ function ramp(w, h, count, [t0, t1], [f0, f1] = [0, 0], [l0, l1] = [0, 0]) {
 // leave time to reach each one. Each value is the shortest fuse a player at 1/1.5 of the modeled pace clears the stage with,
 // rounded up to 5 s, never below the ladder ramp and never above 60 s.
 // Made by tools/scorecard/fuse-table.cjs. Rerun it after any change to the stage boards.
-const FUSE_SECONDS = [30, 30, 30, 25, 25, 30, 25, 25, 35, 30, 40, 40, 35, 35, 20, 35, 30, 35, 35, 40, 50, 35, 20, 25, 25, 30, 25, 35, 30, 25, 25, 30, 45, 35, 50, 30, 40, 35, 35, 40, 45, 45, 35, 30, 45, 35, 35, 55, 40, 60, 35, 40, 45, 50, 35, 55, 60, 50, 50, 60, 60, 50, 60, 60, 55, 50, 50, 45, 35, 60, 60, 50, 60, 60, 60, 40, 60, 60, 55, 60, 60, 60, 50, 40, 60, 45, 50, 50, 50, 40, 60, 55, 60, 60, 50, 50, 60, 60, 60, 60];
+const FUSE_SECONDS = [30, 30, 30, 40, 50, 50, 35, 55, 60, 60, 60, 60, 60, 60, 20, 40, 60, 60, 60, 60, 60, 30, 25, 30, 45, 30, 30, 30, 30, 40, 30, 30, 25, 30, 35, 30, 30, 35, 40, 50, 30, 30, 35, 40, 55, 30, 45, 40, 40, 45, 40, 50, 45, 45, 55, 45, 40, 45, 45, 60, 40, 40, 45, 45, 60, 40, 45, 35, 45, 45, 35, 45, 40, 45, 60, 45, 40, 50, 35, 60, 45, 45, 45, 40, 60, 50, 45, 45, 45, 60, 50, 40, 40, 45, 60, 40, 40, 40, 45, 35];
 const LADDER = [ // the ramps, with the old fuse column
-  [4, 4, 10, 30, 0], [4, 4, 9, 30, 0], [4, 4, 8, 30, 0], ...ramp(4, 4, 7, [7, 5], [25, 15]),
-  ...ramp(4, 5, 10, [9, 6], [20, 15], [1, 2]).map((st, i) => (i < 3 ? [...st.slice(0, 4), 0] : st)), // blocked cells arrive at stage 14, on a board size the player already knows
-  ...ramp(5, 5, 10, [11, 7], [20, 15], [2, 3]),
-  ...ramp(5, 6, 10, [13, 9], [20, 20], [2, 4]),
-  ...ramp(6, 6, 10, [15, 10], [25, 20], [3, 5]),
-  ...ramp(6, 7, 10, [17, 12], [25, 20], [4, 6]),
-  ...ramp(7, 7, 10, [19, 14], [25, 20], [5, 7]),
-  ...ramp(7, 8, 30, [22, 15], [25, 20], [6, 9]),
+  [4, 4, 10, 30, 0], [4, 4, 9, 30, 0], [4, 4, 8, 30, 0],
+  ...ramp(4, 5, 4, [5, 4], [25, 20]), // 4x5 from stage 4: a 4x4 board cannot hold more than 13 splits (S1, M5)
+  ...ramp(5, 5, 8, [9, 7], [20, 15], [0, 3]).map((st, i) => (i < 6 ? [...st.slice(0, 4), 0] : [...st.slice(0, 4), i - 5])), // blocked cells arrive at stage 14, on a board size the player already knows
+  ...ramp(5, 6, 3, [10, 8], [20, 20], [2, 3]),
+  ...ramp(6, 6, 12, [13, 10], [25, 20], [3, 5]),
+  ...ramp(6, 7, 8, [17, 12], [25, 20], [4, 6]),
+  ...ramp(7, 7, 8, [19, 14], [25, 20], [5, 7]),
+  ...ramp(7, 8, 54, [22, 17], [25, 20], [6, 9]),
 ];
 const STAGES = LADDER.map((st, i) => [st[0], st[1], st[2], FUSE_SECONDS[i], st[4]]);
 // Casual has no fuse. Its starting tiles are a table made by tools/scorecard/tile-table.cjs: from stage 11 it has
 // about 1/1.3 of the splits a Normal stage has, so Normal runs 1.2-1.6x as long (M20). Rerun it after any change to the Normal tiles.
-const CASUAL_TILES = [10, 8, 7, 6, 6, 5, 5, 5, 4, 4, 11, 11, 10, 10, 8, 9, 9, 9, 8, 8, 13, 13, 13, 13, 12, 12, 11, 11, 10, 10, 16, 16, 16, 15, 15, 15, 14, 14, 13, 13, 19, 18, 18, 17, 17, 17, 17, 16, 16, 15, 22, 21, 21, 20, 20, 19, 19, 18, 18, 18, 25, 23, 24, 22, 23, 21, 22, 20, 21, 19, 28, 27, 28, 26, 28, 26, 27, 25, 27, 25, 27, 25, 26, 25, 26, 17, 25, 24, 25, 23, 24, 23, 24, 22, 23, 22, 23, 21, 22, 21];
+const CASUAL_TILES = [10, 8, 7, 7, 7, 7, 7, 12, 12, 11, 11, 11, 11, 10, 12, 13, 12, 11, 16, 16, 15, 15, 15, 15, 14, 14, 14, 14, 13, 13, 20, 20, 19, 19, 18, 17, 17, 16, 23, 22, 22, 21, 20, 20, 19, 19, 27, 27, 27, 27, 27, 27, 26, 26, 26, 26, 26, 26, 26, 26, 26, 26, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 24, 23, 24, 23, 23, 23, 23, 23, 23, 23, 23, 22, 22, 22, 22, 22, 22];
 const DIRS = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
 const ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
 
@@ -806,16 +806,15 @@ const TWISTS = {
   85: { cracks: 3, grumpy: 4, cushions: 4, locks: 0, name: 'Open board' },
 };
 
-// Stage 15 teaches rejoining, the stage after blocked cells arrive. Every route that only splits dead-ends; the one way through
+// Stage 15 teaches rejoining, the stage after blocked cells arrive. The 4x5 puzzle sits in a 5x5 board behind a wall of blocked cells, so it keeps the board size of the stages around it. Every route that only splits dead-ends; the one way through
 // splits the 4 up, then swipes the new 2 back onto its twin so the fight moves to a free cell.
 // 0 = empty, -1 = blocked, else a starting tile's value.
 const TEACH = {
   14: {
-    n: 4, h: 5,
-    layout: [2, 0, 2, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 4, 8, 0, -1, 0, 0, -1],
+    n: 5, h: 5,
+    layout: [2, 0, 2, 0, -1, 0, 0, -1, -1, -1, 0, 0, 0, 0, -1, 0, 4, 8, 0, -1, -1, 0, 0, -1, -1],
     solution: [
-      ['up', 13], ['up', 13, 1], ['left', 14], ['right', 14], ['up', 15], ['down', 14], ['left', 13],
-      ['down', 13], ['up', 12], ['up', 9], ['right', 9], ['left', 5], ['right', 2], ['right', 0],
+      ['up', 16], ['up', 16, 1], ['left', 17], ['right', 17], ['up', 18], ['down', 17], ['left', 16], ['down', 16], ['up', 15], ['up', 11], ['right', 11], ['left', 6], ['right', 2], ['right', 0],
     ].map(([dir, from, join]) => ({ from, dir, join: !!join })),
   },
 };
@@ -828,8 +827,9 @@ function teachBoard({ n, h, layout, solution }) {
   return { n, h, cells, solution, path, tiles: colour, teach: true };
 }
 
-// Which generator attempt each early stage uses (0-based stage -> attempt), per mode. Made by tools/scorecard/early-picks.cjs.
-const EARLY_PICK = { casual: { 0: 1, 1: 2, 2: 1 }, challenge: { 0: 2 } };
+// Which generator attempt a stage uses (0-based stage -> attempt), per mode. Stages 1-3 come from tools/scorecard/early-picks.cjs (first-time player wins).
+// Normal stages 22-100 (not the peaks at every fifth) come from tools/scorecard/fair-picks.cjs (the fuse a slow player needs stays short).
+const EARLY_PICK = { casual: { 0: 1, 1: 2, 2: 1 }, challenge: { 0: 2, 21: 10, 22: 2, 23: 1, 25: 1, 26: 0, 27: 3, 28: 0, 30: 14, 31: 3, 32: 8, 33: 3, 35: 14, 36: 6, 37: 15, 38: 3, 40: 12, 41: 9, 42: 12, 43: 19, 45: 2, 46: 10, 47: 9, 48: 5, 50: 18, 51: 19, 52: 18, 53: 15, 55: 10, 56: 13, 57: 10, 58: 5, 60: 14, 61: 14, 62: 7, 63: 14, 65: 9, 66: 5, 67: 18, 68: 6, 70: 1, 71: 6, 72: 14, 73: 15, 75: 0, 76: 11, 77: 18, 78: 1, 80: 15, 81: 6, 82: 16, 83: 6, 85: 9, 86: 12, 87: 17, 88: 8, 90: 0, 91: 8, 92: 11, 93: 18, 95: 12, 96: 9, 97: 9, 98: 6 } };
 const stageBoards = { casual: [], challenge: [] };
 function stageBoard(mode, k) {
   const list = stageBoards[mode], seen = new Set(list.map(b => shapeKey(b.n, b.cells)));
@@ -837,10 +837,7 @@ function stageBoard(mode, k) {
     if (TEACH[j]) { const b = teachBoard(TEACH[j]); seen.add(shapeKey(b.n, b.cells)); list.push(b); continue; }
     const [n, h, normal, , ladderLocks] = STAGES[Math.min(j, STAGES.length - 1)];
     const locks = stageExtras(j).locks ?? ladderLocks;
-    // From stage 61 every second stage is a short one: about a tenth of the board more tiles, so fewer splits.
-    // Long and short stages then alternate, and the long ones stay under 4 minutes (S1).
-    const shorter = j >= 60 && j % 2 === 1 ? Math.round(n * h * 0.1) : 0;
-    const target = (mode === 'casual' ? CASUAL_TILES[Math.min(j, STAGES.length - 1)] : normal) + shorter;
+    const target = mode === 'casual' ? CASUAL_TILES[Math.min(j, STAGES.length - 1)] : normal;
     // Take the first new layout that hits the tile target; failing that, the new one closest to it.
     let best = null;
     // The first stages can use a layout picked ahead of time (tools/scorecard/early-picks.cjs): one a first-time player wins easily.
@@ -1067,7 +1064,7 @@ function selfTest(perSize = 1000, rand = Math.random) {
 
 if (typeof module !== 'undefined') {
   module.exports = {
-    generate, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE,
+    generate, seeded, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE,
     // Read by tools/scorecard (npm run scorecard); exported only, no behaviour change.
     STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, EARLY_PICK, DAILY, DAILY_FROM, FOCUS_FROM, FOCUS_R, heldAt, dailyDate, dailyBoard, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
     mergeTarget, applyJoin, applyStep, canMerge, isJammed, regionDone,

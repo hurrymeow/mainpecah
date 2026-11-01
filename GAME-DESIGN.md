@@ -36,7 +36,7 @@ Most items below follow from one idea. Every second this player spends confused,
 - Quote: "The longer the level is, the less likely it is to be fun," (Xavier Guardiola, King, GDC 2024).
 - Why: a finished stage is the unit of reward. If the stop arrives mid-stage, the sitting ends with nothing banked. Two short wins beat one long win in a 5 min window.
 - Why the band: 0.5 min is the floor because shorter stages feel like busywork. 3 min leaves room for one retry inside a sitting.
-- Test: builder's modeled time is **0.5–3 min** for every stage up to 60. After 60, long stages (up to **4 min**) alternate with short ones: no two stages over 3 min in a row. Since PR 8, every second stage from 61 has about a tenth of the board more tiles.
+- Test: builder's modeled time is **0.5–3 min** for every stage up to 60. After 60, long stages (up to **4 min**) alternate with short ones: no two stages over 3 min in a row. The old short-stage rule is gone: long Normal stages stay under 3.5 min, so the alternation is not needed.
 
 **S2. Hard stages are short.**
 
@@ -198,7 +198,9 @@ Most items below follow from one idea. Every second this player spends confused,
 - Quote: Threes players "haven't had time to understand all we've done with our game's system" (Vollmer and Wohlwend).
 - Why: replaying known boards with fuses tests speed on puzzles the player already understands. That is a new skill on old content, which is what NG+ means.
 - Test: Normal modeled time is **1.2–1.6x** Casual on the same stage. Dawdler loses **10–30%** of Normal stages 41–100.
-- Tile sizing (2026-11-01, Hari go): Normal keeps its tiles. From stage 11 Casual starts with more tiles, about 1/1.3 of Normal's splits, so Normal runs about **1.4x** Casual. Making Normal longer instead pushed the dawdler loss to 38–48%, because the generator cannot go lower on late boards. Cost: Casual stages 11–30 run about 0.4–0.5 min, under the S1 floor. Table: `tools/scorecard/tile-table.cjs`.
+- Tile sizing (2026-11-01): from stage 4 Casual starts with more tiles, about 1/1.2 of Normal's splits, so Normal runs about **1.25x** Casual. Table: `tools/scorecard/tile-table.cjs`.
+- Board growth (2026-11-01, M5/M6/M9/M14/M15): boards grow faster so the game fits the time bands. 4x4 stages 1-3, 4x5 stages 4-7, 5x5 8-15, 5x6 16-18, 6x6 19-30, 6x7 31-38, 7x7 39-46, 7x8 from 47. A 4x4 board holds at most 13 splits, so only the picked first three stages stay under 0.5 min (S1). The rejoin teach board (stage 15) is the 4x5 puzzle behind a wall of blocked cells in a 5x5 board.
+- Layout picks (2026-11-01): Normal stages 22-100, except every fifth, use the generator attempt a slow player clears with the shortest fuse (`tools/scorecard/fair-picks.cjs`). Every fifth keeps its default layout, so the dawdler still loses 10-30%. Order to rerun after a board change: early-picks, fair-picks, tile-table, fuse-table.
 - Fuse sizing (2026-11-01): from stage 22 Normal uses the focus rule (Hari). Only fights within 2 cells of the last swipe burn; the rest wait with a dim bar. Each fuse is the shortest a player at 1/1.5 of the modeled pace clears, rounded up to 5 s, capped at **60 s**. The dawdler then loses only where the cap binds.
 - Known exploit: a player can freeze a fight by keeping their swipes more than 2 cells away from it. Rejoining still cannot refill a fuse, and every fight must be reached to win, so the freeze only defers the pressure.
 
