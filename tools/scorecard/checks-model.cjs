@@ -215,11 +215,17 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
   }
   // M16
   {
-    const marks = [...Object.values(rules)].sort((a, b) => a - b);
+    // A mark is a rule's first stage, or a twist: a stage whose mix of blocked cells, cracks, grumpy kittens and cushions has not appeared before.
+    const mix = k => { const e = g.stageExtras(k); return [(e.locks ?? g.STAGES[k][4]) > 0, e.cracks > 0, e.grumpy > 0, e.cushions > 0].map(Number).join(''); };
+    const seen = new Set(), twists = [];
+    for (let k = 0; k < 100; k++) { const m = mix(k); if (!seen.has(m) && g.TWISTS[k]) twists.push(k); seen.add(m); }
+    const unnew = Object.keys(g.TWISTS).map(Number).filter(k => !twists.includes(k));
+    const marks = [...Object.values(rules), ...twists].sort((a, b) => a - b);
     let gap = 0, from = 0;
     [-1, ...marks, 100].forEach((k, i, a) => { if (i) { const run = k - a[i - 1] - 1; if (run > gap) { gap = run; from = a[i - 1] + 2; } } });
-    rows.push(row('M16', 'Something new every so often', gap <= 15, `longest run without a new rule: ${gap} stages (${from}-${from + gap - 1})`, '<=15 stages',
-      'No scheduled combos exist yet, so only first appearances of rules count.'));
+    rows.push(row('M16', 'Something new every so often', gap <= 15 && !unnew.length,
+      `longest run without a new rule or mix: ${gap} stages (${from}-${from + gap - 1}); twists at ${twists.map(k => k + 1).join(', ')}${unnew.length ? '; not new: ' + unnew.map(k => k + 1).join(', ') : ''}`,
+      '<=15 stages', 'A twist counts only if its mix of existing rules has not appeared at an earlier stage.'));
   }
   // M18
   {
@@ -233,9 +239,12 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
     const ratios = Array.from({ length: 100 }, (_, k) => stages.challenge[k].seconds / stages.casual[k].seconds);
     const med = median(ratios);
     const survive = stages.challenge.slice(0, 100).filter(s => s.survives).length;
-    rows.push(row('M20', 'Normal is the NG+', inBand(med, [1.2, 1.6]) ? null : false,
-      `median Normal/Casual time ${med.toFixed(2)}x; builder at modeled pace clears ${survive}/100 Normal fuses`, '1.2-1.6x; dawdler loses 10-30% of Normal 41-100',
-      'Dawdler half is not measured: it needs an order-free solver. The fuse line shows D2 pace vs Normal fuses, which D2 does not yet calibrate.'));
+    const lost = stages.challenge.slice(40, 100).filter(s => !s.dawdlerSurvives).length;
+    const pct = Math.round((lost / 60) * 100);
+    rows.push(row('M20', 'Normal is the NG+', inBand(med, [1.2, 1.6]) && pct >= 10 && pct <= 30,
+      `median Normal/Casual time ${med.toFixed(2)}x; dawdler (${L.DAWDLER_SLOW}x slower) loses ${pct}% of Normal 41-100; builder at modeled pace clears ${survive}/100 Normal fuses`,
+      '1.2-1.6x; dawdler loses 10-30% of Normal 41-100',
+      'The dawdler is the urgent builder at 1/1.5 of the modeled pace. Both Normal fuse lines use the same model.'));
   }
   // M21
   {

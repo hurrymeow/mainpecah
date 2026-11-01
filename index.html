@@ -785,12 +785,21 @@ function shapeKey(n, cells) {
 // A new rule every 15 stages or so, on top of blocked cells: cracks from stage 24,
 // grumpy kittens from 26 and cushions from 44. Each count creeps up within its stretch.
 function stageExtras(k) {
-  return {
+  return TWISTS[k] || {
     cracks: k < 23 ? 0 : Math.min(3, 1 + Math.floor((k - 23) / 15)),
     grumpy: k < 25 ? 0 : Math.min(4, 2 + Math.floor((k - 25) / 20)),
     cushions: k < 43 ? 0 : Math.min(4, 2 + Math.floor((k - 43) / 15)),
   };
 }
+// Twists: stages (0-based) that bring a mix of the existing rules the player has not seen before, so something is new at least every 15 stages.
+// Each mix is a different combination of cracks, grumpy kittens, cushions and blocked cells. No new rule to learn, only a new combination.
+const TWISTS = {
+  34: { cracks: 0, grumpy: 3, cushions: 0, name: 'Grumpy pack' },
+  54: { cracks: 3, grumpy: 0, cushions: 3, name: 'Cracks and cushions' },
+  61: { cracks: 0, grumpy: 4, cushions: 4, name: 'Grumpy cushions' },
+  69: { cracks: 0, grumpy: 0, cushions: 5, name: 'Cushion maze' },
+  85: { cracks: 3, grumpy: 4, cushions: 4, locks: 0, name: 'Open board' },
+};
 
 // Stage 15 teaches rejoining, the stage after blocked cells arrive. Every route that only splits dead-ends; the one way through
 // splits the 4 up, then swipes the new 2 back onto its twin so the fight moves to a free cell.
@@ -819,7 +828,8 @@ function stageBoard(mode, k) {
   const list = stageBoards[mode], seen = new Set(list.map(b => shapeKey(b.n, b.cells)));
   for (let j = list.length; j <= k; j++) {
     if (TEACH[j]) { const b = teachBoard(TEACH[j]); seen.add(shapeKey(b.n, b.cells)); list.push(b); continue; }
-    const [n, h, normal, , locks] = STAGES[Math.min(j, STAGES.length - 1)];
+    const [n, h, normal, , ladderLocks] = STAGES[Math.min(j, STAGES.length - 1)];
+    const locks = stageExtras(j).locks ?? ladderLocks;
     // From stage 61 every second stage is a short one: about a tenth of the board more tiles, so fewer splits.
     // Long and short stages then alternate, and the long ones stay under 4 minutes (S1).
     const shorter = j >= 60 && j % 2 === 1 ? Math.round(n * h * 0.1) : 0;
@@ -1023,7 +1033,7 @@ if (typeof module !== 'undefined') {
   module.exports = {
     generate, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE,
     // Read by tools/scorecard (npm run scorecard); exported only, no behaviour change.
-    STAGES, LADDER, CASUAL_TILES, TEACH, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
+    STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
     mergeTarget, applyJoin, applyStep, canMerge, isJammed, regionDone,
   };
 }
@@ -1254,7 +1264,8 @@ if (typeof document !== 'undefined') {
     if (tip && S.won) try { localStorage.setItem('split.tip.' + tip[0], '1'); } catch (err) {}
     $('quip').textContent = tip ? tip[2] : S.skin === 'kittens' ? QUIPS[(S.stage || 0) % QUIPS.length] : '';
     $('time').textContent = fmtTime(S.elapsed);
-    $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.filter(s => !s.join).length} splits`;
+    const twist = S.stage != null && TWISTS[S.stage] ? ` · Twist: ${TWISTS[S.stage].name}` : '';
+    $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.filter(s => !s.join).length} splits${twist}`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
     $('stageTitle').textContent = S.stage == null ? 'Custom' : `Stage ${S.stage + 1}`;
     $('menu').innerHTML = `<span>Difficulty:</span> ${S.mode === 'challenge' ? 'Normal' : 'Casual'}`;

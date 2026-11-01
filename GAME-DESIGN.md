@@ -170,7 +170,7 @@ Most items below follow from one idea. Every second this player spends confused,
 - Quote: Royal Match's level design "inevitably starts to feel like remixing rather than discovery" (Orcz review).
 - Why: the player keeps coming back to find out what's next. Once they think nothing new is coming, each stage is only a chore to clear.
 - Why 15 stages: at 2–3 min a stage, that is about 30–45 min, or a week of commutes.
-- Test: longest run without a new rule or a scheduled first-time combo of existing rules is **≤ 15** stages. Today **59** (42–100).
+- Test: longest run without a new rule or a scheduled first-time combo of existing rules is **≤ 15** stages. Twists at stages 35, 55, 62, 70 and 86 (see `TWISTS` in index.html) keep the longest run at **15**.
 
 **M17. Hints help, they don't play.**
 
