@@ -191,7 +191,7 @@ Most items below follow from one idea. Every second this player spends confused,
 - Looks like: Wordle and Connections give one puzzle a day, the same for everyone, in a few minutes (observed).
 - Quote: "We're not trying to get you to spend 24/7 in our app" (Jonathan Knight, NYT Games).
 - Why: after stage 100 nothing pulls the player back. A daily board is a small, fixed-size reason that fits one sitting and ends cleanly.
-- Test: a new daily board is available each day for players past stage 100, solvable in **1–3 min**. Same board for everyone on a date. Today none.
+- Test: a new daily board is available each day for players past stage 100, solvable in **1–3 min**. Same board for everyone on a date. Built: stage picker lists "Daily board" once stage 100 is cleared; 6x7, about 2 min, no fuse.
 
 **M20. Normal is the NG+.**
 

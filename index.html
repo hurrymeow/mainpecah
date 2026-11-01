@@ -676,7 +676,8 @@ const ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
 const S = {
   n: 4, h: 4, target: 5, // board columns and rows
   mode: 'casual',   // 'casual' (no fuses) | 'challenge'
-  stage: 0,         // index into STAGES; null when the dev controls set a custom board
+  stage: 0,         // index into STAGES; null when the dev controls set a custom board or the daily board is open
+  daily: null,      // the date (YYYY-MM-DD) of the daily board being played, else null
   board: null,      // generator output: {n, h, cells, solution, path}
   cells: null,      // current cells
   t0: 0, elapsed: 0, timer: 0,
@@ -847,6 +848,25 @@ function stageBoard(mode, k) {
     list.push(best.b);
   }
   return list[k];
+}
+
+// The daily board: one fixed board per calendar date, the same for everyone, for players who have cleared stage 100.
+// A 6x7 board with a bit of every rule, about 2 minutes at the modeled pace. No fuse.
+const DAILY = { n: 6, h: 7, tiles: 13, locks: 3, extras: { cracks: 2, grumpy: 2, cushions: 2 } };
+function dailyDate(now = new Date()) {
+  const p = x => String(x).padStart(2, '0');
+  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+}
+function dailyBoard(date) {
+  let h = 2166136261;
+  for (const ch of date) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  let best = null;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const b = generate(DAILY.n, DAILY.tiles, seeded((h >>> 0) + attempt), DAILY.h, DAILY.locks, DAILY.extras);
+    if (!best || b.tiles < best.tiles) best = b;
+    if (b.tiles <= DAILY.tiles) break;
+  }
+  return best;
 }
 
 // Cracks, grumpy kittens and cushions go on after the board is built, only where the recorded
@@ -1033,7 +1053,7 @@ if (typeof module !== 'undefined') {
   module.exports = {
     generate, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE,
     // Read by tools/scorecard (npm run scorecard); exported only, no behaviour change.
-    STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
+    STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, DAILY, dailyDate, dailyBoard, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
     mergeTarget, applyJoin, applyStep, canMerge, isJammed, regionDone,
   };
 }
@@ -1266,16 +1286,16 @@ if (typeof document !== 'undefined') {
     $('time').textContent = fmtTime(S.elapsed);
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.filter(s => !s.join).length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
-    $('stageTitle').textContent = S.stage == null ? 'Custom' : `Stage ${S.stage + 1}`;
+    $('stageTitle').textContent = S.daily ? 'Daily board' : S.stage == null ? 'Custom' : `Stage ${S.stage + 1}`;
     $('menu').innerHTML = `<span>Difficulty:</span> ${S.mode === 'challenge' ? 'Normal' : 'Casual'}`;
     $('menu').classList.toggle('hot', S.mode === 'challenge');
     const pick = $('stagePick'), top = Math.min(savedStage(S.mode), STAGES.length - 1); // unlocked up to the furthest reached
-    const pickKey = `${S.mode}:${top}:${S.stage}`;
+    const pickKey = `${S.mode}:${top}:${S.stage}:${S.daily}:${dailyOpen()}:${dailyDone()}`;
     if (pick.dataset.key !== pickKey) { // rebuild only on change, so a render can't close an open picker
       pick.dataset.key = pickKey;
-      pick.innerHTML = STAGES.map((_, k) => `<option value="${k}"${k > top ? ' disabled' : ''}>Stage ${k + 1}${k > top ? ' (locked)' : ''}</option>`).join('');
-      pick.value = S.stage == null ? '' : String(S.stage);
-      pick.disabled = S.stage == null;
+      pick.innerHTML = (dailyOpen() ? `<option value="daily">Daily board${dailyDone() ? ' (done)' : ''}</option>` : '') + STAGES.map((_, k) => `<option value="${k}"${k > top ? ' disabled' : ''}>Stage ${k + 1}${k > top ? ' (locked)' : ''}</option>`).join('');
+      pick.value = S.daily ? 'daily' : S.stage == null ? '' : String(S.stage);
+      pick.disabled = S.stage == null && !S.daily;
     }
   }
 
@@ -1337,7 +1357,7 @@ if (typeof document !== 'undefined') {
   }
 
   function newBoard() {
-    S.board = S.stage == null ? generate(S.n, S.target, Math.random, S.h) : stageBoard(S.mode, S.stage);
+    S.board = S.daily ? dailyBoard(S.daily) : S.stage == null ? generate(S.n, S.target, Math.random, S.h) : stageBoard(S.mode, S.stage);
     layout();
     restart();
   }
@@ -1350,13 +1370,14 @@ if (typeof document !== 'undefined') {
 
   // Dev controls: a custom board, off the stage ladder.
   function setSize(n) {
-    S.n = S.h = n; S.target = SIZES[n].def; S.stage = null;
+    S.n = S.h = n; S.target = SIZES[n].def; S.stage = null; S.daily = null;
     syncSlider();
     newBoard();
   }
 
   function goStage(k) {
     S.stage = k;
+    S.daily = null;
     let fuse;
     const last = Math.min(k, STAGES.length - 1);
     [S.n, S.h, S.target, fuse] = STAGES[last];
@@ -1365,6 +1386,20 @@ if (typeof document !== 'undefined') {
     $('fuse').value = String(S.fuseMs / 1000);
     syncSlider();
     newBoard();
+  }
+
+  // The daily board opens once stage 100 is cleared in either mode.
+  function dailyOpen() { return Math.max(savedStage('casual'), savedStage('challenge')) >= 100; }
+  const dailyDoneKey = 'split.daily';
+  function dailyDone() { try { return localStorage.getItem(dailyDoneKey) === dailyDate(); } catch (err) { return false; } }
+  function goDaily() {
+    S.daily = dailyDate(); S.stage = null;
+    [S.n, S.h, S.target] = [DAILY.n, DAILY.h, DAILY.tiles];
+    S.fuseMs = 0; $('fuse').value = '0';
+    syncSlider();
+    const saved = readSaved('daily'); // read before newBoard, which clears the slot
+    newBoard();
+    if (restoreSaved(saved)) { render(); saveBoard(); }
   }
 
   // ---------- modes & progress ----------
@@ -1396,13 +1431,14 @@ if (typeof document !== 'undefined') {
     p.tws.forEach((t, i) => { tws[i].from = tile(t.from); });
     return Object.assign(p.cells.map(tile), { floor });
   }
-  function clearSaved() { try { localStorage.removeItem(boardKey(S.mode)); } catch (err) {} }
+  const slotKey = () => (S.daily ? boardKey('daily') : boardKey(S.mode));
+  function clearSaved() { try { localStorage.removeItem(slotKey()); } catch (err) {} }
   function saveBoard() {
-    if (S.stage == null || !S.t0 || S.won || S.lost) return;
+    if ((S.stage == null && !S.daily) || !S.t0 || S.won || S.lost) return;
     try {
       const now = Date.now();
-      localStorage.setItem(boardKey(S.mode), JSON.stringify({
-        stage: S.stage, ...packCells(S.cells), elapsed: now - S.t0,
+      localStorage.setItem(slotKey(), JSON.stringify({
+        stage: S.daily ? 'daily:' + S.daily : S.stage, ...packCells(S.cells), elapsed: now - S.t0,
         fuse: S.fuse.map(d => (d ? d - now : null)),
       }));
     } catch (err) {}
@@ -1411,7 +1447,7 @@ if (typeof document !== 'undefined') {
     try { return JSON.parse(localStorage.getItem(boardKey(mode))); } catch (err) { return null; }
   }
   function restoreSaved(saved) {
-    if (!saved || saved.stage !== S.stage || !Array.isArray(saved.cells) || saved.cells.length !== S.board.cells.length) return false;
+    if (!saved || saved.stage !== (S.daily ? 'daily:' + S.daily : S.stage) || !Array.isArray(saved.cells) || saved.cells.length !== S.board.cells.length) return false;
     try {
       const cells = unpackCells(saved, S.board.cells.floor);
       const sum = c => c.reduce((a, t) => a + (t && !t.lock ? t.v : 0), 0);
@@ -1690,7 +1726,8 @@ if (typeof document !== 'undefined') {
       $('winMsg').textContent = S.skin === 'kittens' ? 'Every kitten has its own cell.' : 'Every cell holds a 1.';
       $('winRestart').hidden = true; // a win moves on; Restart under the board still replays
       $('winNew').hidden = false;
-      $('winNew').textContent = S.stage != null ? 'Next stage' : 'New board'; // New board only for dev custom boards
+      $('winNew').textContent = S.daily ? 'Back to stages' : S.stage != null ? 'Next stage' : 'New board'; // New board only for dev custom boards
+      if (S.daily) { try { localStorage.setItem(dailyDoneKey, S.daily); } catch (err) {} }
       if (S.stage != null && S.stage + 1 > savedStage(S.mode)) {
         try { localStorage.setItem(stageKey(S.mode), String(S.stage + 1)); } catch (err) {}
       }
@@ -1765,12 +1802,12 @@ if (typeof document !== 'undefined') {
 
   $('sizes').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setSize(+b.dataset.n); });
   $('tiles').addEventListener('input', e => { $('tilesOut').textContent = e.target.value; });
-  $('tiles').addEventListener('change', e => { S.target = +e.target.value; S.stage = null; newBoard(); });
+  $('tiles').addEventListener('change', e => { S.target = +e.target.value; S.stage = null; S.daily = null; newBoard(); });
   $('restart').addEventListener('click', restart);
   $('winRestart').addEventListener('click', restart);
-  $('winNew').addEventListener('click', () => (S.won && S.stage != null ? goStage(S.stage + 1) : newBoard()));
+  $('winNew').addEventListener('click', () => (S.won && S.daily ? goStage(savedStage(S.mode)) : S.won && S.stage != null ? goStage(S.stage + 1) : newBoard()));
   $('menu').addEventListener('click', showStart);
-  $('stagePick').addEventListener('change', e => goStage(+e.target.value));
+  $('stagePick').addEventListener('change', e => (e.target.value === 'daily' ? goDaily() : goStage(+e.target.value)));
   $('help').addEventListener('click', showHowto);
   $('shareBtn').addEventListener('click', shareApp);
   $('howtoGo').addEventListener('click', howtoNext);
