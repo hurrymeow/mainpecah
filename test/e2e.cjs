@@ -51,6 +51,14 @@ const settled = page => page.evaluate(() => new Promise(done => {
 // The first entry into each mode opens How to play; most tests just close it.
 // How to play comes in pages of at most 50 words; Next walks through them and the last one says Got it.
 const skipHowto = async page => { while (await page.isVisible('#howto')) await page.click('#howtoGo'); };
+// Before a simulated kill: Playwright's contexts keep localStorage in memory, and under load Chromium sometimes hands the
+// reloaded page an empty store (seen in CI and locally, also on commits before the arrivals work). A real browser keeps its
+// disk store, so keys missing from the reloaded store are put back before the app starts. What the app itself saves, clears
+// and restores after that is still tested.
+async function holdStorage(page) {
+  const saved = await page.evaluate(() => Object.fromEntries(Object.entries(localStorage)));
+  await page.addInitScript(s => { try { for (const k in s) if (localStorage.getItem(k) === null) localStorage.setItem(k, s[k]); } catch (e) {} }, saved);
+}
 const ready = page => page.waitForFunction(() => typeof S !== 'undefined' && S.board);
 // The dev controls live in a collapsed panel; open it with a real tap before using them.
 async function openSettings(page) {
@@ -312,6 +320,7 @@ test('Arrivals survive a kill', async () => {
     return { k: keyOf(S.cells), splits: S.splits, queue: S.queue, fresh: S.fuse[a.cell] - Date.now() };
   });
   check(before.fresh > 0, `a landed fight must get a fresh fuse: ${before.fresh}`);
+  await holdStorage(page);
   await page.reload();
   await ready(page);
   await page.click('#playChallenge');
@@ -812,6 +821,7 @@ test('Daily board', async () => {
   await hintSwipe(page); await hintSwipe(page);
   await page.waitForTimeout(400); // let the swipe animation settle before the app is killed
   const before = await key(page);
+  await holdStorage(page);
   await page.reload(); await ready(page);
   await page.click('#playCasual');
   await skipHowto(page);
@@ -880,6 +890,7 @@ test('Interruptions', async () => {
   await hintSwipe(page);
   await hintSwipe(page);
   const before = await key(page);
+  await holdStorage(page);
   await page.reload();
   await ready(page);
   await page.click('#playChallenge');
