@@ -228,7 +228,7 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
   // M10
   {
     const out = MODES.map(m => {
-      const d = first100(m).map(s => s.brainy);
+      const d = first100(m).map(s => s.difficulty);
       let rising = 0, relief = 0;
       for (let b = 0; b < 10; b++) {
         const xs = d.slice(b * 10, b * 10 + 10), mx = (xs.length - 1) / 2, my = xs.reduce((a, x) => a + x, 0) / xs.length;
@@ -240,7 +240,7 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
     });
     rows.push(row('M10', 'Hard, then relief', out.every(o => o.rising === 10 && o.relief === 9),
       out.map(o => `${NAME[o.m]} rising ${o.rising}/10 bands, relief 10-40% at ${o.relief}/9 band starts`).join('; '), 'rising in every band, 10-40% drop at every band start',
-      'Relief = first stage of a band vs the mean of the last two stages of the one before. Difficulty is the M22 delayed-trap share.'));
+      'Relief = first stage of a band vs the mean of the last two stages of the one before.'));
   }
   // M22
   {

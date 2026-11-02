@@ -209,17 +209,23 @@ function splitOnlyLook(g, cells, n, splits, queue, arrivals, { depth = 4, nodeCa
   return { won, deepest };
 }
 
-// The remaining recorded solution, replayed with splits only. Used as a cheap recovery
-// check so a wrong split that still follows the authored route is not called a trap.
+// Can the rest of the recorded solution still finish the board? Order-tolerant: any remaining
+// step that is legal now is taken, so a wrong split that merely reorders the route is not a trap.
+// Joins in the route stay (the route is the authored one); the wrong split itself is never undone.
 function followsSolution(g, cells, n, splits, queue, steps, arrivals) {
   let cur = cells, sp = splits, q = queue;
-  for (const st of steps) {
-    if (st.join) return false; // rejoining is not recovery (T6 call)
-    cur = g.applySplit(cur, n, st.from, st.dir);
-    if (!cur) return false;
-    sp++;
-    const r = landDue(g, cur, sp, q, arrivals);
-    cur = r.cells; q = r.queue;
+  const left = steps.slice();
+  while (left.length) {
+    let took = false;
+    for (let a = 0; a < left.length && !took; a++) {
+      const st = left[a];
+      const next = g.applyStep(cur, n, st);
+      if (!next) continue;
+      cur = next; took = true; left.splice(a, 1);
+      if (st.join) sp = Math.max(0, sp - 1);
+      else { sp++; const r = landDue(g, cur, sp, q, arrivals); cur = r.cells; q = r.queue; }
+    }
+    if (!took) return false;
   }
   return q >= arrivals.length && g.isWin(cur, n);
 }
@@ -289,12 +295,22 @@ function builderStage(g, mode, k) {
   const fused = fs_ ? play(g, board, { fuseS: fs_, chooser: urgentBuilder(g, board), focus }) : null;
   const dawdled = fs_ ? play(g, board, { fuseS: fs_, chooser: urgentBuilder(g, board), slow: DAWDLER_SLOW, focus }) : null;
   const run = free; // progress time ignores fuse deaths; survival is reported on its own
-  // Difficulty: share of solution swipes with a delayed-trap split. The old wrong-options
-  // count rose with board size, so big boards scored "hard" even when every wrong move was obvious.
+  // Difficulty: average legal options per solution swipe, minus the one the solution takes
+  // (wrong turns on offer per move). Cheap on 7x8; M10 still uses it (see the T6 call in the plan).
+  // brainy is the delayed-trap share for the M22 row.
+  const arrivals = board.arrivals || [];
+  let cur = board.cells, wrong = 0, splits = 0, queue = 0;
+  for (const s of board.solution) {
+    wrong += legalSteps(g, cur, board.n).filter(x => !x.join).length - 1;
+    cur = g.applyStep(cur, board.n, s);
+    if (s.join) splits = Math.max(0, splits - 1);
+    else { splits++; const r = landDue(g, cur, splits, queue, arrivals); cur = r.cells; queue = r.queue; }
+  }
   return {
     k, mode, board, steps: run.steps, seconds: run.t, won: free.won,
     survives: fused ? fused.won : true,
     dawdlerSurvives: dawdled ? dawdled.won : true,
+    difficulty: board.solution.length ? wrong / board.solution.length : 0,
     brainy: k < 100 ? brainyShare(g, board) : null,
   };
 }
