@@ -50,6 +50,17 @@ function optionCount(options) {
 const stepCost = options => SWIPE_S + OPTION_S * optionCount(options);
 const fuseSecondsFor = (g, mode, k) => (mode === 'challenge' ? g.STAGES[Math.min(k, g.STAGES.length - 1)][3] : 0);
 
+// Land queued arrivals due at this net split count, as landArrivals does in the game:
+// FIFO, and a due fight whose landing cell is taken waits there with the ones behind it.
+function landDue(g, cells, splits, queue, arrivals) {
+  while (queue < arrivals.length && arrivals[queue].at <= splits) {
+    const next = g.applyArrivals(cells, arrivals.slice(queue), splits);
+    if (next === cells) break; // landing cell taken: this fight waits
+    cells = next; queue++;
+  }
+  return { cells, queue };
+}
+
 // Play one board. chooser(state) returns a step {from, dir, join} or null to give up.
 // Fuses follow the game: they arm at the first swipe, a split gives both halves a fresh fuse,
 // a rejoin resumes the fuse the fight had when it split. A fuse that runs out before the swipe lands blows up.
@@ -57,16 +68,18 @@ function play(g, board, { fuseS = 0, chooser, maxSteps = 400, fuseOff = false, s
   const n = board.n;
   let cells = g.stageBoard ? board.cells : board.cells, t = 0, steps = 0, started = false;
   let fuse = [], at = null; // at: the cells the last swipe touched (focus rule)
+  const arrivals = board.arrivals || [];
+  let splits = 0, queue = 0; // net splits (splits minus rejoins) and arrivals already landed, as in the game
   const held = i => focus && g.heldAt(n, at, i);
   const F = fuseOff ? 0 : fuseS;
   while (steps < maxSteps) {
-    if (g.isWin(cells, n)) return { won: true, lost: false, t, steps, cells };
+    if (queue >= arrivals.length && g.isWin(cells, n)) return { won: true, lost: false, t, steps, cells };
     const options = legalSteps(g, cells, n);
     if (!options.length) return { won: false, lost: false, stuck: true, t, steps, cells };
-    const step = chooser({ cells, options, steps, t, fuse, n, at, held });
+    const step = chooser({ cells, options, steps, t, fuse, n, at, held, splits, queue });
     if (!step) return { won: false, lost: false, gaveUp: true, t, steps, cells };
     if (step.restart) { // the player taps Restart: the board goes back to its start, the fuses re-arm on the first swipe
-      cells = board.cells; fuse = []; at = null; started = false; t += TAP_S; steps++; continue;
+      cells = board.cells; fuse = []; at = null; started = false; splits = 0; queue = 0; t += TAP_S; steps++; continue;
     }
     const tm = t + stepCost(options) * slow; // slow > 1: a player who plays at 1/slow of the modeled pace (the dawdler)
     // Focus rule: a fight out of reach of the last swipe waits, so its fuse does not move while held.
@@ -95,6 +108,17 @@ function play(g, board, { fuseS = 0, chooser, maxSteps = 400, fuseOff = false, s
     }
     if (!next) return { won: false, lost: false, gaveUp: true, t, steps, cells };
     cells = next; t = tm; steps++;
+    if (step.join) splits = Math.max(0, splits - 1); // a rejoin gives a split back
+    else {
+      splits++;
+      const q0 = queue, r = landDue(g, cells, splits, queue, arrivals);
+      cells = r.cells; queue = r.queue;
+      // A landed fight gets a fresh fuse, so Normal gives the player the usual time to reach it.
+      if (r.queue > q0) {
+        fuse = fuse.slice();
+        for (let q = q0; q < r.queue; q++) fuse[arrivals[q].cell] = F ? tm + F : null;
+      }
+    }
   }
   return { won: g.isWin(cells, n), lost: false, capped: true, t, steps, cells };
 }
@@ -113,22 +137,34 @@ function urgentBuilder(g, board) {
     return out;
   };
   const touched = [];
-  let cur = board.cells;
+  const arrivals = board.arrivals || [];
+  let cur = board.cells, splits = 0, queue = 0;
   for (const s of steps) {
     const j = s.join ? g.neighbour(n, s.from, s.dir, h) : g.splitTarget(cur, n, s.from, s.dir);
     touched.push(new Set(line(s.from, j)));
     cur = g.applyStep(cur, n, s);
+    if (s.join) splits = Math.max(0, splits - 1);
+    else { splits++; const r = landDue(g, cur, splits, queue, arrivals); cur = r.cells; queue = r.queue; }
   }
   const deps = steps.map((_, b) => { const d = []; for (let a = 0; a < b; a++) if ([...touched[b]].some(c => touched[a].has(c))) d.push(a); return d; });
   const done = new Set();
   // Steps that touch no common cell usually commute, but floor tiles (cushions, cracks) can break that.
   // So a step is only taken if the rest of the recorded solution, replayed after it, still reaches the solved board.
-  const finishes = (cells, skip, take) => {
+  const finishes = (cells, splits, queue, take) => {
     let cur = g.applyStep(cells, n, steps[take]);
-    for (let a = 0; a < steps.length && cur; a++) if (!done.has(a) && a !== take) cur = g.applyStep(cur, n, steps[a]);
-    return !!cur && g.isWin(cur, n);
+    if (!cur) return false;
+    if (steps[take].join) splits = Math.max(0, splits - 1);
+    else { splits++; const r = landDue(g, cur, splits, queue, arrivals); cur = r.cells; queue = r.queue; }
+    for (let a = 0; a < steps.length && cur; a++) {
+      if (done.has(a) || a === take) continue;
+      cur = g.applyStep(cur, n, steps[a]);
+      if (!cur) break;
+      if (steps[a].join) splits = Math.max(0, splits - 1);
+      else { splits++; const r = landDue(g, cur, splits, queue, arrivals); cur = r.cells; queue = r.queue; }
+    }
+    return !!cur && queue >= arrivals.length && g.isWin(cur, n);
   };
-  return ({ fuse, cells, at, held }) => {
+  return ({ fuse, cells, at, held, splits, queue }) => {
     const ready = [];
     for (let b = 0; b < steps.length; b++) {
       if (done.has(b) || !deps[b].every(a => done.has(a))) continue;
@@ -136,7 +172,7 @@ function urgentBuilder(g, board) {
       ready.push({ b, at: near || (fuse[f] == null ? Infinity : fuse[f]) });
     }
     ready.sort((x, y) => x.at - y.at || x.b - y.b);
-    const pick = ready.find(r => finishes(cells, null, r.b));
+    const pick = ready.find(r => finishes(cells, splits, queue, r.b));
     if (!pick) return null;
     done.add(pick.b);
     return steps[pick.b];
@@ -173,10 +209,13 @@ function builderStage(g, mode, k) {
   const run = free; // progress time ignores fuse deaths; survival is reported on its own
   // Difficulty: average legal options per solution swipe, minus the one the solution takes
   // (wrong turns on offer per move). Cheap on 7x8; a stand-in for dead-end branches.
-  let cur = board.cells, wrong = 0;
+  const arrivals = board.arrivals || [];
+  let cur = board.cells, wrong = 0, splits = 0, queue = 0;
   for (const s of board.solution) {
     wrong += legalSteps(g, cur, board.n).filter(x => !x.join).length - 1;
     cur = g.applyStep(cur, board.n, s);
+    if (s.join) splits = Math.max(0, splits - 1);
+    else { splits++; const r = landDue(g, cur, splits, queue, arrivals); cur = r.cells; queue = r.queue; }
   }
   return {
     k, mode, board, steps: run.steps, seconds: run.t, won: free.won,
@@ -189,4 +228,4 @@ function builderStage(g, mode, k) {
 // Words in a string, as the player would read them.
 const wordCount = s => (s.match(/[A-Za-z0-9'’%.:×›-]+/g) || []).filter(w => /[A-Za-z0-9]/.test(w)).length;
 
-module.exports = { DAWDLER_SLOW, urgentBuilder, ROOT, SEED, SWIPE_S, OPTION_S, WORDS_PER_S, TAP_S, loadGame, rng, legalSteps, optionCount, stepCost, fuseSecondsFor, play, builder, rookie, builderStage, wordCount };
+module.exports = { DAWDLER_SLOW, urgentBuilder, ROOT, SEED, SWIPE_S, OPTION_S, WORDS_PER_S, TAP_S, loadGame, rng, legalSteps, optionCount, stepCost, fuseSecondsFor, landDue, play, builder, rookie, builderStage, wordCount };

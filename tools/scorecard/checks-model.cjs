@@ -45,12 +45,26 @@ function fitS1(list, upto) {
   return bad;
 }
 
+// Replay a board's recorded solution, landing arrivals as the game does. onStep(cells, step) sees
+// each state before its step is applied.
+function replayBoard(g, board, onStep) {
+  const arrivals = board.arrivals || [];
+  let cur = board.cells, splits = 0, queue = 0;
+  for (const st of board.solution) {
+    if (onStep) onStep(cur, st);
+    cur = g.applyStep(cur, board.n, st);
+    if (!cur) return { cells: null, splits, queue };
+    if (st.join) splits = Math.max(0, splits - 1);
+    else { splits++; const r = L.landDue(g, cur, splits, queue, arrivals); cur = r.cells; queue = r.queue; }
+  }
+  return { cells: cur, splits, queue };
+}
+
 function uniqueAndSolvable(g, list, upto) {
   const seen = new Set(); let dup = 0, unsolved = 0;
   list.slice(0, upto).forEach(s => {
-    let cur = s.board.cells;
-    for (const st of s.board.solution) cur = cur && g.applyStep(cur, s.board.n, st);
-    if (!cur || !g.isWin(cur, s.board.n)) unsolved++;
+    const r = replayBoard(g, s.board);
+    if (!r.cells || r.queue < (s.board.arrivals || []).length || !g.isWin(r.cells, s.board.n)) unsolved++;
     const key = g.shapeKey(s.board.n, s.board.cells);
     if (seen.has(key)) dup++; else seen.add(key);
   });
@@ -284,15 +298,13 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
   const hint = MODES.map(m => {
     let steps = 0, choice = 0, fights = 0;
     for (let k = 0; k < 100; k++) {
-      const b = stages[m][k].board; let cur = b.cells;
-      for (const st of b.solution) {
-        if (!st.join) {
-          steps++;
-          if (Object.keys(g.DIRS).filter(d => g.splitTarget(cur, b.n, st.from, d) >= 0).length >= 2) choice++;
-          fights += new Set(L.legalSteps(g, cur, b.n).filter(x => !x.join).map(x => x.from)).size;
-        }
-        cur = g.applyStep(cur, b.n, st);
-      }
+      const b = stages[m][k].board;
+      replayBoard(g, b, (cur, st) => {
+        if (st.join) return;
+        steps++;
+        if (Object.keys(g.DIRS).filter(d => g.splitTarget(cur, b.n, st.from, d) >= 0).length >= 2) choice++;
+        fights += new Set(L.legalSteps(g, cur, b.n).filter(x => !x.join).map(x => x.from)).size;
+      });
     }
     return { choice: choice / steps, narrow: fights / steps };
   });
