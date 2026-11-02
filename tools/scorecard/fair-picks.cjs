@@ -6,7 +6,7 @@
 // Usage: MODE=challenge node tools/scorecard/fair-picks.cjs
 const L = require('./lib.cjs');
 const g = L.loadGame();
-const mode = process.env.MODE || 'challenge', RHO = 0.68, ATTEMPTS = 20;
+const mode = process.env.MODE || 'challenge', RHO = 0.68, ATTEMPTS = Number(process.env.ATTEMPTS || 20);
 const need = b => {
   for (let f = 3; f <= 90; f++) if (L.play(g, b, { fuseS: f, chooser: L.urgentBuilder(g, b), slow: L.DAWDLER_SLOW, focus: true }).won) return f;
   return 91;
@@ -37,7 +37,7 @@ for (let k = 3; k < 100; k++) {
   for (let a = 0; a < ATTEMPTS; a++) {
     const b = g.generate(n, target, g.seeded((mode === 'casual' ? 1e6 : 2e6) + k * 1000 + a), h, locks, ex);
     if (b.tiles > target || seen.has(g.shapeKey(n, b.cells, b.arrivals))) continue;
-    const score = Math.abs(RHO - ratio(b)) * 10 + (fair ? Math.max(0, need(b) - 45) / 10 : 0);
+    const score = Math.abs(RHO - ratio(b)) * 10 + (fair ? Math.max(0, need(b) - 45) / Number(process.env.FAIRW || 10) : 0);
     if (!best || score < best.score) best = { a, score };
   }
   if (best) { picks[k] = best.a; g.EARLY_PICK[mode][k] = best.a; }

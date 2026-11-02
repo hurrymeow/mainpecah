@@ -14,7 +14,7 @@ Measured on main: stages 47-100 average 0.04 tiles of 8 or more per board, and n
 
 - **Seed big tiles first.** Before the random merges, build one tile of the wanted size from a blob of free 1-cells. The build splits the tile in two, then splits each half, claiming one free neighbour cell per split. Those cells become empty, so the big fight has room to split. Merges are recorded in order, so the replayed solution still works.
 - **Same swipe budget.** A big tile just uses up part of the merges the target already asks for. Stages below 47 are untouched (no `big` key, no extra rand calls).
-- **Which stages.** Stages 48-100 (0-based 47-99): one 8. Every tenth stage (0-based `k % 10 === 9`): two 8s. Normal stages 60, 80 and 100 (`k % 20 === 19`): one 16 instead. Casual never gets a 16, its stages are too short (about 16 swipes, a 16 alone needs 15).
+- **Which stages.** Changed in T2, see `decisions/big-tiles-calls.md`: one 8 on every stage from 48; doubles and 16s are built in the generator but switched off.
 - **Stage 47** is an authored teach board and stays as it is.
 - **Arrivals** may pick a big tile. That is fine and makes a big fight land mid-stage.
 
