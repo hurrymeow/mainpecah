@@ -1,0 +1,3 @@
+# Big boards T2 — generator arrivals
+
+The generator now holds back up to two non-grumpy final fights on stages 47+ (0-based 46+). Each held-back fight is recorded as `{ at, cell, v }`, where `at` is the index of that fight's root split in the recorded solution, so the existing split steps still solve the board once `applyArrivals` lands the fight at that net split count. Picks are replayed before being accepted because removing a tile can change a cushion slide; `shapeKey` now includes the arrival queue, path keys carry the queue index, and stages below 47 use none of the new paths. Open: the live game loop does not place arrivals yet (T3's scope), so an arrangement stage cannot be finished in the app until T3 lands.

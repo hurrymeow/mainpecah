@@ -11,4 +11,33 @@ for (const [n, x] of Object.entries(r)) {
   if (x.sum !== x.boards || x.cap !== x.boards || x.solved !== x.boards) fail = true;
 }
 if (mod.exports.ARRIVALS_FROM !== 46) { console.log('ARRIVALS_FROM should be 46'); fail = true; }
+
+// Every stage must replay its recorded solution, landing arrivals at their net split count.
+let boardsFail = false;
+for (const mode of ['casual', 'challenge']) {
+  for (let k = 0; k < mod.exports.STAGES.length; k++) {
+    const b = mod.exports.stageBoard(mode, k), ar = b.arrivals || [];
+    if (k < mod.exports.ARRIVALS_FROM) {
+      if (ar.length || mod.exports.shapeKey(b.n, b.cells, b.arrivals) !== mod.exports.shapeKey(b.n, b.cells)) {
+        console.log(`${mode} stage ${k + 1}: arrivals changed a stage below 47`); boardsFail = true;
+      }
+    } else if (!ar.length) {
+      console.log(`${mode} stage ${k + 1}: no arrivals`); boardsFail = true;
+    }
+    let cur = b.cells, q = 0;
+    for (let i = 0; i < b.solution.length; i++) {
+      while (q < ar.length && ar[q].at <= i) {
+        const next = mod.exports.applyArrivals(cur, ar.slice(q), i);
+        if (next === cur) break; // landing cell taken: waits
+        cur = next; q++;
+      }
+      cur = mod.exports.applyStep(cur, b.n, b.solution[i]);
+      if (!cur) break;
+    }
+    if (!cur || q !== ar.length || !mod.exports.isWin(cur, b.n)) {
+      console.log(`${mode} stage ${k + 1}: solution replay failed (${q}/${ar.length} arrivals)`); boardsFail = true;
+    }
+  }
+}
+if (boardsFail) fail = true;
 process.exit(fail ? 1 : 0);
