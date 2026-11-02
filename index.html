@@ -892,6 +892,7 @@ function stageBoard(mode, k) {
 
 // The daily board: one fixed board per calendar date, the same for everyone, for players who have cleared stage 10.
 const DAILY_FROM = 10;
+const ARRIVALS_FROM = 46; // stage 47 (0-based): new fights arrive mid-stage from here
 // A 6x7 board with a bit of every rule, about 2 minutes at the modeled pace. No fuse.
 const DAILY = { n: 6, h: 7, tiles: 13, locks: 3, extras: { cracks: 2, grumpy: 2, cushions: 2 } };
 function dailyDate(now = new Date()) {
@@ -1094,7 +1095,7 @@ if (typeof module !== 'undefined') {
   module.exports = {
     generate, seeded, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE,
     // Read by tools/scorecard (npm run scorecard); exported only, no behaviour change.
-    STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, EARLY_PICK, DAILY, DAILY_FROM, FOCUS_FROM, FOCUS_R, heldAt, dailyDate, dailyBoard, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
+    STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, EARLY_PICK, DAILY, DAILY_FROM, ARRIVALS_FROM, FOCUS_FROM, FOCUS_R, heldAt, dailyDate, dailyBoard, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
     mergeTarget, applyJoin, applyStep, canMerge, isJammed, regionDone,
   };
 }
