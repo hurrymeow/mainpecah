@@ -238,7 +238,7 @@ test('Full solve', async () => {
 test('Oblong boards', async () => {
   const { context, page, errors } = await open({}, false);
   const out = [];
-  for (const k of [3, 99]) { // stage 4 is 4x5, stage 100 is 7x8
+  for (const k of [3, 30]) { // stage 4 is 4x5, stage 31 is 6x7
     await page.evaluate(k => localStorage.setItem('split.stage.casual', String(k)), k);
     await page.reload(); await ready(page); await page.click('#playCasual'); await skipHowto(page); await settled(page);
     const g = await page.evaluate(() => {
@@ -615,22 +615,28 @@ test('Start page and stages', async () => {
   check(casual, 'Casual tile table must cover every stage and fit its board (Casual has more tiles than Normal from stage 11, so Normal runs longer: M20)');
   const boards = await page.evaluate(() => ['casual', 'challenge'].map(m => {
     const keys = new Set();
-    let solved = 0, locks = 0;
+    let solved = 0, locks = 0, withArrivals = 0;
     for (let k = 0; k < STAGES.length; k++) {
       const b = stageBoard(m, k);
-      if (b.n === STAGES[k][0] && b.h === STAGES[k][1] && b.solution.length) keys.add(shapeKey(b.n, b.cells));
+      const arrivals = b.arrivals || [];
+      if (k >= ARRIVALS_FROM ? arrivals.length : !arrivals.length) withArrivals++;
+      if (b.n === STAGES[k][0] && b.h === STAGES[k][1] && b.solution.length) keys.add(shapeKey(b.n, b.cells, arrivals));
       const e = stageExtras(k), fl = b.cells.floor || [];
       // An authored first stage (rejoin, grumpy, cushions) sets its own blocked cells and floors.
       if (b.teach || (b.cells.filter(t => t && t.lock).length === (e.locks ?? STAGES[k][4]) && fl.filter(f => f === 'crack').length === e.cracks
         && fl.filter(f => f === 'cushion').length === e.cushions && b.cells.filter(t => t && t.g).length === e.grumpy)) locks++;
-      // Replay the recorded solution: every stage must be solvable from its starting board.
-      let cur = b.cells;
-      for (const s of b.solution) { cur = applyStep(cur, b.n, s); if (!cur) break; }
+      // Replay the recorded solution: every stage must be solvable from its starting board,
+      // with each queued arrival landing as its split count comes.
+      let cur = b.cells, splits = 0;
+      for (const s of b.solution) {
+        cur = applyStep(cur, b.n, s); if (!cur) break;
+        if (!s.join) { splits++; cur = applyArrivals(cur, arrivals, splits); }
+      }
       if (cur && isWin(cur, b.n)) solved++;
     }
-    return { m, unique: keys.size, stages: STAGES.length, solved, locks };
+    return { m, unique: keys.size, stages: STAGES.length, solved, locks, withArrivals };
   }));
-  check(boards.every(b => b.stages === 100 && b.unique === 100 && b.solved === 100 && b.locks === 100), `stage boards must be 100 unique, solvable, with the right locks per mode: ${JSON.stringify(boards)}`);
+  check(boards.every(b => b.stages === 100 && b.unique === 100 && b.solved === 100 && b.locks === 100 && b.withArrivals === 100 - ARRIVALS_FROM), `stage boards must be 100 unique, solvable, with the right locks and arrivals per mode: ${JSON.stringify(boards)}`);
   check(ladder === '4x4 4x5 5x5 5x6 6x6 6x7 7x7 7x8' && (await page.evaluate(() => JSON.stringify(['4x4', '4x5', '5x5', '5x6', '6x6', '6x7', '7x7', '7x8'].map(d => STAGES.filter(s => s[0] + 'x' + s[1] === d).length)))) === '[3,4,8,3,12,8,8,54]', `stage ladder should grow 4x4 (3 stages), 4x5 (4), 5x5 (8), 5x6 (3), 6x6 (12), 6x7 (8), 7x7 (8), then stay 7x8: ${ladder}`);
   await context.close();
   check(!errors.length, errors.join(' | '));
@@ -912,6 +918,7 @@ test('Update banner', async () => {
       console.log(`PASS ${k + 1}. ${c.name}: ${why} (${((Date.now() - t) / 1000).toFixed(1)}s)`);
     } catch (e) {
       console.log(`FAIL ${k + 1}. ${c.name}: ${e.message.split('\n')[0]}`);
+      console.log(e.stack);
     }
   }
   await browser.close();

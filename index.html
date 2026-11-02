@@ -724,7 +724,40 @@ const keyOf = cells => cells.map(t => (t ? (t.lock ? 'x' : t.v) : 0)).join(',');
 
 // n columns by h rows; cells run row by row. locks cells are boxed up first and
 // never take part, so the replayed solution still works around them.
-// extra = { cracks, grumpy, cushions }: how many of each to add once the board is built.
+// extra = { cracks, grumpy, cushions, arrivals }: how many of each to add once the board is built.
+// Arrivals take whole fights off the start board; they land later, when the replay reaches
+// the split count recorded on each one. The recorded solution still works if they are applied
+// between splits, so no solver is needed.
+function takeArrivals(cells, n, h, solution, count, rand) {
+  if (!count) return [];
+  // A fight begins replaying at the first solution split that starts in its root cell.
+  const first = new Map();
+  for (let k = 0; k < solution.length; k++) {
+    const s = solution[k];
+    if (!s.join && !first.has(s.from)) first.set(s.from, k);
+  }
+  // A cushion slide stops on the fight beyond it. Taking that fight off the board before
+  // the slide would leave an empty cell there, let the half slide further, and break the
+  // recorded solution, so such a fight stays put.
+  const floor = cells.floor || [], earlyStop = new Set();
+  let cur = cells;
+  for (let k = 0; k < solution.length; k++) {
+    const s = solution[k], j = neighbour(n, s.from, s.dir, h), kk = neighbour(n, j, s.dir, h);
+    const stopper = floor[j] === 'cushion' && kk >= 0 && cur[kk];
+    cur = applySplit(cur, n, s.from, s.dir);
+    if (stopper && first.get(kk) > k) earlyStop.add(kk);
+  }
+  const pick = [];
+  cells.forEach((t, i) => {
+    const at = first.get(i);
+    if (t && !t.lock && !t.g && t.v > 1 && !floor[i] && at != null && at > 0 && !earlyStop.has(i)) pick.push(i);
+  });
+  for (let i = pick.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [pick[i], pick[j]] = [pick[j], pick[i]]; }
+  const arrivals = pick.slice(0, count).map(i => ({ at: first.get(i), cell: i, v: cells[i].v })).sort((a, b) => a.at - b.at);
+  for (const a of arrivals) cells[a.cell] = null;
+  return arrivals;
+}
+
 function generate(n, target, rand = Math.random, h = n, locks = 0, extra = {}) {
   let best = null;
   for (let attempt = 0; attempt < 200; attempt++) {
@@ -757,13 +790,25 @@ function generate(n, target, rand = Math.random, h = n, locks = 0, extra = {}) {
   const solution = best.merges.slice().reverse()
     .map(m => ({ from: m.keep, dir: dirBetween(n, m.keep, m.gone, h) }));
   addFeatures(cells, n, h, solution, extra, rand);
+  const arrivals = takeArrivals(cells, n, h, solution, extra.arrivals || 0, rand);
 
   // States along the solution, so hints still work after a correct move made in any order.
-  const path = [keyOf(cells)];
-  let cur = cells;
-  for (const s of solution) { cur = applySplit(cur, n, s.from, s.dir); path.push(keyOf(cur)); }
+  // With arrivals the key also carries how many fights have landed: the same cells can
+  // otherwise be reached before and after an arrival, and only one of them is on the path.
+  const path = [];
+  const pathKey = () => keyOf(cur) + (arrivals.length ? '|' + qi : '');
+  let cur = cells, splits = 0, qi = 0;
+  path.push(pathKey());
+  for (const s of solution) {
+    cur = applySplit(cur, n, s.from, s.dir);
+    if (s.join) { path.push(pathKey()); continue; }
+    splits++;
+    cur = applyArrivals(cur, arrivals, splits);
+    qi = arrivals.filter(a => a.at <= splits).length;
+    path.push(pathKey());
+  }
 
-  return { n, h, cells, solution, path, tiles: best.tiles };
+  return { n, h, cells, solution, path, tiles: best.tiles - arrivals.length, ...(arrivals.length ? { arrivals } : {}) };
 }
 
 // ===================== STAGE BOARDS =====================
@@ -780,7 +825,8 @@ function seeded(seed) { // mulberry32
 }
 
 // The same key for a layout and its rotations and reflections (4 on an oblong board, 8 on a square one).
-function shapeKey(n, cells) {
+// Arrivals move with the board, so two stages are the same shape only if their queues match too.
+function shapeKey(n, cells, arrivals = []) {
   const h = cells.length / n, keys = [];
   for (let s = 0; s < (h === n ? 8 : 4); s++) {
     let k = '';
@@ -792,6 +838,16 @@ function shapeKey(n, cells) {
       const f = cells.floor && cells.floor[y * n + x];
       k += (t ? (t.lock ? 'x' : t.v.toString(16) + (t.g ? 'g' : '')) : '.') + (f ? f[1] : '');
     }
+    if (arrivals.length) k += '|' + arrivals.map(a => {
+      let cell = -1;
+      for (let r = 0; r < h && cell < 0; r++) for (let c = 0; c < n; c++) {
+        let [y, x] = s & 4 ? [c, r] : [r, c];
+        if (s & 1) y = h - 1 - y;
+        if (s & 2) x = n - 1 - x;
+        if (y * n + x === a.cell) { cell = r * n + c; break; }
+      }
+      return `${a.at}:${cell}:${a.v}`;
+    }).join(',');
     keys.push(k);
   }
   return keys.sort()[0];
@@ -860,26 +916,28 @@ function teachBoard({ n, h, layout, solution, floor = {}, grumpy = [] }) {
 const EARLY_PICK = { casual: { 0: 1, 1: 2, 2: 1, 3: 8, 4: 16, 5: 9, 6: 2, 7: 4, 8: 6, 9: 1, 10: 19, 11: 8, 12: 10, 13: 14, 15: 8, 16: 11, 17: 10, 18: 4, 19: 14, 20: 18, 21: 8, 22: 1, 23: 2, 24: 19, 26: 5, 27: 2, 28: 6, 29: 6, 30: 14, 31: 0, 32: 0, 33: 19, 34: 18, 35: 5, 36: 17, 37: 4, 38: 4, 39: 6, 40: 17, 41: 17, 42: 16, 44: 17, 45: 15, 46: 12, 47: 0, 48: 9, 49: 0, 50: 12, 51: 8, 52: 3, 53: 17, 54: 0, 55: 4, 56: 8, 57: 9, 58: 14, 59: 15, 60: 6, 61: 6, 62: 4, 63: 11, 64: 17, 65: 8, 66: 7, 67: 1, 68: 10, 69: 14, 70: 4, 71: 10, 72: 16, 73: 16, 74: 9, 75: 8, 76: 4, 77: 12, 78: 18, 79: 7, 80: 17, 81: 18, 82: 10, 83: 19, 84: 6, 85: 5, 86: 13, 87: 15, 88: 5, 89: 8, 90: 12, 91: 0, 92: 3, 93: 8, 94: 1, 95: 0, 96: 18, 97: 11, 98: 14, 99: 13 }, challenge: { 0: 2, 3: 8, 4: 0, 5: 4, 6: 12, 7: 19, 8: 8, 9: 4, 10: 12, 11: 16, 12: 16, 13: 15, 15: 6, 16: 18, 17: 3, 18: 1, 19: 13, 20: 6, 21: 4, 22: 11, 23: 18, 24: 6, 26: 13, 27: 10, 28: 6, 29: 18, 30: 2, 31: 19, 32: 8, 33: 19, 34: 13, 35: 19, 36: 0, 37: 4, 38: 6, 39: 9, 40: 6, 41: 0, 42: 19, 44: 2, 45: 9, 46: 2, 47: 7, 48: 14, 49: 1, 50: 3, 51: 19, 52: 14, 53: 11, 54: 3, 55: 2, 56: 7, 57: 1, 58: 18, 59: 15, 60: 17, 61: 18, 62: 17, 63: 1, 64: 9, 65: 15, 66: 6, 67: 19, 68: 9, 69: 10, 70: 6, 71: 14, 72: 12, 73: 7, 74: 12, 75: 13, 76: 0, 77: 11, 78: 5, 79: 8, 80: 4, 81: 7, 82: 5, 83: 9, 84: 17, 85: 13, 86: 6, 87: 16, 88: 2, 89: 7, 90: 18, 91: 12, 92: 9, 93: 7, 94: 1, 95: 10, 96: 6, 97: 15, 98: 6, 99: 10 } };
 const stageBoards = { casual: [], challenge: [] };
 function stageBoard(mode, k) {
-  const list = stageBoards[mode], seen = new Set(list.map(b => shapeKey(b.n, b.cells)));
+  const list = stageBoards[mode], seen = new Set(list.map(b => shapeKey(b.n, b.cells, b.arrivals)));
   for (let j = list.length; j <= k; j++) {
-    if (TEACH[j]) { const b = teachBoard(TEACH[j]); seen.add(shapeKey(b.n, b.cells)); list.push(b); continue; }
+    if (TEACH[j]) { const b = teachBoard(TEACH[j]); seen.add(shapeKey(b.n, b.cells, b.arrivals)); list.push(b); continue; }
     const [n, h, normal, , ladderLocks] = STAGES[Math.min(j, STAGES.length - 1)];
-    const locks = stageExtras(j).locks ?? ladderLocks;
+    const extras = stageExtras(j);
+    const locks = extras.locks ?? ladderLocks;
     const target = mode === 'casual' ? CASUAL_TILES[Math.min(j, STAGES.length - 1)] : normal;
+    const gen = j >= ARRIVALS_FROM ? { ...extras, arrivals: 2 } : extras;
     // Take the first new layout that hits the tile target; failing that, the new one closest to it.
     let best = null;
     // The first stages can use a layout picked ahead of time (tools/scorecard/early-picks.cjs): one a first-time player wins easily.
     const picked = EARLY_PICK[mode][j];
     for (let attempt = picked != null ? picked : 0; attempt < (picked != null ? picked + 1 : 20); attempt++) {
-      const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks, stageExtras(j));
-      const key = shapeKey(n, b.cells);
+      const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks, gen);
+      const key = shapeKey(n, b.cells, b.arrivals);
       if (seen.has(key) || (best && b.tiles >= best.b.tiles)) continue;
       best = { b, key };
       if (b.tiles <= target) break;
     }
     if (!best) for (let attempt = 0; attempt < 20; attempt++) { // a pick that repeats an earlier layout falls back to the normal search
-      const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks, stageExtras(j));
-      const key = shapeKey(n, b.cells);
+      const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks, gen);
+      const key = shapeKey(n, b.cells, b.arrivals);
       if (seen.has(key) || (best && b.tiles >= best.b.tiles)) continue;
       best = { b, key };
       if (b.tiles <= target) break;
@@ -1003,6 +1061,18 @@ function applySplit(cells, n, i, dir) {
   return out;
 }
 
+// Land the queued fights whose net split count has come, in queue order. A fight whose
+// landing cell is still taken is skipped and can land on a later call.
+function applyArrivals(cells, arrivals, splits) {
+  let out = cells;
+  for (const a of arrivals || []) {
+    if (a.at > splits || out[a.cell]) continue;
+    if (out === cells) out = cloneCells(cells);
+    out[a.cell] = { v: a.v, c: a.c == null ? 1000 + a.cell : a.c };
+  }
+  return out;
+}
+
 // Destination index if tile i can rejoin its twin toward dir, else -1.
 function mergeTarget(cells, n, i, dir) {
   const t = cells[i], j = neighbour(n, i, dir, cells.length / n);
@@ -1086,7 +1156,23 @@ function selfTest(perSize = 1000, rand = Math.random) {
       for (const s of b.solution) { cur = applySplit(cur, n, s.from, s.dir); if (!cur) { ok = false; break; } }
       if (ok && isWin(cur, n)) solved++;
     }
-    results[n] = { boards: perSize, sum, cap, solved, hitTarget };
+    // Arrival boards: the queue must land and the solution must still reach all 1s.
+    const arrBoards = Math.max(1, Math.floor(perSize / 5));
+    let arrivals = 0, arrivalSolved = 0;
+    for (let k = 0; k < arrBoards; k++) {
+      const b = generate(n, min, rand, n, 0, { arrivals: 2 });
+      if (!b.arrivals || !b.arrivals.length) continue;
+      arrivals++;
+      let cur = b.cells, splits = 0, ok = true;
+      for (const s of b.solution) {
+        cur = applySplit(cur, n, s.from, s.dir);
+        if (!cur) { ok = false; break; }
+        splits++;
+        cur = applyArrivals(cur, b.arrivals, splits);
+      }
+      if (ok && isWin(cur, n)) arrivalSolved++;
+    }
+    results[n] = { boards: perSize, sum, cap, solved, hitTarget, arrivals, arrivalSolved };
   }
   return results;
 }
@@ -1096,7 +1182,7 @@ if (typeof module !== 'undefined') {
     generate, seeded, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE,
     // Read by tools/scorecard (npm run scorecard); exported only, no behaviour change.
     STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, EARLY_PICK, DAILY, DAILY_FROM, ARRIVALS_FROM, FOCUS_FROM, FOCUS_R, heldAt, dailyDate, dailyBoard, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
-    mergeTarget, applyJoin, applyStep, canMerge, isJammed, regionDone,
+    mergeTarget, applyJoin, applyStep, applyArrivals, canMerge, isJammed, regionDone,
   };
 }
 
