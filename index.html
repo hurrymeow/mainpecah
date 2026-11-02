@@ -693,6 +693,8 @@ const S = {
   daily: null,      // the date (YYYY-MM-DD) of the daily board being played, else null
   board: null,      // generator output: {n, h, cells, solution, path}
   cells: null,      // current cells
+  splits: 0,        // net split count (splits minus rejoins): arrivals land at counts in this number
+  queue: 0,         // arrivals already landed (the queue index into board.arrivals)
   t0: 0, elapsed: 0, timer: 0,
   won: false,
   lost: false,
@@ -1144,7 +1146,7 @@ const isStuck = (cells, n) => isJammed(cells, n) && !canMerge(cells, n);
 
 function nextHint() {
   const arr = S.board.arrivals;
-  const q = arr ? arr.filter(a => S.cells[a.cell]).length : 0; // arrivals already landed
+  const q = arr ? S.queue : 0; // arrivals already landed
   const key = keyOf(S.cells) + (arr ? '|' + q : '');
   const k = S.board.path.indexOf(key);
   return k >= 0 && k < S.board.solution.length ? S.board.solution[k] : null;
@@ -1480,7 +1482,7 @@ if (typeof document !== 'undefined') {
   function restart() {
     stopTimer();
     clearSaved();
-    Object.assign(S, { cells: cloneCells(S.board.cells), t0: 0, elapsed: 0, won: false, lost: false, drag: null, fuse: [], focus: null });
+    Object.assign(S, { cells: cloneCells(S.board.cells), splits: 0, queue: 0, t0: 0, elapsed: 0, won: false, lost: false, drag: null, fuse: [], focus: null });
     dangerKey = '';
     boardEl.classList.remove('shake');
     $('overlay').hidden = true;
@@ -1569,7 +1571,7 @@ if (typeof document !== 'undefined') {
     try {
       const now = Date.now();
       localStorage.setItem(slotKey(), JSON.stringify({
-        stage: S.daily ? 'daily:' + S.daily : S.stage, ...packCells(S.cells), elapsed: now - S.t0,
+        stage: S.daily ? 'daily:' + S.daily : S.stage, ...packCells(S.cells), elapsed: now - S.t0, splits: S.splits, queue: S.queue,
         fuse: S.fuse.map(d => (d ? d - now : null)), focus: S.focus,
       }));
     } catch (err) {}
@@ -1582,9 +1584,15 @@ if (typeof document !== 'undefined') {
     try {
       const cells = unpackCells(saved, S.board.cells.floor);
       const sum = c => c.reduce((a, t) => a + (t && !t.lock ? t.v : 0), 0);
-      if (sum(cells) !== sum(S.board.cells) || cells.some(t => t && !t.lock && !(t.v >= 1))) return false;
+      const ar = S.board.arrivals || [];
+      const queue = Number.isInteger(saved.queue) ? Math.max(0, Math.min(saved.queue, ar.length)) : 0;
+      // Splits conserve the tile total; each landed arrival adds its fight to the board.
+      const landed = ar.slice(0, queue).reduce((a, r) => a + r.v, 0);
+      if (sum(cells) !== sum(S.board.cells) + landed || cells.some(t => t && !t.lock && !(t.v >= 1))) return false;
       const now = Date.now();
       S.cells = cells;
+      S.splits = Number.isInteger(saved.splits) && saved.splits >= 0 ? saved.splits : 0;
+      S.queue = queue;
       S.t0 = now - saved.elapsed;
       S.fuse = S.fuseMs ? saved.fuse.map(l => (l == null ? null : now + l)) : [];
       S.focus = S.fuseMs && Array.isArray(saved.focus) ? saved.focus : null;
@@ -1833,6 +1841,21 @@ if (typeof document !== 'undefined') {
     $('burst').innerHTML = html;
   }
 
+  // Land the next queued arrival once the net split count reaches its `at`. A due fight whose
+  // landing cell is taken waits there, and the fights behind it stay queued. A landed fight
+  // gets a fresh fuse, so Normal gives the player the usual time to reach it.
+  function landArrivals(now) {
+    const ar = S.board.arrivals;
+    while (ar && S.queue < ar.length && ar[S.queue].at <= S.splits) {
+      const next = applyArrivals(S.cells, ar.slice(S.queue), S.splits);
+      if (next === S.cells) break; // landing cell taken: this fight waits
+      S.cells = next;
+      S.fuse = S.fuse.slice();
+      S.fuse[ar[S.queue].cell] = S.fuseMs ? now + S.fuseMs : null;
+      S.queue++;
+    }
+  }
+
   function move(i, dir) {
     const v = S.cells[i] && S.cells[i].v;
     const next = applySplit(S.cells, S.n, i, dir);
@@ -1842,17 +1865,20 @@ if (typeof document !== 'undefined') {
     const slid = Math.abs(Math.floor(j / S.n) - Math.floor(i / S.n)) + Math.abs((j % S.n) - (i % S.n)); // cells travelled
     next[i].tw.left = S.fuse[i] ? S.fuse[i] - now : null; // a rejoined fight resumes with this
     S.cells = next;
+    S.splits++;
     // Splitting calms both halves: each remaining fight gets a fresh fuse.
     S.fuse = S.fuse.slice();
     S.fuse[i] = S.fuseMs && next[i].v > 1 ? now + S.fuseMs : null;
     S.fuse[j] = S.fuseMs && next[j].v > 1 ? now + S.fuseMs : null;
     if (focusOn()) S.focus = [i, j];
+    landArrivals(now);
     const c = next[i].c;
     const region = regionDone(next, c) ? c : null;
-    S.anim = { from: i, to: j, dir, dist: slid, region, win: isWin(next, S.n) };
+    const won = (!S.board.arrivals || S.queue >= S.board.arrivals.length) && isWin(S.cells, S.n);
+    S.anim = { from: i, to: j, dir, dist: slid, region, win: won };
     splitSound(v);
     if (region !== null) regionSound();
-    if (isWin(next, S.n)) {
+    if (won) {
       S.won = true; S.elapsed = Date.now() - S.t0; stopTimer();
       $('winTime').textContent = fmtTime(S.elapsed);
       $('winTitle').textContent = S.skin === 'kittens' ? 'All asleep' : 'Solved';
@@ -1883,6 +1909,7 @@ if (typeof document !== 'undefined') {
     next[i] = (S.cells.floor || [])[i] === 'crack' ? LOCK : null; // a kitten leaving a crack breaks it
     next[j] = { ...tw.from };
     S.cells = next;
+    S.splits = Math.max(0, S.splits - 1); // a rejoin gives a split back; a landed fight stays landed
     S.fuse = S.fuse.slice();
     S.fuse[i] = null;
     S.fuse[j] = S.fuseMs ? now + (tw.left != null ? tw.left : S.fuseMs) : null;

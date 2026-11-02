@@ -238,7 +238,7 @@ test('Full solve', async () => {
 test('Oblong boards', async () => {
   const { context, page, errors } = await open({}, false);
   const out = [];
-  for (const k of [3, 30, 99]) { // stage 4 is 4x5, stage 31 is 6x7, stage 100 is 7x8
+  for (const k of [3, 30, 46, 99]) { // stage 4 is 4x5, stage 31 is 6x7, stages 47 and 100 are 7x8
     await page.evaluate(k => localStorage.setItem('split.stage.casual', String(k)), k);
     await page.reload(); await ready(page); await page.click('#playCasual'); await skipHowto(page); await settled(page);
     const g = await page.evaluate(() => {
@@ -247,8 +247,6 @@ test('Oblong boards', async () => {
         square: Math.abs(c.width - c.height) < 1, cell: Math.round(c.width) };
     });
     check(g.cells === g.w * g.h && g.h === g.w + 1 && g.fits && g.square, `stage ${k + 1} board: ${JSON.stringify(g)}`);
-    // Stages 47+ bring arrivals, which the game loop plays from T3; until then the hint-solve covers stage 31 (6x7).
-    if (k >= 46) { out.push(`${g.w}x${g.h} fits, ${g.cell}px cells`); continue; }
     let moves = 0;
     while (await hintSwipe(page)) moves++;
     await page.waitForSelector('#overlay:not([hidden])', { timeout: 3000 });
@@ -258,6 +256,42 @@ test('Oblong boards', async () => {
   await context.close();
   check(!errors.length, errors.join(' | '));
   return out.join('; ');
+});
+
+test('Arrivals survive a kill', async () => {
+  // Normal stage 47 (a 7x8 board with arrivals): play the recorded solution until a fight
+  // lands, kill the app, and come back. The split counter and the queue index must return (S3).
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.addInitScript(() => { try { localStorage.setItem('split.stage.challenge', '46'); } catch (e) {} });
+  await page.goto(URL.replace('?dev', ''));
+  await ready(page);
+  await page.click('#playChallenge');
+  await skipHowto(page);
+  let moves = 0, landed = false;
+  while (!landed && moves < 40) {
+    check(await hintSwipe(page), 'stage 47: no hint before an arrival landed');
+    moves++;
+    landed = (await page.evaluate(() => S.queue)) > 0;
+  }
+  check(landed, 'stage 47: no arrival landed on the solution path');
+  const before = await page.evaluate(() => {
+    const a = S.board.arrivals[S.queue - 1];
+    return { k: keyOf(S.cells), splits: S.splits, queue: S.queue, fresh: S.fuse[a.cell] - Date.now() };
+  });
+  check(before.fresh > 0, `a landed fight must get a fresh fuse: ${before.fresh}`);
+  await page.reload();
+  await ready(page);
+  await page.click('#playChallenge');
+  await skipHowto(page);
+  const after = await page.evaluate(() => ({ k: keyOf(S.cells), splits: S.splits, queue: S.queue }));
+  check(after.k === before.k && after.splits === before.splits && after.queue === before.queue,
+    `stage 47 after a kill: ${JSON.stringify({ before, after })}`);
+  check(!errors.length, errors.join(' | '));
+  await context.close();
+  return `stage 47 arrival landed after ${moves} swipes with a fresh fuse; splits ${after.splits}, queue ${after.queue} survived a kill`;
 });
 
 test('Locked cells', async () => {
