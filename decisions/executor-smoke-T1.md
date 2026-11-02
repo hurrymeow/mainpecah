@@ -1,0 +1,1 @@
+README.md was absent from the repository, so T1's create-if-missing branch applied: the file was added with the single line `# Kaboom Kitty`. No typo edit was possible or needed, since there was no existing text containing "teh" to correct and the task did not require stalling in that case.
