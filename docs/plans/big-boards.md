@@ -36,33 +36,38 @@ Order matters: T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9. Execu
 - Done when: `node test/selftest.cjs` exits 0 and `node test/e2e.cjs` exits 0.
 - Don't touch: everything except `index.html`, `test/selftest.cjs`, `decisions/big-boards-T1.md` and `progress/big-boards-T1.md`.
 
-### T2. Generator emits arrivals (Sonnet)
-- Files: `index.html` (`generate`, `stageBoard`, `shapeKey`, `keyOf`, `selfTest`), `test/selftest.cjs`, `test/e2e.cjs` (solution replay, ~line 621–628).
-- Changes: in the backward build for stages `>= ARRIVALS_FROM`, remove some merged fights and record `board.arrivals = [{ at, cell, v }]`, where `at` is the net split count. Add `applyArrivals(cells, arrivals, splits)`. `shapeKey` includes arrivals. Path keys include the queue index, so hints still match. Stages below 47 stay byte-identical.
+### T2. Generator emits arrivals (Sonnet, executor trial)
+- Files: `index.html`, `test/selftest.cjs`, `test/e2e.cjs`
+- Where to look: `index.html` (`generate`, `stageBoard`, `shapeKey`, `keyOf`, `selfTest`), `test/selftest.cjs`, `test/e2e.cjs` (solution replay, ~line 621–628).
+- Exact changes: in the backward build for stages `>= ARRIVALS_FROM`, remove some merged fights and record `board.arrivals = [{ at, cell, v }]`, where `at` is the net split count. Add `applyArrivals(cells, arrivals, splits)`. `shapeKey` includes arrivals. Path keys include the queue index, so hints still match. Stages below 47 stay byte-identical.
 - Done when: selftest and e2e replay every stage including arrivals; stages 1–46 boards unchanged (compare `shapeKey` before and after).
 - Don't touch: UI, fuses, scorecard.
 
-### T3. Game loop, win, save (Sonnet)
-- Files: `index.html` (`move`, `merge`, `isWin`, `restart`, `packCells`, `saveBoard`, `restoreSaved`, `nextHint`), `test/e2e.cjs`.
-- Changes: state gets a net split counter and queue index. After each split, drop the due arrival if its cell is free, otherwise it waits. Rejoin lowers the counter but never removes a landed fight. Win also requires an empty queue. Save and restore keep the counter and queue (S3). Restart resets them (S4). A landed fight gets a fresh fuse in Normal.
+### T3. Game loop, win, save (Sonnet, executor trial)
+- Files: `index.html`, `test/e2e.cjs`
+- Where to look: `index.html` (`move`, `merge`, `isWin`, `restart`, `packCells`, `saveBoard`, `restoreSaved`, `nextHint`), `test/e2e.cjs`.
+- Exact changes: state gets a net split counter and queue index. After each split, drop the due arrival if its cell is free, otherwise it waits. Rejoin lowers the counter but never removes a landed fight. Win also requires an empty queue. Save and restore keep the counter and queue (S3). Restart resets them (S4). A landed fight gets a fresh fuse in Normal.
 - Done when: an e2e test plays a stage-47 board by its solution and wins; a kill and reload mid-stage restores the queue.
 - Don't touch: generator, scorecard.
 
-### T4. Next chip, marked cell, teach stage (Sonnet)
-- Files: `index.html` (markup, CSS, `render`, `TEACH`), `test/e2e.cjs`.
-- Changes: a "Next" chip showing the arriving fight and the splits left, in thumb reach (S5, UI.md). The landing cell is outlined. A clear waiting state when the cell is taken. Drop animation and sound. Authored teach board for stage 47 where filling the marked cell fails (M8).
+### T4. Next chip, marked cell, teach stage (Sonnet, executor trial)
+- Files: `index.html`, `test/e2e.cjs`
+- Where to look: `index.html` (markup, CSS, `render`, `TEACH`), `test/e2e.cjs`.
+- Exact changes: a "Next" chip showing the arriving fight and the splits left, in thumb reach (S5, UI.md). The landing cell is outlined. A clear waiting state when the cell is taken. Drop animation and sound. Authored teach board for stage 47 where filling the marked cell fails (M8).
 - Done when: e2e passes; screenshot of stage 47 posted before shipping; ui-check passes.
 - Don't touch: generator logic beyond the teach board, scorecard.
 
-### T5. Scorecard bots play arrivals (Sonnet)
-- Files: `tools/scorecard/lib.cjs` (`play`, `builder`, `urgentBuilder`, `rookie`, `builderStage`), `tools/scorecard/checks-model.cjs`.
-- Changes: every bot applies arrivals in its playthrough, using the same rule as the game. The time model counts arrival kittens' swipes.
+### T5. Scorecard bots play arrivals (Sonnet, executor trial)
+- Files: `tools/scorecard/lib.cjs`, `tools/scorecard/checks-model.cjs`
+- Where to look: `tools/scorecard/lib.cjs` (`play`, `builder`, `urgentBuilder`, `rookie`, `builderStage`), `tools/scorecard/checks-model.cjs`.
+- Exact changes: every bot applies arrivals in its playthrough, using the same rule as the game. The time model counts arrival kittens' swipes.
 - Done when: `npm run scorecard` runs end to end; rows other than S1, M10, M12, M15 and M20 keep their current state.
 - Don't touch: `index.html`.
 
-### T6. Brainy metric and row (Sonnet)
-- Files: `tools/scorecard/lib.cjs`, `tools/scorecard/checks-model.cjs`, `tools/scorecard/fair-picks.cjs`, `GAME-DESIGN.md`.
-- Changes: a delayed-trap measure: the share of solution swipes where a sensible-looking split leaves the board solvable for 1–2 swipes, then dead-ends 3 or more swipes later. Use bounded look-ahead so 7x8 stays fast. Calibrate on today's boards first. Then add a row (proposed: at least 30% on stages 47+) and use it in place of wrong options per swipe in fair-picks and M10.
+### T6. Brainy metric and row (Sonnet, executor trial)
+- Files: `tools/scorecard/lib.cjs`, `tools/scorecard/checks-model.cjs`, `tools/scorecard/fair-picks.cjs`, `GAME-DESIGN.md`
+- Where to look: `tools/scorecard/lib.cjs`, `tools/scorecard/checks-model.cjs`, `tools/scorecard/fair-picks.cjs`, `GAME-DESIGN.md`.
+- Exact changes: a delayed-trap measure: the share of solution swipes where a sensible-looking split leaves the board solvable for 1–2 swipes, then dead-ends 3 or more swipes later. Use bounded look-ahead so 7x8 stays fast. Calibrate on today's boards first. Then add a row (proposed: at least 30% on stages 47+) and use it in place of wrong options per swipe in fair-picks and M10.
 - Done when: the row reports for both modes in under about 2 min; GAME-DESIGN.md records the threshold and the calibration numbers.
 - Don't touch: `index.html`.
 
@@ -72,9 +77,10 @@ Order matters: T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9. Execu
 - Done when: `node test/selftest.cjs` exits 0 and `node test/e2e.cjs` exits 0.
 - Don't touch: everything except `index.html`, `decisions/big-boards-T7.md` and `progress/big-boards-T7.md`. Run only after T4 has merged.
 
-### T8. Tune stages 47+ and rerun (Sonnet)
-- Files: `index.html` (`STAGES`, `LADDER`, `CASUAL_TILES`, `FUSES`, `EARLY_PICK`, picks tables), `tools/scorecard/tile-table.cjs`, `tools/scorecard/fair-picks.cjs`, `tools/scorecard/fuse-table.cjs`, `GAME-DESIGN.md`.
-- Changes: swipe cap of about 18 Normal and 15 Casual including arrivals. Boards built around one or two 8s or 16s. An arrival schedule per 10-stage band (sawtooth, M10). Then the rerun order: early-picks, `MODE=challenge` fair-picks, tile-table, `MODE=casual` fair-picks, fuse-table.
+### T8. Tune stages 47+ and rerun (Sonnet, executor trial)
+- Files: `index.html`, `tools/scorecard/tile-table.cjs`, `tools/scorecard/fair-picks.cjs`, `tools/scorecard/fuse-table.cjs`, `GAME-DESIGN.md`
+- Where to look: `index.html` (`STAGES`, `LADDER`, `CASUAL_TILES`, `FUSES`, `EARLY_PICK`, picks tables), `tools/scorecard/tile-table.cjs`, `tools/scorecard/fair-picks.cjs`, `tools/scorecard/fuse-table.cjs`, `GAME-DESIGN.md`.
+- Exact changes: swipe cap of about 18 Normal and 15 Casual including arrivals. Boards built around one or two 8s or 16s. An arrival schedule per 10-stage band (sawtooth, M10). Then the rerun order: early-picks, `MODE=challenge` fair-picks, tile-table, `MODE=casual` fair-picks, fuse-table.
 - Done when: full scorecard is Pass for every row except S1 stages 1–3 (on purpose) and M15 (fixed in T9); 60 s fuse cap holds; dawdler loses 10–30% (M20).
 - Don't touch: stages 1–46 boards.
 
