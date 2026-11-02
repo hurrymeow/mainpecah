@@ -525,7 +525,7 @@ button.mode::after { content: "›"; grid-column: 2; grid-row: 1 / span 3; font-
 /* Narrow phones: tighter gutters keep a 7-column board at 44 px cells. */
 @media (max-width: 380px) { #app { padding-left: 8px; padding-right: 8px; } :root { --gap: 4px; } }
 /* Short phones: drop the one-liner and tighten the gaps so a 7x8 board keeps 44 px cells. */
-@media (max-height: 700px) { #quip { display: none; } #app { gap: 4px; padding-block: 4px; } header { gap: 4px; } }
+@media (max-height: 700px) { #quip { display: none; } #brief:has(#nextChip:not([hidden])) #status.idle { display: none; } /* the Next chip takes the idle line so the board keeps its cell size */ #app { gap: 4px; padding-block: 4px; } header { gap: 4px; } }
 body:not(.dev) .debug .app button { min-height: 44px; }
 [hidden] { display: none !important; }
 @media (prefers-reduced-motion: reduce) { .card.won, .card.won h2, #winKit { animation: none !important; } #burst { display: none; } }
@@ -1452,7 +1452,7 @@ if (typeof document !== 'undefined') {
     else if (jammed) { status.textContent = 'No room. Swipe a kitten back onto its twin.'; status.className = 'bad'; }
     else if (hint) { status.textContent = more ? `Hint: ${hint.join ? 'rejoin' : 'split'} the ${cells[hint.from].v} ${hint.dir}` : 'Hint: tap the lit fight for more.'; status.className = 'hint'; }
     else if (S.showSol && !S.won) { status.textContent = 'Off the solution path. Rejoin twins to get hints back.'; status.className = 'hint'; }
-    else status.textContent = S.stage != null && TWISTS[S.stage] ? `Twist: ${TWISTS[S.stage].name}` : { kittens: 'Give every kitten its own cell to sleep!', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin];
+    else { status.className = 'idle'; status.textContent = S.stage != null && TWISTS[S.stage] ? `Twist: ${TWISTS[S.stage].name}` : { kittens: 'Give every kitten its own cell to sleep!', slimes: 'Put a baby slime in every cell', numbers: 'Fill every cell with a 1' }[S.skin]; }
 
     // The first board with each new rule explains it until that board is solved. Newest rule first.
     const start = S.board.cells, startFloor = start.floor || [];
