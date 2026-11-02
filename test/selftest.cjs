@@ -11,6 +11,15 @@ for (const [n, x] of Object.entries(r)) {
   if (x.sum !== x.boards || x.cap !== x.boards || x.solved !== x.boards) fail = true;
 }
 if (mod.exports.ARRIVALS_FROM !== 46) { console.log('ARRIVALS_FROM should be 46'); fail = true; }
+for (const [sizes, want] of [[[8], 8], [[16], 16], [[8, 8], 8]]) {
+  let miss = 0;
+  for (let s = 0; s < 100; s++) {
+    const b = mod.exports.generate(7, 38, mod.exports.seeded(900 + s), 8, 0, { big: sizes });
+    const vals = b.cells.map(t => (t ? t.v : 0));
+    if (vals.filter(v => v >= want).length < sizes.length) miss++;
+  }
+  if (miss > 5) { console.log(`big ${JSON.stringify(sizes)}: ${miss}/100 boards missing a big tile`); fail = true; }
+}
 
 // Every stage must replay its recorded solution, landing arrivals at their net split count.
 let boardsFail = false;
