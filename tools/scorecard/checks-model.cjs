@@ -242,6 +242,20 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
       out.map(o => `${NAME[o.m]} rising ${o.rising}/10 bands, relief 10-40% at ${o.relief}/9 band starts`).join('; '), 'rising in every band, 10-40% drop at every band start',
       'Relief = first stage of a band vs the mean of the last two stages of the one before.'));
   }
+  // M22
+  {
+    const late = m => first100(m).slice(46);
+    const out = MODES.map(m => {
+      const xs = late(m);
+      const share = xs.reduce((a, s) => a + s.brainy, 0) / xs.length;
+      const low = xs.reduce((a, s) => (s.brainy < a.brainy ? s : a));
+      return { m, share, low };
+    });
+    rows.push(row('M22', 'Wrong turns look right for a while', out.every(o => o.share >= 0.3),
+      out.map(o => `${NAME[o.m]} ${(o.share * 100).toFixed(0)}% (lowest stage ${o.low.k + 1} at ${(o.low.brainy * 100).toFixed(0)}%)`).join('; '),
+      '>=30% of solution swipes on stages 47-100',
+      'A trap split leaves 3+ split swipes of play but no win reachable by a bounded split-only search; a rejoin is not a way out.'));
+  }
   reaches('M14', 'Progress', 3600, { casual: [35, 55], challenge: [30, 50] });
   // M15
   {
