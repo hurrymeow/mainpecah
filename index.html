@@ -68,9 +68,9 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 .seg button.on { background: var(--line); color: var(--text); font-weight: 650; }
 /* Plain info above the board: where you are, then what to do. Not controls. */
 #brief { display: grid; gap: 2px; text-align: center; flex: none; }
-/* Next arrival: a compact chip above the board, left aligned under the header. */
+/* Next arrival: a compact chip above the board, centred in the brief. */
 #nextChip {
-  justify-self: start; display: flex; align-items: center; gap: var(--s1);
+  justify-self: center; display: flex; align-items: center; gap: var(--s1);
   min-height: 24px; padding: 0 var(--s2); border-radius: 99px;
   background: var(--panel); border: 1px solid var(--line);
   font-size: var(--fs-sm); font-variant-numeric: tabular-nums;
@@ -2103,6 +2103,7 @@ if (typeof document !== 'undefined') {
     if (['kittens', 'slimes', 'numbers'].includes(skin)) { S.skin = skin; $('skin').value = skin; }
   } catch (err) {}
   window.addEventListener('resize', layout);
+  window.__render = render; // test hook: lets e2e redraw after it edits S
   $('sound').addEventListener('toggle', () => { if ($('sound').open) $('settings').open = false; layout(); });
   $('settings').addEventListener('toggle', () => { if ($('settings').open) $('sound').open = false; layout(); }); // the board gives up height to the open panel
 
