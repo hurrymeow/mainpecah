@@ -48,9 +48,7 @@ function fitS1(list, upto) {
 function uniqueAndSolvable(g, list, upto) {
   const seen = new Set(); let dup = 0, unsolved = 0;
   list.slice(0, upto).forEach(s => {
-    let cur = s.board.cells;
-    for (const st of s.board.solution) cur = cur && g.applyStep(cur, s.board.n, st);
-    if (!cur || !g.isWin(cur, s.board.n)) unsolved++;
+    if (!L.play(g, s.board, { chooser: L.builder(s.board) }).won) unsolved++;
     const key = g.shapeKey(s.board.n, s.board.cells);
     if (seen.has(key)) dup++; else seen.add(key);
   });
@@ -284,7 +282,7 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
   const hint = MODES.map(m => {
     let steps = 0, choice = 0, fights = 0;
     for (let k = 0; k < 100; k++) {
-      const b = stages[m][k].board; let cur = b.cells;
+      const b = stages[m][k].board, ar = b.arrivals || []; let cur = b.cells, sp = 0, q = 0;
       for (const st of b.solution) {
         if (!st.join) {
           steps++;
@@ -292,6 +290,12 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
           fights += new Set(L.legalSteps(g, cur, b.n).filter(x => !x.join).map(x => x.from)).size;
         }
         cur = g.applyStep(cur, b.n, st);
+        if (st.join) sp = Math.max(0, sp - 1);
+        else {
+          sp++;
+          const landed = L.landArrivals(g, cur, ar, q, sp);
+          cur = landed.cells; q = landed.queue;
+        }
       }
     }
     return { choice: choice / steps, narrow: fights / steps };
