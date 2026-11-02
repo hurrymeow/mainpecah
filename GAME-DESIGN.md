@@ -160,7 +160,7 @@ Most items below follow from one idea. Every second this player spends confused,
 
 - Looks like: Monument Valley finishes in about 1.5 h. Baba Is You's main path takes 7.5–8 h (HowLongToBeat via aggregators).
 - Why: a commuter playing twice a day finishes 2.5–4 h in two to four weeks. That is long enough to form a habit and short enough to finish.
-- Test: builder finishes in **2.5–4 h** Casual and **3–5 h** Normal.
+- Test: builder finishes in **1.5–2.5 h** Casual and **2–3 h** Normal. Lowered 2026-11-02 (Hari go): shorter stages suit the commute, and arrivals keep each one brainy.
 
 **M16. Something new every so often.**
 
