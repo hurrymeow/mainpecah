@@ -1,0 +1,1 @@
+Created `README.md` at the repo root with the required single heading line. No other files were touched beyond the two executor notes; both test suites were run unchanged to confirm the smoke task leaves the app green.
