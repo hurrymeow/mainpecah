@@ -6,11 +6,14 @@
 // Usage: node tools/scorecard/fuse-table.cjs
 const L = require('./lib.cjs');
 const g = L.loadGame();
+const TIGHT_FROM = 50;
 const out = [];
 for (let k = 0; k < 100; k++) {
   const b = g.stageBoard('challenge', k);
   let need = 90;
   for (let f = 3; f <= 90; f++) if (L.play(g, b, { fuseS: f, chooser: L.urgentBuilder(g, b), slow: L.DAWDLER_SLOW, focus: k >= g.FOCUS_FROM }).won) { need = f; break; }
-  out.push(Math.min(60, Math.max(g.LADDER[k][3], Math.ceil(need / 5) * 5)));
+  // Short big boards (stage 51+) leave a slow player no real risk, so every third stage gives them 5 s less than they need (M20: the dawdler loses 10-30%).
+  const tight = k >= TIGHT_FROM && k % 3 === 1 ? 5 : 0;
+  out.push(Math.min(60, Math.max(g.LADDER[k][3], Math.ceil(need / 5) * 5 - tight)));
 }
 console.log(JSON.stringify(out).replace(/,/g, ', '));
