@@ -716,6 +716,10 @@ const LOCK = Object.freeze({ v: 0, lock: true });
 // cells.floor (optional, same length) marks fixed floor: 'crack' or 'cushion'. Grumpy tiles carry g: true.
 const cloneCells = cells => Object.assign(cells.map(t => t && (t.lock ? t : { v: t.v, c: t.c, tw: t.tw, g: t.g })), { floor: cells.floor });
 const keyOf = cells => cells.map(t => (t ? (t.lock ? 'x' : t.v) : 0)).join(',');
+// Board state key for hints. On a board with arrivals it also carries how many have landed (the queue index),
+// so the same cells at two different queue positions stay apart.
+const arrivalsLanded = (cells, arrivals) => (arrivals ? arrivals.reduce((q, a) => q + (cells[a.cell] ? 1 : 0), 0) : 0);
+const boardKey = (cells, arrivals) => (arrivals && arrivals.length ? keyOf(cells) + '|' + arrivalsLanded(cells, arrivals) : keyOf(cells));
 
 // ===================== GENERATOR =====================
 // Reverse merge: start all 1s, merge equal orthogonal neighbours until the
@@ -758,12 +762,32 @@ function generate(n, target, rand = Math.random, h = n, locks = 0, extra = {}) {
     .map(m => ({ from: m.keep, dir: dirBetween(n, m.keep, m.gone, h) }));
   addFeatures(cells, n, h, solution, extra, rand);
 
-  // States along the solution, so hints still work after a correct move made in any order.
-  const path = [keyOf(cells)];
-  let cur = cells;
-  for (const s of solution) { cur = applySplit(cur, n, s.from, s.dir); path.push(keyOf(cur)); }
+  // Arrivals: take some finished fights off the start board. The recorded solution already
+  // splits each one from its own cell, so a fight only has to land before its first split.
+  const arrivals = [];
+  if (extra.arrivals) {
+    const roots = [];
+    cells.forEach((t, i) => { if (t && !t.lock && t.v > 1 && !t.g) roots.push(i); });
+    for (let i = roots.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [roots[i], roots[j]] = [roots[j], roots[i]]; }
+    for (const cell of roots.slice(0, extra.arrivals)) {
+      const v = cells[cell].v, at = solution.findIndex(s => s.from === cell);
+      if (at < 0) continue;
+      arrivals.push({ at, cell, v });
+      cells[cell] = null;
+    }
+    arrivals.sort((a, b) => a.at - b.at || a.cell - b.cell);
+  }
 
-  return { n, h, cells, solution, path, tiles: best.tiles };
+  // States along the solution, so hints still work after a correct move made in any order.
+  let cur = applyArrivals(cells, arrivals, 0);
+  const path = [boardKey(cur, arrivals)];
+  for (let p = 0; p < solution.length; p++) {
+    cur = applySplit(cur, n, solution[p].from, solution[p].dir);
+    cur = applyArrivals(cur, arrivals, p + 1);
+    path.push(boardKey(cur, arrivals));
+  }
+
+  return { n, h, cells, solution, path, tiles: best.tiles, ...(arrivals.length ? { arrivals } : {}) };
 }
 
 // ===================== STAGE BOARDS =====================
@@ -780,7 +804,7 @@ function seeded(seed) { // mulberry32
 }
 
 // The same key for a layout and its rotations and reflections (4 on an oblong board, 8 on a square one).
-function shapeKey(n, cells) {
+function shapeKey(n, cells, arrivals = []) {
   const h = cells.length / n, keys = [];
   for (let s = 0; s < (h === n ? 8 : 4); s++) {
     let k = '';
@@ -792,6 +816,15 @@ function shapeKey(n, cells) {
       const f = cells.floor && cells.floor[y * n + x];
       k += (t ? (t.lock ? 'x' : t.v.toString(16) + (t.g ? 'g' : '')) : '.') + (f ? f[1] : '');
     }
+    if (arrivals.length) { // the queue is part of the layout, so rotate its cells with the board
+      k += '|' + arrivals.map(a => {
+        let y = Math.floor(a.cell / n), x = a.cell % n;
+        if (s & 4) [y, x] = [x, y];
+        if (s & 1) y = h - 1 - y;
+        if (s & 2) x = n - 1 - x;
+        return `${y * n + x}:${a.at}:${a.v}`;
+      }).sort().join(';');
+    }
     keys.push(k);
   }
   return keys.sort()[0];
@@ -800,11 +833,13 @@ function shapeKey(n, cells) {
 // A new rule every 15 stages or so, on top of blocked cells: cracks from stage 24,
 // grumpy kittens from 26 and cushions from 44. Each count creeps up within its stretch.
 function stageExtras(k) {
-  return TWISTS[k] || {
+  const extras = TWISTS[k] || {
     cracks: k < 23 ? 0 : Math.min(3, 1 + Math.floor((k - 23) / 15)),
     grumpy: k < 25 ? 0 : Math.min(4, 2 + Math.floor((k - 25) / 20)),
     cushions: k < 43 ? 0 : Math.min(4, 2 + Math.floor((k - 43) / 15)),
   };
+  // Two fights per stage arrive mid-stage from stage 47; T8 tunes the per-band schedule.
+  return k < ARRIVALS_FROM ? extras : { ...extras, arrivals: 2 };
 }
 // Twists: stages (0-based) that bring a mix of the existing rules the player has not seen before, so something is new at least every 15 stages.
 // Each mix is a different combination of cracks, grumpy kittens, cushions and blocked cells. No new rule to learn, only a new combination.
@@ -860,9 +895,9 @@ function teachBoard({ n, h, layout, solution, floor = {}, grumpy = [] }) {
 const EARLY_PICK = { casual: { 0: 1, 1: 2, 2: 1, 3: 8, 4: 16, 5: 9, 6: 2, 7: 4, 8: 6, 9: 1, 10: 19, 11: 8, 12: 10, 13: 14, 15: 8, 16: 11, 17: 10, 18: 4, 19: 14, 20: 18, 21: 8, 22: 1, 23: 2, 24: 19, 26: 5, 27: 2, 28: 6, 29: 6, 30: 14, 31: 0, 32: 0, 33: 19, 34: 18, 35: 5, 36: 17, 37: 4, 38: 4, 39: 6, 40: 17, 41: 17, 42: 16, 44: 17, 45: 15, 46: 12, 47: 0, 48: 9, 49: 0, 50: 12, 51: 8, 52: 3, 53: 17, 54: 0, 55: 4, 56: 8, 57: 9, 58: 14, 59: 15, 60: 6, 61: 6, 62: 4, 63: 11, 64: 17, 65: 8, 66: 7, 67: 1, 68: 10, 69: 14, 70: 4, 71: 10, 72: 16, 73: 16, 74: 9, 75: 8, 76: 4, 77: 12, 78: 18, 79: 7, 80: 17, 81: 18, 82: 10, 83: 19, 84: 6, 85: 5, 86: 13, 87: 15, 88: 5, 89: 8, 90: 12, 91: 0, 92: 3, 93: 8, 94: 1, 95: 0, 96: 18, 97: 11, 98: 14, 99: 13 }, challenge: { 0: 2, 3: 8, 4: 0, 5: 4, 6: 12, 7: 19, 8: 8, 9: 4, 10: 12, 11: 16, 12: 16, 13: 15, 15: 6, 16: 18, 17: 3, 18: 1, 19: 13, 20: 6, 21: 4, 22: 11, 23: 18, 24: 6, 26: 13, 27: 10, 28: 6, 29: 18, 30: 2, 31: 19, 32: 8, 33: 19, 34: 13, 35: 19, 36: 0, 37: 4, 38: 6, 39: 9, 40: 6, 41: 0, 42: 19, 44: 2, 45: 9, 46: 2, 47: 7, 48: 14, 49: 1, 50: 3, 51: 19, 52: 14, 53: 11, 54: 3, 55: 2, 56: 7, 57: 1, 58: 18, 59: 15, 60: 17, 61: 18, 62: 17, 63: 1, 64: 9, 65: 15, 66: 6, 67: 19, 68: 9, 69: 10, 70: 6, 71: 14, 72: 12, 73: 7, 74: 12, 75: 13, 76: 0, 77: 11, 78: 5, 79: 8, 80: 4, 81: 7, 82: 5, 83: 9, 84: 17, 85: 13, 86: 6, 87: 16, 88: 2, 89: 7, 90: 18, 91: 12, 92: 9, 93: 7, 94: 1, 95: 10, 96: 6, 97: 15, 98: 6, 99: 10 } };
 const stageBoards = { casual: [], challenge: [] };
 function stageBoard(mode, k) {
-  const list = stageBoards[mode], seen = new Set(list.map(b => shapeKey(b.n, b.cells)));
+  const list = stageBoards[mode], seen = new Set(list.map(b => shapeKey(b.n, b.cells, b.arrivals)));
   for (let j = list.length; j <= k; j++) {
-    if (TEACH[j]) { const b = teachBoard(TEACH[j]); seen.add(shapeKey(b.n, b.cells)); list.push(b); continue; }
+    if (TEACH[j]) { const b = teachBoard(TEACH[j]); seen.add(shapeKey(b.n, b.cells, b.arrivals)); list.push(b); continue; }
     const [n, h, normal, , ladderLocks] = STAGES[Math.min(j, STAGES.length - 1)];
     const locks = stageExtras(j).locks ?? ladderLocks;
     const target = mode === 'casual' ? CASUAL_TILES[Math.min(j, STAGES.length - 1)] : normal;
@@ -872,14 +907,14 @@ function stageBoard(mode, k) {
     const picked = EARLY_PICK[mode][j];
     for (let attempt = picked != null ? picked : 0; attempt < (picked != null ? picked + 1 : 20); attempt++) {
       const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks, stageExtras(j));
-      const key = shapeKey(n, b.cells);
+      const key = shapeKey(n, b.cells, b.arrivals);
       if (seen.has(key) || (best && b.tiles >= best.b.tiles)) continue;
       best = { b, key };
       if (b.tiles <= target) break;
     }
     if (!best) for (let attempt = 0; attempt < 20; attempt++) { // a pick that repeats an earlier layout falls back to the normal search
       const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks, stageExtras(j));
-      const key = shapeKey(n, b.cells);
+      const key = shapeKey(n, b.cells, b.arrivals);
       if (seen.has(key) || (best && b.tiles >= best.b.tiles)) continue;
       best = { b, key };
       if (b.tiles <= target) break;
@@ -1027,6 +1062,19 @@ function applyJoin(cells, n, i, dir) {
 // One step of a recorded solution: a split, or a rejoin when s.join is set.
 const applyStep = (cells, n, s) => (s.join ? applyJoin : applySplit)(cells, n, s.from, s.dir);
 
+// Land every arrival due at this net split count. A taken cell means it waits for a later call;
+// a landed fight keeps its cell, so calling again at a higher count does not land it twice.
+function applyArrivals(cells, arrivals, splits) {
+  if (!arrivals || !arrivals.length) return cells;
+  let out = cells;
+  for (const a of arrivals) {
+    if (a.at > splits || out[a.cell]) continue;
+    if (out === cells) out = cloneCells(cells);
+    out[a.cell] = { v: a.v, c: cells.length + a.cell };
+  }
+  return out;
+}
+
 const canMerge = (cells, n) => cells.some((t, i) => Object.keys(DIRS).some(d => mergeTarget(cells, n, i, d) >= 0));
 
 // A colour region is done when every tile descended from that starting tile is a 1.
@@ -1065,7 +1113,7 @@ function isJammed(cells, n) {
 const isStuck = (cells, n) => isJammed(cells, n) && !canMerge(cells, n);
 
 function nextHint() {
-  const k = S.board.path.indexOf(keyOf(S.cells));
+  const k = S.board.path.indexOf(boardKey(S.cells, S.board.arrivals));
   return k >= 0 && k < S.board.solution.length ? S.board.solution[k] : null;
 }
 
@@ -1093,7 +1141,7 @@ function selfTest(perSize = 1000, rand = Math.random) {
 
 if (typeof module !== 'undefined') {
   module.exports = {
-    generate, seeded, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE,
+    generate, seeded, applySplit, splitTarget, isWin, isStuck, blockedTiles, selfTest, SIZES, MAX_TILE, applyArrivals,
     // Read by tools/scorecard (npm run scorecard); exported only, no behaviour change.
     STAGES, LADDER, CASUAL_TILES, TEACH, TWISTS, EARLY_PICK, DAILY, DAILY_FROM, ARRIVALS_FROM, FOCUS_FROM, FOCUS_R, heldAt, dailyDate, dailyBoard, FUSES, DIRS, LOCK, stageBoard, stageExtras, shapeKey, keyOf, neighbour,
     mergeTarget, applyJoin, applyStep, canMerge, isJammed, regionDone,

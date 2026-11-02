@@ -249,6 +249,7 @@ test('Oblong boards', async () => {
     check(g.cells === g.w * g.h && g.h === g.w + 1 && g.fits && g.square, `stage ${k + 1} board: ${JSON.stringify(g)}`);
     let moves = 0;
     while (await hintSwipe(page)) moves++;
+    console.log(`OBLONG k=${k + 1} moves=${moves} won=${await page.evaluate(() => S.won)} fights=${await page.evaluate(() => S.cells.filter(t => t && t.v > 1).length)} arrivals=${await page.evaluate(() => (S.board.arrivals || []).length)}`);
     await page.waitForSelector('#overlay:not([hidden])', { timeout: 3000 });
     check(await page.evaluate(() => S.won), `${g.w}x${g.h}: not won`);
     out.push(`${g.w}x${g.h} solved in ${moves} swipes, ${g.cell}px cells`);
@@ -615,22 +616,32 @@ test('Start page and stages', async () => {
   check(casual, 'Casual tile table must cover every stage and fit its board (Casual has more tiles than Normal from stage 11, so Normal runs longer: M20)');
   const boards = await page.evaluate(() => ['casual', 'challenge'].map(m => {
     const keys = new Set();
-    let solved = 0, locks = 0;
+    let solved = 0, locks = 0, arrivalStages = 0, arrivalOk = 0, hints = 0;
     for (let k = 0; k < STAGES.length; k++) {
-      const b = stageBoard(m, k);
-      if (b.n === STAGES[k][0] && b.h === STAGES[k][1] && b.solution.length) keys.add(shapeKey(b.n, b.cells));
+      const b = stageBoard(m, k), arrivals = b.arrivals || [];
+      if (b.n === STAGES[k][0] && b.h === STAGES[k][1] && b.solution.length) keys.add(shapeKey(b.n, b.cells, arrivals));
       const e = stageExtras(k), fl = b.cells.floor || [];
       // An authored first stage (rejoin, grumpy, cushions) sets its own blocked cells and floors.
       if (b.teach || (b.cells.filter(t => t && t.lock).length === (e.locks ?? STAGES[k][4]) && fl.filter(f => f === 'crack').length === e.cracks
         && fl.filter(f => f === 'cushion').length === e.cushions && b.cells.filter(t => t && t.g).length === e.grumpy)) locks++;
-      // Replay the recorded solution: every stage must be solvable from its starting board.
-      let cur = b.cells;
-      for (const s of b.solution) { cur = applyStep(cur, b.n, s); if (!cur) break; }
+      if (arrivals.length) arrivalStages++;
+      // Arrivals only from stage 47; below that the boards are unchanged.
+      if ((k >= ARRIVALS_FROM) === (arrivals.length > 0)) arrivalOk++;
+      // Replay the recorded solution, landing each arrival at its net split count.
+      const bkey = cells => (arrivals.length ? keyOf(cells) + '|' + arrivals.reduce((q, a) => q + (cells[a.cell] ? 1 : 0), 0) : keyOf(cells));
+      let cur = applyArrivals(b.cells, arrivals, 0), ok = b.path[0] === bkey(cur);
+      for (let p = 0; cur && p < b.solution.length; p++) {
+        cur = applyStep(cur, b.n, b.solution[p]);
+        if (!cur) break;
+        cur = applyArrivals(cur, arrivals, p + 1);
+        if (b.path[p + 1] !== bkey(cur)) ok = false; // hints still resolve to the next recorded step
+      }
       if (cur && isWin(cur, b.n)) solved++;
+      if (ok) hints++;
     }
-    return { m, unique: keys.size, stages: STAGES.length, solved, locks };
+    return { m, unique: keys.size, stages: STAGES.length, solved, locks, arrivalStages, arrivalOk, hints, wanted: STAGES.length - ARRIVALS_FROM };
   }));
-  check(boards.every(b => b.stages === 100 && b.unique === 100 && b.solved === 100 && b.locks === 100), `stage boards must be 100 unique, solvable, with the right locks per mode: ${JSON.stringify(boards)}`);
+  check(boards.every(b => b.stages === 100 && b.unique === 100 && b.solved === 100 && b.locks === 100 && b.arrivalOk === 100 && b.hints === 100 && b.arrivalStages === b.wanted), `stage boards must be 100 unique, solvable, with the right locks per mode, and arrivals only from stage 47: ${JSON.stringify(boards)}`);
   check(ladder === '4x4 4x5 5x5 5x6 6x6 6x7 7x7 7x8' && (await page.evaluate(() => JSON.stringify(['4x4', '4x5', '5x5', '5x6', '6x6', '6x7', '7x7', '7x8'].map(d => STAGES.filter(s => s[0] + 'x' + s[1] === d).length)))) === '[3,4,8,3,12,8,8,54]', `stage ladder should grow 4x4 (3 stages), 4x5 (4), 5x5 (8), 5x6 (3), 6x6 (12), 6x7 (8), 7x7 (8), then stay 7x8: ${ladder}`);
   await context.close();
   check(!errors.length, errors.join(' | '));
