@@ -73,6 +73,7 @@ Order matters: T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9. Execu
 - Exact changes: a delayed-trap measure: the share of solution swipes where a sensible-looking split leaves the board solvable for 1–2 swipes, then dead-ends 3 or more swipes later. Use bounded look-ahead so 7x8 stays fast. Calibrate on today's boards first. Then add a row (proposed: at least 30% on stages 47+) and use it in place of wrong options per swipe in fair-picks and M10.
 - Done when: the row reports for both modes in under about 2 min; GAME-DESIGN.md records the threshold and the calibration numbers.
 - Don't touch: `index.html`.
+- Call (2026-11-02, Hari away): (1) A dead end means no win is reachable by a bounded, node-capped split-only search from the board after the sensible split (same idea as M13's `reachable`). Rejoin does not count as recovery, so recoverable wrong splits are not traps. (2) Keep the two-command limit. Implement the metric, the row (target at least 30% on stages 47+), and the fair-picks and M10 changes with that proposed target. Do not run the scorecard. The executor thread runs `npm run scorecard` after merge, records the calibration numbers in GAME-DESIGN.md and adjusts the target if the real numbers need it.
 
 ### T7. How to play page for arrivals (Haiku)
 - Files: `index.html`
