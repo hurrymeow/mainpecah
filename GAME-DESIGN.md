@@ -135,6 +135,7 @@ Most items below follow from one idea. Every second this player spends confused,
 - Quote: Hayashida's steps: "the stage will offer you a slightly more complicated scenario", then "something crazy happens".
 - Why: steady difficulty is either boring or tiring, never both satisfying. A peak gives a win that feels earned. The dip after it lets the player feel how much better they got.
 - Test: solver difficulty rises inside each 10-stage band, then drops **10–40%** at the next band start.
+- Big boards, tuned 2026-11-02: Normal peak steps stay on the old curve to stage 50, then fall band by band (25, 22, 20, 18) so stages 51+ are shorter (about 14-21 swipes, arrivals included) without a cliff at a band start. The stage-47 teach board has 14 swipes so S1 holds. Every third Normal fuse from stage 51 is 5 s tighter than the dawdler needs, so M20 keeps a 10-30% loss. Boards built around 8s and 16s did not work: the generator leaves a hole next to every merge, so big tiles stay rare and almost all start at 2 or 4. Revisit that with a generator change, not a table.
 
 **M12. Fair fuse.**
 
