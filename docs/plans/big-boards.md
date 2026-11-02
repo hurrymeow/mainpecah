@@ -42,6 +42,7 @@ Order matters: T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9. Execu
 - Exact changes: in the backward build for stages `>= ARRIVALS_FROM`, remove some merged fights and record `board.arrivals = [{ at, cell, v }]`, where `at` is the net split count. Add `applyArrivals(cells, arrivals, splits)`. `shapeKey` includes arrivals. Path keys include the queue index, so hints still match. Stages below 47 stay byte-identical.
 - Done when: selftest and e2e replay every stage including arrivals; stages 1–46 boards unchanged (compare `shapeKey` before and after).
 - Don't touch: UI, fuses, scorecard.
+- Call (executor stopped, answered 2026-11-02): T2 stays generator-only. Do not add any game-loop arrival placement. To keep e2e green, change the interactive hint-solve in the e2e test 'Oblong boards' from stage 100 to stage 31 (6x7). T3 restores stage-100 interactive coverage.
 
 ### T3. Game loop, win, save (Sonnet, executor trial)
 - Files: `index.html`, `test/e2e.cjs`
