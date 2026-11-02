@@ -753,7 +753,7 @@ const keyOf = cells => cells.map(t => (t ? (t.lock ? 'x' : t.v) : 0)).join(',');
 
 // n columns by h rows; cells run row by row. locks cells are boxed up first and
 // never take part, so the replayed solution still works around them.
-// extra = { cracks, grumpy, cushions }: how many of each to add once the board is built.
+// extra = { cracks, grumpy, cushions, arrivals, big }: how many of each to add; big is a list of tile sizes to build first, e.g. [8, 8].
 function generate(n, target, rand = Math.random, h = n, locks = 0, extra = {}) {
   let best = null;
   for (let attempt = 0; attempt < 200; attempt++) {
@@ -762,6 +762,7 @@ function generate(n, target, rand = Math.random, h = n, locks = 0, extra = {}) {
     for (const i of locked) v[i] = 0;
     const merges = [];
     let tiles = n * h - locked.length;
+    for (const size of extra.big || []) if (growBig(v, n, h, size, rand, merges)) tiles -= size - 1;
     while (tiles > target) {
       const pairs = [];
       for (let i = 0; i < n * h; i++) {
@@ -807,6 +808,37 @@ function generate(n, target, rand = Math.random, h = n, locks = 0, extra = {}) {
   }
 
   return { n, h, cells, solution, path, tiles: best.tiles, ...(arrivals.length ? { arrivals } : {}) };
+}
+
+// Build one tile of `size` (8 or 16) from free 1-cells: split it in two, then split each half,
+// claiming a free neighbour per split. Claimed cells end up empty. Merges are pushed in forward order.
+function growBig(v, n, h, size, rand, merges) {
+  for (let tries = 0; tries < 40; tries++) {
+    const free = [];
+    for (let i = 0; i < n * h; i++) if (v[i] === 1) free.push(i);
+    if (!free.length) return false;
+    const root = free[Math.floor(rand() * free.length)];
+    const claimed = new Set([root]), made = [];
+    const build = (cell, s) => {
+      if (s === 1) return true;
+      const opts = [];
+      for (const j of [cell % n ? cell - 1 : -1, cell % n < n - 1 ? cell + 1 : -1, cell - n, cell + n]) {
+        if (j >= 0 && j < n * h && v[j] === 1 && !claimed.has(j)) opts.push(j);
+      }
+      if (!opts.length) return false;
+      const j = opts[Math.floor(rand() * opts.length)];
+      claimed.add(j);
+      if (!build(cell, s / 2) || !build(j, s / 2)) return false;
+      made.push({ keep: cell, gone: j });
+      return true;
+    };
+    if (!build(root, size)) continue;
+    for (const i of claimed) v[i] = 0;
+    v[root] = size;
+    merges.push(...made);
+    return true;
+  }
+  return false;
 }
 
 // Pick final fights to hold back as mid-stage arrivals. A fight is a final tile made by
