@@ -260,8 +260,8 @@ function run(g, { introS = {}, seed = L.SEED, stages: pre } = {}) {
   // M15
   {
     const h = MODES.map(m => cum[m][99] / 3600);
-    rows.push(row('M15', 'Loop length', inBand(h[0], [2.5, 4]) && inBand(h[1], [3, 5]),
-      MODES.map((m, i) => `${NAME[m]} ${h[i].toFixed(1)} h`).join('; '), 'Casual 2.5-4 h, Normal 3-5 h'));
+    rows.push(row('M15', 'Loop length', inBand(h[0], [1.5, 2.5]) && inBand(h[1], [2, 3]),
+      MODES.map((m, i) => `${NAME[m]} ${h[i].toFixed(1)} h`).join('; '), 'Casual 1.5-2.5 h, Normal 2-3 h'));
   }
   // M16
   {
