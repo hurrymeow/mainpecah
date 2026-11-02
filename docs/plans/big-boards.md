@@ -65,6 +65,7 @@ Order matters: T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9. Execu
 - Exact changes: every bot applies arrivals in its playthrough, using the same rule as the game. The time model counts arrival kittens' swipes.
 - Done when: `npm run scorecard` runs end to end; rows other than S1, M10, M12, M15 and M20 keep their current state.
 - Don't touch: `index.html`.
+- Call (2026-11-02, Hari away): the executor may only run `node test/selftest.cjs` and `node test/e2e.cjs`, so it cannot run the scorecard. Done-check for the executor run: both pass and `node -e "require('./tools/scorecard/lib.cjs')"` is not allowed either, so read the code carefully instead. The executor thread runs `npm run scorecard` after merge and fixes breakage in a follow-up. Use `applyArrivals` and the `arrivals` array exactly as `index.html` does in `landArrivals` (net splits `at`, wait if the landing cell is taken).
 
 ### T6. Brainy metric and row (Sonnet, executor trial)
 - Files: `tools/scorecard/lib.cjs`, `tools/scorecard/checks-model.cjs`, `tools/scorecard/fair-picks.cjs`, `GAME-DESIGN.md`
