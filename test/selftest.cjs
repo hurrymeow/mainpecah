@@ -10,4 +10,5 @@ for (const [n, x] of Object.entries(r)) {
   console.log(`${n}x${n}: sum ${x.sum}/${x.boards}, max<=16 ${x.cap}/${x.boards}, solution reaches all-1s ${x.solved}/${x.boards} (hit exact tile target ${x.hitTarget}/${x.boards})`);
   if (x.sum !== x.boards || x.cap !== x.boards || x.solved !== x.boards) fail = true;
 }
+if (mod.exports.ARRIVALS_FROM !== 46) { console.log('ARRIVALS_FROM should be 46'); fail = true; }
 process.exit(fail ? 1 : 0);
