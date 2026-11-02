@@ -24,6 +24,14 @@ for (const [sizes, want] of [[[8], 8], [[16], 16], [[8, 8], 8]]) {
 // Every stage must replay its recorded solution, landing arrivals at their net split count.
 let boardsFail = false;
 for (const mode of ['casual', 'challenge']) {
+  for (let k = mod.exports.ARRIVALS_FROM + 1; k < mod.exports.STAGES.length; k++) {
+    const b = mod.exports.stageBoard(mode, k);
+    const vals = b.cells.map(t => (t ? t.v : 0)).concat((b.arrivals || []).map(a => a.v));
+    const want = k % 20 === 19 && mode !== 'casual' ? 16 : 8;
+    if (!vals.some(v => v >= want)) { console.log(`${mode} stage ${k + 1}: no tile of ${want} or more`); boardsFail = true; }
+  }
+}
+for (const mode of ['casual', 'challenge']) {
   for (let k = 0; k < mod.exports.STAGES.length; k++) {
     const b = mod.exports.stageBoard(mode, k), ar = b.arrivals || [];
     if (k < mod.exports.ARRIVALS_FROM) {

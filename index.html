@@ -1018,7 +1018,8 @@ function stageBoard(mode, k) {
     const [n, h, normal, , ladderLocks] = STAGES[Math.min(j, STAGES.length - 1)];
     const ex = stageExtras(j);
     const locks = ex.locks ?? ladderLocks;
-    const extra = j >= ARRIVALS_FROM ? { ...ex, arrivals: 2 } : ex;
+    const big = j % 20 === 19 && mode !== 'casual' ? [16] : j % 10 === 9 ? [8, 8] : [8]; // big tiles to build first (stages 48+)
+    const extra = j >= ARRIVALS_FROM ? { ...ex, arrivals: 2, big } : ex;
     const target = mode === 'casual' ? CASUAL_TILES[Math.min(j, STAGES.length - 1)] : normal;
     // Take the first new layout that hits the tile target; failing that, the new one closest to it.
     let best = null;
