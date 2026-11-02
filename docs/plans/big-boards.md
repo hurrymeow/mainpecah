@@ -57,6 +57,7 @@ Order matters: T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9. Execu
 - Exact changes: a "Next" chip showing the arriving fight and the splits left, in thumb reach (S5, UI.md). The landing cell is outlined. A clear waiting state when the cell is taken. Drop animation and sound. Authored teach board for stage 47 where filling the marked cell fails (M8).
 - Done when: e2e passes; screenshot of stage 47 posted before shipping; ui-check passes.
 - Don't touch: generator logic beyond the teach board, scorecard.
+- Call (2026-11-02, Hari away): the executor cannot take screenshots or run ui-check, so for the executor run the done-check is `node test/selftest.cjs` and `node test/e2e.cjs` passing with a new e2e test that stage 47 shows the Next chip and an outlined landing cell, and shows the waiting state when the cell is taken. The executor thread takes the screenshot and runs ui-check after merge. Chip placement: above the board, left aligned, under the header, so it sits in thumb reach on a phone (S5). Teach board for stage 47: pick the simplest authored board where the first arrival's marked cell is empty at the start and filling it makes the stage unwinnable; if none is found by reading how `TEACH` entries are built, skip the teach board and say so in the report summary.
 
 ### T5. Scorecard bots play arrivals (Sonnet, executor trial)
 - Files: `tools/scorecard/lib.cjs`, `tools/scorecard/checks-model.cjs`
