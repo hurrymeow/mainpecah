@@ -74,6 +74,7 @@ Order matters: T1 → T2 → T3 → T4 → T5 → T6 → T7 → T8 → T9. Execu
 - Done when: the row reports for both modes in under about 2 min; GAME-DESIGN.md records the threshold and the calibration numbers.
 - Don't touch: `index.html`.
 - Call (2026-11-02, Hari away): (1) A dead end means no win is reachable by a bounded, node-capped split-only search from the board after the sensible split (same idea as M13's `reachable`). Rejoin does not count as recovery, so recoverable wrong splits are not traps. (2) Keep the two-command limit. Implement the metric, the row (target at least 30% on stages 47+), and the fair-picks and M10 changes with that proposed target. Do not run the scorecard. The executor thread runs `npm run scorecard` after merge, records the calibration numbers in GAME-DESIGN.md and adjusts the target if the real numbers need it.
+- Call (2026-11-02, after two executor attempts, finished by the executor thread): the delayed-trap share measured 79-82% on today's boards, so it cannot shape M10 or fair-picks. M10 and fair-picks keep wrong options per swipe. The share ships as row M22 only (floor 30% on stages 47+), with calibration recorded in GAME-DESIGN.md. T8 does not need to use it.
 
 ### T7. How to play page for arrivals (Haiku)
 - Files: `index.html`
