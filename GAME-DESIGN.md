@@ -134,7 +134,7 @@ Most items below follow from one idea. Every second this player spends confused,
 - Looks like: Royal Kingdom keeps "a Hard and Super Hard level every 10 levels", followed by easier ones (third-party analysis). Royal Match adds a bonus level about every 10 (same source).
 - Quote: Hayashida's steps: "the stage will offer you a slightly more complicated scenario", then "something crazy happens".
 - Why: steady difficulty is either boring or tiring, never both satisfying. A peak gives a win that feels earned. The dip after it lets the player feel how much better they got.
-- Test: solver difficulty rises inside each 10-stage band, then drops **10–40%** at the next band start.
+- Test: solver difficulty (the M22 delayed-trap share) rises inside each 10-stage band, then drops **10–40%** at the next band start.
 
 **M12. Fair fuse.**
 
@@ -202,6 +202,12 @@ Most items below follow from one idea. Every second this player spends confused,
 - S2 finding (2026-11-01), now retired: S2 could not pass with this difficulty measure. Wrong turns per swipe rises with board length, so the hardest stages are always long. The rookie bot loses on every stage from 4 on, so loss rate carries no signal either. S2 needs a different definition, see the thread.
 - Fuse sizing (2026-11-01): from stage 22 Normal uses the focus rule (Hari). Only fights within 2 cells of the last swipe burn; the rest wait with a dim bar. Each fuse is the shortest a player at 1/1.5 of the modeled pace clears, rounded up to 5 s, capped at **60 s**. The dawdler then loses only where the cap binds.
 - Known exploit: a player can freeze a fight by keeping their swipes more than 2 cells away from it. Rejoining still cannot refill a fuse, and every fight must be reached to win, so the freeze only defers the pressure.
+
+**M22. Wrong turns look right for a while.**
+
+- Why: on a big board the old measure (wrong options on offer per swipe) rose with the number of tiles, so a stage scored "hard" even when every wrong move was obviously bad. What makes a choice worth thinking about is a wrong turn that still looks playable: the board stays alive for several swipes, then the line dies.
+- Test: on stages **47–100**, **at least 30%** of solution swipes offer a sensible-looking split that leaves **3 or more** further split swipes of play, yet no win is reachable by a bounded split-only search (4 further swipes, 16 nodes, no rejoins). Rejoining does not count as recovery, so a split that only wins after a rejoin is a trap.
+- Calibration (2026-11-02): the executor cannot run `npm run scorecard` (two-command limit), so the measured 47–100 shares and any adjustment to the 30% target are recorded here by the executor thread after merge. The row is M22 in `tools/scorecard/checks-model.cjs`; M10 and `tools/scorecard/fair-picks.cjs` use the same share instead of wrong options per swipe.
 
 **M21. Past 100 stays sound.**
 

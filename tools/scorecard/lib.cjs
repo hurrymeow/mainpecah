@@ -179,6 +179,88 @@ function urgentBuilder(g, board) {
   };
 }
 
+// Bounded split-only look-ahead from one state. Rejoins are never taken, so a branch that
+// needs one to win counts as dead. Splits only add tiles, so the walk cannot cycle and the
+// depth and node caps are enough: no state table is needed. Returns whether a win was found,
+// and how many further split swipes the longest line played (deepest >= 3 = delayed).
+function splitOnlyLook(g, cells, n, splits, queue, arrivals, { depth = 4, nodeCap = 16 } = {}) {
+  let won = false, deepest = 0, nodes = 0;
+  const done = () => won || nodes >= nodeCap;
+  const go = (cur, sp, q, d) => {
+    if (d > deepest) deepest = d;
+    if (q >= arrivals.length && g.isWin(cur, n)) { won = true; return; }
+    if (d >= depth || nodes >= nodeCap) return;
+    nodes++;
+    for (let i = 0; i < cur.length; i++) {
+      if (done()) return;
+      const t = cur[i];
+      if (!t || t.lock || t.v < 2) continue;
+      for (const dir of Object.keys(g.DIRS)) {
+        if (done()) return;
+        if (g.splitTarget(cur, n, i, dir) < 0) continue;
+        const next = g.applySplit(cur, n, i, dir);
+        if (!next) continue;
+        const r = landDue(g, next, sp + 1, q, arrivals);
+        go(r.cells, sp + 1, r.queue, d + 1);
+      }
+    }
+  };
+  go(cells, splits, queue, 0);
+  return { won, deepest };
+}
+
+// The remaining recorded solution, replayed with splits only. Used as a cheap recovery
+// check so a wrong split that still follows the authored route is not called a trap.
+function followsSolution(g, cells, n, splits, queue, steps, arrivals) {
+  let cur = cells, sp = splits, q = queue;
+  for (const st of steps) {
+    if (st.join) return false; // rejoining is not recovery (T6 call)
+    cur = g.applySplit(cur, n, st.from, st.dir);
+    if (!cur) return false;
+    sp++;
+    const r = landDue(g, cur, sp, q, arrivals);
+    cur = r.cells; q = r.queue;
+  }
+  return q >= arrivals.length && g.isWin(cur, n);
+}
+
+// Share of solution swipes with at least one sensible-looking wrong split that is a
+// delayed trap: the board still plays for 3+ split swipes, yet a bounded split-only
+// search finds no win. Rejoining does not count as a way out (T6 call, 2026-11-02).
+function brainyShare(g, board, opts = {}) {
+  const n = board.n, arrivals = board.arrivals || [], steps = board.solution || [];
+  const { depth = 4, nodeCap = 16, stride = 1 } = opts;
+  let sampled = 0, hits = 0, cur = board.cells, splits = 0, queue = 0;
+  for (let si = 0; si < steps.length; si++) {
+    const step = steps[si];
+    if (stride < 2 || si % stride === 0) {
+      sampled++;
+      let trapped = false;
+      for (let i = 0; i < cur.length && !trapped; i++) {
+        const t = cur[i];
+        if (!t || t.lock || t.v < 2) continue;
+        for (const dir of Object.keys(g.DIRS)) {
+          if (!step.join && i === step.from && dir === step.dir) continue; // the solution's own swipe
+          if (g.splitTarget(cur, n, i, dir) < 0) continue;
+          const next = g.applySplit(cur, n, i, dir);
+          if (!next) continue;
+          const r = landDue(g, next, splits + 1, queue, arrivals);
+          const look = splitOnlyLook(g, r.cells, n, splits + 1, r.queue, arrivals, { depth, nodeCap });
+          if (look.won || look.deepest < 3) continue;
+          if (followsSolution(g, r.cells, n, splits + 1, r.queue, steps.slice(si + 1), arrivals)) continue;
+          trapped = true; break;
+        }
+      }
+      if (trapped) hits++;
+    }
+    cur = g.applyStep(cur, n, step);
+    if (!cur) break;
+    if (step.join) splits = Math.max(0, splits - 1);
+    else { splits++; const r = landDue(g, cur, splits, queue, arrivals); cur = r.cells; queue = r.queue; }
+  }
+  return sampled ? hits / sampled : 0;
+}
+
 // Rookie: random split with a one-move lookahead (avoids moves that leave the board stuck), taps Restart when none is safe.
 // Under fuses it takes a fight whose bar is nearly out.
 function rookie(g, rand) {
@@ -207,25 +289,17 @@ function builderStage(g, mode, k) {
   const fused = fs_ ? play(g, board, { fuseS: fs_, chooser: urgentBuilder(g, board), focus }) : null;
   const dawdled = fs_ ? play(g, board, { fuseS: fs_, chooser: urgentBuilder(g, board), slow: DAWDLER_SLOW, focus }) : null;
   const run = free; // progress time ignores fuse deaths; survival is reported on its own
-  // Difficulty: average legal options per solution swipe, minus the one the solution takes
-  // (wrong turns on offer per move). Cheap on 7x8; a stand-in for dead-end branches.
-  const arrivals = board.arrivals || [];
-  let cur = board.cells, wrong = 0, splits = 0, queue = 0;
-  for (const s of board.solution) {
-    wrong += legalSteps(g, cur, board.n).filter(x => !x.join).length - 1;
-    cur = g.applyStep(cur, board.n, s);
-    if (s.join) splits = Math.max(0, splits - 1);
-    else { splits++; const r = landDue(g, cur, splits, queue, arrivals); cur = r.cells; queue = r.queue; }
-  }
+  // Difficulty: share of solution swipes with a delayed-trap split. The old wrong-options
+  // count rose with board size, so big boards scored "hard" even when every wrong move was obvious.
   return {
     k, mode, board, steps: run.steps, seconds: run.t, won: free.won,
     survives: fused ? fused.won : true,
     dawdlerSurvives: dawdled ? dawdled.won : true,
-    difficulty: board.solution.length ? wrong / board.solution.length : 0,
+    brainy: k < 100 ? brainyShare(g, board) : null,
   };
 }
 
 // Words in a string, as the player would read them.
 const wordCount = s => (s.match(/[A-Za-z0-9'’%.:×›-]+/g) || []).filter(w => /[A-Za-z0-9]/.test(w)).length;
 
-module.exports = { DAWDLER_SLOW, urgentBuilder, ROOT, SEED, SWIPE_S, OPTION_S, WORDS_PER_S, TAP_S, loadGame, rng, legalSteps, optionCount, stepCost, fuseSecondsFor, landDue, play, builder, rookie, builderStage, wordCount };
+module.exports = { DAWDLER_SLOW, urgentBuilder, ROOT, SEED, SWIPE_S, OPTION_S, WORDS_PER_S, TAP_S, loadGame, rng, legalSteps, optionCount, stepCost, fuseSecondsFor, landDue, play, builder, rookie, builderStage, brainyShare, wordCount };
