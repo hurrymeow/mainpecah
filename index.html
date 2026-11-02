@@ -684,7 +684,7 @@ function ramp(w, h, count, [t0, t1], [f0, f1] = [0, 0], [l0, l1] = [0, 0]) {
 // leave time to reach each one. Each value is the shortest fuse a player at 1/1.5 of the modeled pace clears the stage with,
 // rounded up to 5 s, never below the ladder ramp and never above 60 s.
 // Made by tools/scorecard/fuse-table.cjs. Rerun it after any change to the stage boards.
-const FUSE_SECONDS = [30, 30, 30, 45, 50, 50, 50, 60, 60, 60, 50, 60, 60, 60, 20, 60, 60, 60, 60, 60, 60, 45, 40, 40, 45, 30, 45, 35, 45, 45, 35, 40, 50, 40, 45, 45, 35, 50, 45, 60, 35, 55, 40, 30, 45, 60, 25, 60, 40, 50, 30, 40, 40, 45, 40, 45, 35, 55, 35, 50, 30, 55, 40, 30, 35, 50, 45, 50, 40, 45, 25, 45, 25, 55, 30, 40, 35, 60, 45, 60, 25, 35, 20, 35, 35, 45, 35, 35, 35, 35, 25, 30, 35, 35, 30, 55, 40, 25, 45, 30];
+const FUSE_SECONDS = [30, 30, 30, 45, 50, 50, 45, 60, 60, 60, 50, 60, 60, 50, 20, 60, 60, 60, 60, 60, 60, 30, 35, 50, 40, 30, 35, 50, 45, 45, 45, 40, 50, 40, 45, 45, 40, 50, 45, 45, 45, 55, 35, 30, 50, 60, 25, 35, 45, 60, 40, 30, 40, 60, 40, 35, 40, 60, 60, 45, 50, 25, 50, 55, 35, 35, 35, 45, 35, 60, 30, 25, 30, 40, 20, 45, 60, 35, 25, 30, 40, 30, 35, 30, 25, 55, 50, 40, 45, 35, 20, 25, 40, 45, 20, 30, 35, 25, 55, 45];
 const LADDER = [ // the ramps, with the old fuse column
   [4, 4, 10, 30, 0], [4, 4, 9, 30, 0], [4, 4, 8, 30, 0],
   ...ramp(4, 5, 4, [5, 4], [25, 20]), // 4x5 from stage 4: a 4x4 board cannot hold more than 13 splits (S1, M5)
@@ -699,17 +699,17 @@ const LADDER = [ // the ramps, with the old fuse column
 // The peak itself grows with the stage, up to what the board holds. Fewer tiles means more splits.
 const MIN_TILES = { '4x5': 4, '5x5': 7, '5x6': 8, '6x6': 10, '6x7': 12, '7x7': 14, '7x8': 16 };
 // From stage 51 the peak steps fall band by band to about 18 (arrivals included) so stages get shorter without a cliff at the band start (M10).
-const PEAK_STEPS = k => (k >= 50 ? [25, 22, 20, 18, 18][Math.min(4, Math.floor((k - 50) / 10))] : Math.min(31, Math.round(15 + 0.38 * k)));
+const PEAK_STEPS = k => (k >= 50 ? [30, 27, 25, 23, 23][Math.min(4, Math.floor((k - 50) / 10))] : Math.min(31, Math.round(15 + 0.38 * k)));
 LADDER.forEach((st, k) => {
   if (k < 3) return;
   const grew = k % 10 === 0 && (LADDER[k - 1][0] !== st[0] || LADDER[k - 1][1] !== st[1]); // a bigger board offers more moves for the same splits, so start it lower
-  const steps = Math.round(PEAK_STEPS(k) * (0.76 + 0.24 * (k % 10) / 9) * (grew ? 0.85 : 1));
+  const steps = Math.round(PEAK_STEPS(k) * ((k >= 60 ? 0.88 : 0.76) + (k >= 60 ? 0.12 : 0.24) * (k % 10) / 9) * (grew ? 0.85 : 1));
   st[2] = Math.max(MIN_TILES[st[0] + 'x' + st[1]], st[0] * st[1] - st[4] - steps);
 });
 const STAGES = LADDER.map((st, i) => [st[0], st[1], st[2], FUSE_SECONDS[i], st[4]]);
 // Casual has no fuse. Its starting tiles are a table made by tools/scorecard/tile-table.cjs: from stage 11 it has
 // about 1/1.3 of the splits a Normal stage has, so Normal runs 1.2-1.6x as long (M20). Rerun it after any change to the Normal tiles.
-const CASUAL_TILES = [10, 8, 7, 7, 5, 5, 4, 8, 10, 10, 13, 12, 12, 10, 12, 12, 11, 11, 15, 15, 19, 17, 16, 15, 14, 22, 14, 13, 13, 13, 24, 20, 19, 17, 17, 16, 16, 16, 21, 19, 24, 23, 22, 33, 19, 19, 38, 26, 25, 24, 34, 33, 33, 32, 32, 31, 30, 29, 29, 28, 35, 35, 34, 34, 33, 32, 32, 31, 31, 31, 36, 36, 36, 34, 34, 33, 33, 32, 32, 31, 36, 36, 35, 35, 35, 36, 34, 34, 33, 33, 36, 35, 34, 34, 34, 34, 33, 33, 32, 32];
+const CASUAL_TILES = [10, 8, 7, 7, 5, 5, 4, 8, 10, 10, 13, 12, 12, 10, 12, 12, 11, 11, 15, 15, 19, 17, 16, 15, 14, 22, 14, 13, 13, 13, 24, 20, 19, 17, 17, 16, 16, 16, 21, 19, 24, 23, 22, 33, 19, 19, 38, 26, 25, 24, 31, 30, 30, 29, 28, 26, 26, 26, 25, 24, 29, 29, 29, 28, 28, 27, 27, 27, 26, 26, 31, 31, 30, 29, 29, 28, 28, 28, 27, 27, 31, 30, 30, 30, 30, 31, 30, 30, 29, 29, 31, 29, 29, 29, 29, 29, 29, 29, 28, 28];
 const DIRS = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] };
 const ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
 
@@ -762,7 +762,9 @@ function generate(n, target, rand = Math.random, h = n, locks = 0, extra = {}) {
     for (const i of locked) v[i] = 0;
     const merges = [];
     let tiles = n * h - locked.length;
-    for (const size of extra.big || []) if (growBig(v, n, h, size, rand, merges)) tiles -= size - 1;
+    let built = true; // a board that cannot hold its big tiles is thrown away and tried again
+    for (const size of extra.big || []) { if (growBig(v, n, h, size, rand, merges)) tiles -= size - 1; else built = false; }
+    if (!built) continue;
     while (tiles > target) {
       const pairs = [];
       for (let i = 0; i < n * h; i++) {
@@ -1009,7 +1011,7 @@ function teachBoard({ n, h, layout, solution, floor = {}, grumpy = [], arrivals 
 
 // Which generator attempt a stage uses (0-based stage -> attempt), per mode. Stages 1-3 come from tools/scorecard/early-picks.cjs (first-time player wins).
 // Normal stages 22-100 (on even stages) come from tools/scorecard/fair-picks.cjs (the fuse a slow player needs stays short).
-const EARLY_PICK = { casual: { 0: 1, 1: 2, 2: 1, 3: 8, 4: 16, 5: 9, 6: 2, 7: 4, 8: 6, 9: 1, 10: 19, 11: 8, 12: 10, 13: 14, 15: 8, 16: 11, 17: 10, 18: 4, 19: 14, 20: 18, 21: 8, 22: 1, 23: 2, 24: 19, 26: 5, 27: 2, 28: 6, 29: 6, 30: 14, 31: 0, 32: 0, 33: 19, 34: 18, 35: 5, 36: 17, 37: 4, 38: 4, 39: 6, 40: 17, 41: 17, 42: 16, 44: 17, 45: 15, 47: 3, 48: 15, 49: 2, 50: 16, 51: 12, 52: 5, 53: 9, 54: 7, 55: 13, 56: 7, 57: 8, 58: 16, 59: 0, 60: 10, 61: 8, 62: 5, 63: 4, 64: 6, 65: 7, 66: 0, 67: 13, 68: 11, 69: 13, 70: 15, 71: 2, 72: 4, 73: 17, 74: 15, 75: 8, 76: 9, 77: 10, 78: 13, 79: 9, 80: 13, 81: 10, 82: 14, 83: 12, 84: 2, 85: 8, 86: 11, 87: 4, 88: 17, 89: 17, 90: 17, 91: 15, 92: 7, 93: 7, 94: 11, 95: 14, 96: 14, 97: 6, 98: 18, 99: 17 }, challenge: { 0: 2, 3: 8, 4: 0, 5: 4, 6: 12, 7: 19, 8: 8, 9: 4, 10: 12, 11: 16, 12: 16, 13: 15, 15: 6, 16: 18, 17: 3, 18: 1, 19: 13, 20: 6, 21: 4, 22: 11, 23: 18, 24: 6, 26: 13, 27: 10, 28: 6, 29: 18, 30: 2, 31: 19, 32: 8, 33: 19, 34: 13, 35: 19, 36: 0, 37: 4, 38: 6, 39: 9, 40: 6, 41: 0, 42: 19, 44: 2, 45: 9, 47: 6, 48: 2, 49: 10, 50: 9, 51: 15, 52: 17, 53: 10, 54: 14, 55: 10, 56: 17, 57: 3, 58: 9, 59: 5, 60: 9, 61: 15, 62: 0, 63: 19, 64: 14, 65: 8, 66: 7, 67: 15, 68: 8, 69: 8, 70: 13, 71: 12, 72: 12, 73: 9, 74: 11, 75: 5, 76: 2, 77: 17, 78: 7, 79: 5, 80: 4, 81: 1, 82: 15, 83: 1, 84: 10, 85: 1, 86: 2, 87: 19, 88: 10, 89: 10, 90: 8, 91: 14, 92: 19, 93: 2, 94: 13, 95: 17, 96: 8, 97: 6, 98: 10, 99: 13 } };
+const EARLY_PICK = { casual: { 0: 1, 1: 2, 2: 1, 3: 41, 4: 16, 5: 28, 6: 2, 7: 4, 8: 6, 9: 1, 10: 21, 11: 44, 12: 10, 13: 40, 15: 8, 16: 42, 17: 22, 18: 4, 19: 50, 20: 56, 21: 8, 22: 51, 23: 28, 24: 19, 26: 27, 27: 2, 28: 6, 29: 6, 30: 46, 31: 0, 32: 0, 33: 19, 34: 45, 35: 23, 36: 17, 37: 49, 38: 4, 39: 20, 40: 25, 41: 25, 42: 57, 44: 21, 45: 23, 47: 54, 48: 48, 49: 24, 50: 4, 51: 1, 52: 19, 53: 16, 54: 49, 55: 18, 56: 37, 57: 54, 58: 53, 59: 17, 60: 26, 61: 29, 62: 44, 63: 53, 64: 18, 65: 56, 66: 10, 67: 33, 68: 7, 69: 41, 70: 57, 71: 41, 72: 9, 73: 47, 74: 23, 75: 28, 76: 11, 77: 47, 78: 8, 79: 53, 80: 2, 81: 23, 82: 13, 83: 31, 84: 21, 85: 50, 86: 19, 87: 42, 88: 53, 89: 20, 90: 57, 91: 45, 92: 14, 93: 55, 94: 27, 95: 3, 96: 54, 97: 2, 98: 17, 99: 21 }, challenge: { 0: 2, 3: 34, 4: 0, 5: 4, 6: 29, 7: 19, 8: 55, 9: 4, 10: 12, 11: 49, 12: 20, 13: 31, 15: 33, 16: 52, 17: 28, 18: 26, 19: 25, 20: 44, 21: 31, 22: 25, 23: 28, 24: 52, 26: 32, 27: 25, 28: 6, 29: 18, 30: 39, 31: 25, 32: 8, 33: 19, 34: 13, 35: 19, 36: 25, 37: 26, 38: 6, 39: 48, 40: 40, 41: 0, 42: 20, 44: 46, 45: 9, 47: 6, 48: 2, 49: 41, 50: 5, 51: 0, 52: 13, 53: 11, 54: 19, 55: 30, 56: 33, 57: 0, 58: 58, 59: 15, 60: 15, 61: 49, 62: 31, 63: 47, 64: 1, 65: 41, 66: 34, 67: 56, 68: 43, 69: 7, 70: 12, 71: 16, 72: 17, 73: 40, 74: 7, 75: 0, 76: 54, 77: 26, 78: 17, 79: 3, 80: 55, 81: 10, 82: 22, 83: 3, 84: 31, 85: 11, 86: 2, 87: 18, 88: 14, 89: 36, 90: 51, 91: 7, 92: 7, 93: 23, 94: 31, 95: 16, 96: 30, 97: 9, 98: 4, 99: 40 } };
 const stageBoards = { casual: [], challenge: [] };
 function stageBoard(mode, k) {
   const list = stageBoards[mode], seen = new Set(list.map(b => shapeKey(b.n, b.cells, b.arrivals)));
@@ -1018,7 +1020,8 @@ function stageBoard(mode, k) {
     const [n, h, normal, , ladderLocks] = STAGES[Math.min(j, STAGES.length - 1)];
     const ex = stageExtras(j);
     const locks = ex.locks ?? ladderLocks;
-    const extra = j >= ARRIVALS_FROM ? { ...ex, arrivals: 2 } : ex;
+    const big = [8]; // one 8 built first on every stage from 48
+    const extra = j >= ARRIVALS_FROM ? { ...ex, arrivals: 2, big } : ex;
     const target = mode === 'casual' ? CASUAL_TILES[Math.min(j, STAGES.length - 1)] : normal;
     // Take the first new layout that hits the tile target; failing that, the new one closest to it.
     let best = null;
@@ -1027,14 +1030,14 @@ function stageBoard(mode, k) {
     for (let attempt = picked != null ? picked : 0; attempt < (picked != null ? picked + 1 : 20); attempt++) {
       const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks, extra);
       const key = shapeKey(n, b.cells, b.arrivals);
-      if (seen.has(key) || (best && b.tiles >= best.b.tiles)) continue;
+      if (seen.has(key) || (extra.arrivals && !b.arrivals) || (best && b.tiles >= best.b.tiles)) continue;
       best = { b, key };
       if (b.tiles <= target) break;
     }
     if (!best) for (let attempt = 0; attempt < 20; attempt++) { // a pick that repeats an earlier layout falls back to the normal search
       const b = generate(n, target, seeded((mode === 'casual' ? 1e6 : 2e6) + j * 1000 + attempt), h, locks, extra);
       const key = shapeKey(n, b.cells, b.arrivals);
-      if (seen.has(key) || (best && b.tiles >= best.b.tiles)) continue;
+      if (seen.has(key) || (extra.arrivals && !b.arrivals) || (best && b.tiles >= best.b.tiles)) continue;
       best = { b, key };
       if (b.tiles <= target) break;
     }
