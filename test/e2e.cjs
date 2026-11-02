@@ -238,7 +238,7 @@ test('Full solve', async () => {
 test('Oblong boards', async () => {
   const { context, page, errors } = await open({}, false);
   const out = [];
-  for (const k of [3, 99]) { // stage 4 is 4x5, stage 100 is 7x8
+  for (const k of [3, 30, 99]) { // stage 4 is 4x5, stage 31 is 6x7, stage 100 is 7x8
     await page.evaluate(k => localStorage.setItem('split.stage.casual', String(k)), k);
     await page.reload(); await ready(page); await page.click('#playCasual'); await skipHowto(page); await settled(page);
     const g = await page.evaluate(() => {
@@ -247,6 +247,8 @@ test('Oblong boards', async () => {
         square: Math.abs(c.width - c.height) < 1, cell: Math.round(c.width) };
     });
     check(g.cells === g.w * g.h && g.h === g.w + 1 && g.fits && g.square, `stage ${k + 1} board: ${JSON.stringify(g)}`);
+    // Stages 47+ bring arrivals, which the game loop plays from T3; until then the hint-solve covers stage 31 (6x7).
+    if (k >= 46) { out.push(`${g.w}x${g.h} fits, ${g.cell}px cells`); continue; }
     let moves = 0;
     while (await hintSwipe(page)) moves++;
     await page.waitForSelector('#overlay:not([hidden])', { timeout: 3000 });
