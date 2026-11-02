@@ -1,0 +1,3 @@
+# Big boards T3 — game-loop arrivals
+
+The game loop now tracks the net split counter (`S.splits`) and the arrival queue index (`S.queue`). After every split the due arrival lands if its cell is free; otherwise it waits and blocks the fights behind it. A rejoin gives a split back but leaves landed fights landed, a win needs the queue empty, save/restore carries both numbers (so an interruption keeps the queue), restart zeroes them, and a fight that lands in Normal gets a fresh fuse. The restore sum check now adds each landed fight's value, because arrivals add tiles instead of only splitting them.
