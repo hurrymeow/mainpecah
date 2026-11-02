@@ -258,6 +258,36 @@ test('Oblong boards', async () => {
   return out.join('; ');
 });
 
+test('Next chip', async () => {
+  // Stage 47 shows the Next chip above the board and outlines the landing cell; a taken cell shows the waiting state.
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.addInitScript(() => { try { localStorage.setItem('split.stage.challenge', '46'); } catch (e) {} });
+  await page.goto(URL.replace('?dev', ''));
+  await ready(page);
+  await page.click('#playChallenge');
+  await skipHowto(page);
+  const st = () => page.evaluate(() => {
+    const chip = document.getElementById('nextChip'), a = S.board.arrivals[S.queue];
+    const cell = a && document.querySelector('#board .cell[data-i="' + a.cell + '"]');
+    return { hidden: chip.hidden, vis: getComputedStyle(chip).visibility, text: document.getElementById('nextChipText').textContent,
+      outlined: !!cell && cell.classList.contains('next-dst'), waiting: !!cell && cell.classList.contains('waiting'),
+      chipBottom: chip.getBoundingClientRect().bottom, boardTop: document.getElementById('board').getBoundingClientRect().top };
+  });
+  const a = await st();
+  check(!a.hidden && a.vis === 'visible' && /split/.test(a.text), `stage 47 must show the Next chip with splits left: ${JSON.stringify(a)}`);
+  check(a.outlined && !a.waiting, `the landing cell must be outlined and free at the start: ${JSON.stringify(a)}`);
+  check(a.chipBottom <= a.boardTop, 'the Next chip must sit above the board');
+  await page.evaluate(() => { const c = S.board.arrivals[S.queue].cell; S.cells[c] = { v: 1, c: 99 }; __render(); });
+  const b = await st();
+  check(b.waiting && /waiting/.test(b.text), `a taken landing cell must show the waiting state: ${JSON.stringify(b)}`);
+  check(!errors.length, errors.join(' | '));
+  await context.close();
+  return 'stage 47 shows the Next chip above the board, outlines the landing cell and shows waiting when it is taken';
+});
+
 test('Arrivals survive a kill', async () => {
   // Normal stage 47 (a 7x8 board with arrivals): play the recorded solution until a fight
   // lands, kill the app, and come back. The split counter and the queue index must return (S3).

@@ -68,6 +68,17 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 .seg button.on { background: var(--line); color: var(--text); font-weight: 650; }
 /* Plain info above the board: where you are, then what to do. Not controls. */
 #brief { display: grid; gap: 2px; text-align: center; flex: none; }
+/* Next arrival: a compact chip above the board, centred in the brief. */
+#nextChip {
+  justify-self: center; display: flex; align-items: center; gap: var(--s1);
+  min-height: 24px; padding: 0 var(--s2); border-radius: 99px;
+  background: var(--panel); border: 1px solid var(--line);
+  font-size: var(--fs-sm); font-variant-numeric: tabular-nums;
+}
+#nextChip b { color: var(--accent); font-weight: 800; }
+#nextChip.waiting { border-color: var(--warn); }
+#nextChip.waiting b { color: var(--warn); }
+#nextChipText { color: var(--text); }
 .debug .seg, .debug .slider { grid-column: 1 / -1; height: var(--ctl-h); }
 .slider {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3);
@@ -88,6 +99,12 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 }
 .cell { position: relative; border-radius: 10px; background: var(--well); }
 .cell.hint-dst, .cell.hint-from { box-shadow: inset 0 0 0 3px var(--accent); }
+/* The next arrival's landing cell stays outlined; amber and dashed while a tile holds it. */
+.cell.next-dst::after {
+  content: ""; position: absolute; inset: 0; border: 3px solid var(--accent);
+  border-radius: 10px; pointer-events: none; z-index: 2;
+}
+.cell.next-dst.waiting::after { border-color: var(--warn); border-style: dashed; }
 .tile {
   position: absolute; inset: 0; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
@@ -115,6 +132,13 @@ h1 { margin: 0; font-size: var(--fs-xl); font-weight: 800; line-height: 1.1; }
 @keyframes flash {
   0% { filter: brightness(1.9) saturate(1); transform: scale(1.1); }
   100% { filter: saturate(.45) brightness(.88); transform: none; }
+}
+/* An arriving fight drops onto its marked cell. */
+.tile.drop { animation: drop-in .34s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes drop-in {
+  0% { transform: translateY(calc(-1.2 * (var(--cell) + var(--gap)))) scale(.85); opacity: 0; }
+  70% { opacity: 1; }
+  100% { transform: none; opacity: 1; }
 }
 /* Slime skin: the tile square goes transparent and holds a blob sized by value. */
 .tile { background: var(--col); }
@@ -524,6 +548,7 @@ body:not(.dev) .debug .app button { min-height: 44px; }
 
   <div id="stage">
     <div id="brief">
+      <div id="nextChip" hidden><b>Next</b><span id="nextChipText"></span></div>
       <div id="status"></div>
     </div>
     <div id="board"></div>
@@ -909,16 +934,42 @@ const TEACH = {
       ['right', 26], ['down', 37], ['left', 18], ['left', 2], ['up', 14], ['right', 11], ['left', 32], ['left', 34], ['left', 9], ['up', 20], ['right', 23], ['left', 41],
     ].map(([dir, from, join]) => ({ from, dir, join: !!join })),
   },
+  46: { // stage 47: the first arrival. Its cell is cracked, so a kitten that moves in can only leave by rejoining, which breaks the cell and blocks the arrival for good.
+    n: 7, h: 8,
+    layout: [
+      1, 1, 1, 0, 4, 0, 0,
+      1, 1, 1, 0, 0, 0, 0,
+      1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1,
+    ],
+    floor: {5: 'crack'},
+    arrivals: [{ at: 3, cell: 5, v: 4 }],
+    solution: [
+      ['left', 4], ['down', 4], ['down', 3], ['right', 5], ['down', 5], ['down', 6],
+    ].map(([dir, from, join]) => ({ from, dir, join: !!join })),
+  },
 };
-function teachBoard({ n, h, layout, solution, floor = {}, grumpy = [] }) {
+function teachBoard({ n, h, layout, solution, floor = {}, grumpy = [], arrivals = [] }) {
   let colour = 0;
   const cells = layout.map(x => (x < 0 ? LOCK : x ? { v: x, c: colour++ } : null));
   for (const i of grumpy) cells[i].g = true;
   if (Object.keys(floor).length) cells.floor = layout.map((_, i) => floor[i] || null);
-  const path = [keyOf(cells)];
-  let cur = cells;
-  for (const s of solution) { cur = applyStep(cur, n, s); path.push(keyOf(cur)); }
-  return { n, h, cells, solution, path, tiles: colour, teach: true };
+  const path = [arrivals.length ? keyOf(cells) + '|0' : keyOf(cells)];
+  let cur = cells, q = 0;
+  for (let i = 0; i < solution.length; i++) {
+    cur = applyStep(cur, n, solution[i]);
+    while (q < arrivals.length && arrivals[q].at <= i + 1) { // land fights at the same net split count as the game
+      const next = applyArrivals(cur, arrivals.slice(q), i + 1);
+      if (next === cur) break; // landing cell taken: this fight waits
+      cur = next; q++;
+    }
+    path.push(arrivals.length ? keyOf(cur) + '|' + q : keyOf(cur));
+  }
+  return { n, h, cells, solution, path, tiles: colour, teach: true, ...(arrivals.length ? { arrivals } : {}) };
 }
 
 // Which generator attempt a stage uses (0-based stage -> attempt), per mode. Stages 1-3 come from tools/scorecard/early-picks.cjs (first-time player wins).
@@ -1327,6 +1378,8 @@ if (typeof document !== 'undefined') {
     // A hint comes in two taps: the first lights the fight to move, a tap on it then shows the direction.
     const more = !!hint && S.hintMoreFor === keyOf(cells);
     const hintDst = more ? neighbour(n, hint.from, hint.dir, S.h) : -1;
+    const arrive = S.board.arrivals && S.queue < S.board.arrivals.length ? S.board.arrivals[S.queue] : null;
+    const arriveTaken = !!arrive && !!cells[arrive.cell];
     const anim = S.effects || (S.anim && S.anim.boom != null) ? S.anim : null; // the explosion always shows
     const now = performance.now() / 1000;
     const phase = (offset, period) => -((now + offset) % period).toFixed(2) + 's';
@@ -1342,7 +1395,10 @@ if (typeof document !== 'undefined') {
     let html = '';
     for (let i = 0; i < cells.length; i++) {
       let t = cells[i], cls = '', extra = '';
-      if (t && t.lock) { html += `<div class="cell locked" data-i="${i}"><span class="box"></span></div>`; continue; }
+      if (t && t.lock) {
+        const nextCls = arrive && i === arrive.cell ? ` next-dst${arriveTaken ? ' waiting' : ''}` : '';
+        html += `<div class="cell locked${nextCls}" data-i="${i}"><span class="box"></span></div>`; continue;
+      }
       const blinkPeriod = 3.2 + (i * 1.13) % 2.5;
       let style = `;--d:${phase(i * 0.37, 2.6)};--bp:${blinkPeriod.toFixed(2)}s;--bd:${phase(i * 0.71, blinkPeriod)}`;
       if (drag && drag.dest >= 0) {
@@ -1360,6 +1416,7 @@ if (typeof document !== 'undefined') {
         else if (anim.win) { cls += ' cheer'; style += `;--wd:${250 + (Math.floor(i / n) + i % n) * 45}ms`; }
         else if (anim.region === t.c) { cls += ' flash'; style += `;--wd:${200 + wave++ * 50}ms`; }
       }
+      if (anim && anim.drop === i) cls += ' drop';
       if (blocked.has(i) || clash.has(i)) cls += ' blocked upset';
       if (t && t.g) cls += ' grumpy';
       let fuseBar = '';
@@ -1383,7 +1440,8 @@ if (typeof document !== 'undefined') {
       if (more && i === hint.from) extra = `<span class="arrow">${ARROWS[hint.dir]}</span>`;
       const tile = t ? `<div class="tile${cls}" style="${tileVars(t.c, t.v)}${style}">${tileInner(t, i, cls.includes(' pop'), anim && t && i === anim.to && t.v === 1 ? anim.dir : null)}${fuseBar}${extra}</div>`
         : S.skin === 'kittens' ? '<span class="bed"></span>' : '<span class="dot">1</span>';
-      html += `<div class="cell${floor[i] ? ' ' + floor[i] : ''}${i === hintDst ? ' hint-dst' : hint && !more && i === hint.from ? ' hint-from' : ''}" data-i="${i}">${tile}</div>`;
+      const nextCls = arrive && i === arrive.cell ? ` next-dst${arriveTaken ? ' waiting' : ''}` : '';
+      html += `<div class="cell${floor[i] ? ' ' + floor[i] : ''}${i === hintDst ? ' hint-dst' : hint && !more && i === hint.from ? ' hint-from' : ''}${nextCls}" data-i="${i}">${tile}</div>`;
     }
     boardEl.innerHTML = html;
 
@@ -1400,7 +1458,7 @@ if (typeof document !== 'undefined') {
     const start = S.board.cells, startFloor = start.floor || [];
     const tip = [
       ['focus', focusOn() && S.stage === FOCUS_FROM, 'New on Normal: only fights near your last swipe burn. The dim ones wait.'],
-      ['rejoin', S.board.teach, 'Stuck? Swipe a split kitten back onto its twin to rejoin them. This board needs it once.'],
+      ['rejoin', S.board.teach && !S.board.arrivals, 'Stuck? Swipe a split kitten back onto its twin to rejoin them. This board needs it once.'],
       ['cushion', startFloor.includes('cushion'), 'Cushions are slippery. Kittens slide on.'],
       ['grumpy', start.some(t => t && t.g), 'Grumpy kittens from different fights can\'t sleep side by side.'],
       ['crack', startFloor.includes('crack'), 'Cracked cells break when a kitten leaves them.'],
@@ -1411,6 +1469,19 @@ if (typeof document !== 'undefined') {
     });
     if (tip && S.won) try { localStorage.setItem('split.tip.' + tip[0], '1'); } catch (err) {}
     $('quip').textContent = tip ? tip[2] : S.skin === 'kittens' ? QUIPS[(S.stage || 0) % QUIPS.length] : '';
+    // Next chip: the arriving fight and the splits left. The row stays reserved until the stage ends,
+    // so the board never shifts when the last fight lands.
+    const chip = $('nextChip'), chipWasHidden = chip.hidden;
+    chip.hidden = !(S.board.arrivals && S.board.arrivals.length);
+    chip.style.visibility = arrive ? '' : 'hidden';
+    if (arrive) {
+      chip.classList.toggle('waiting', arriveTaken);
+      const left = Math.max(0, arrive.at - S.splits);
+      $('nextChipText').textContent = arriveTaken
+        ? `${arrive.v} · waiting for the free cell`
+        : `${arrive.v} · ${left} split${left === 1 ? '' : 's'} left`;
+    }
+    if (chip.hidden !== chipWasHidden) layout();
     $('time').textContent = fmtTime(S.elapsed);
     $('info').textContent = `${S.board.tiles} tiles · ${S.board.solution.filter(s => !s.join).length} splits`;
     document.querySelectorAll('#sizes button').forEach(b => b.classList.toggle('on', +b.dataset.n === n));
@@ -2032,6 +2103,7 @@ if (typeof document !== 'undefined') {
     if (['kittens', 'slimes', 'numbers'].includes(skin)) { S.skin = skin; $('skin').value = skin; }
   } catch (err) {}
   window.addEventListener('resize', layout);
+  window.__render = render; // test hook: lets e2e redraw after it edits S
   $('sound').addEventListener('toggle', () => { if ($('sound').open) $('settings').open = false; layout(); });
   $('settings').addEventListener('toggle', () => { if ($('settings').open) $('sound').open = false; layout(); }); // the board gives up height to the open panel
 
