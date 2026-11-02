@@ -1,3 +1,0 @@
-# T2 — stages 48-100 ask for big tiles
-
-Applied the two prescribed lines in `stageBoard`: `big` is `[16]` on Normal stages 60/80/100, `[8, 8]` every tenth stage and `[8]` elsewhere, and it is passed to `generate` through `extra` from stage 47 onward; `test/selftest.cjs` gained the matching per-stage check. Stopped because the exact change makes selftest and e2e red: the `EARLY_PICK` attempt wins at challenge stage 80 (k=79, pick 5) has no 16, and the picks at casual stage 90 (k=89, pick 17) and challenge stage 100 (k=99, pick 13) produce no arrivals, so both modes report `missing: 1` in e2e. Fixing those needs an update to `EARLY_PICK` (T3 scope and on T2's don't-touch list) or a change to `stageBoard`/the tests beyond the exact changes.
